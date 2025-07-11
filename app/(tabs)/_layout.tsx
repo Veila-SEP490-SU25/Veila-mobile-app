@@ -1,31 +1,25 @@
 import { Tabs } from "expo-router";
 import React from "react";
-import { Platform } from "react-native";
 
 export default function TabLayout() {
   return (
-    <Tabs
-      screenOptions={{
-        headerShown: false,
-
-        tabBarStyle: Platform.select({
-          ios: {
-            position: "absolute",
-          },
-          default: {},
-        }),
-      }}
-    >
+    <Tabs screenOptions={{}}>
       <Tabs.Screen
-        name="index"
+        name="home"
         options={{
           title: "Home",
         }}
       />
       <Tabs.Screen
-        name="explore"
+        name="notifications"
         options={{
-          title: "Explore",
+          title: "Thông báo",
+        }}
+      />
+      <Tabs.Screen
+        name="account"
+        options={{
+          title: "Tài khoản",
         }}
       />
     </Tabs>

@@ -1,20 +1,24 @@
-import { useFonts } from "expo-font";
+import store from "@/services/store";
 import { Stack } from "expo-router";
-
-import "react-native-reanimated";
+import "nativewind";
+import React from "react";
+import Toast from "react-native-toast-message";
+import { Provider } from "react-redux";
+import "../styles/global.css";
 
 export default function RootLayout() {
-  const [loaded] = useFonts({
-    SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),
-  });
-
-  if (!loaded) {
-    return null;
-  }
-
   return (
-    <Stack>
-      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-    </Stack>
+    <Provider store={store}>
+      <>
+        <Stack>
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen name="not-found" options={{ headerShown: false }} />
+          <Stack.Screen name="index" options={{ headerShown: false }} />
+          <Stack.Screen name="(onboarding)" options={{ headerShown: false }} />
+          <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+        </Stack>
+        <Toast />
+      </>
+    </Provider>
   );
 }
