@@ -2,7 +2,7 @@ import {
   getFromLocalStorage,
   removeFromLocalStorage,
   setToLocalStorage,
-} from "@/utils/local-storage.util";
+} from "../utils/local-storage.util";
 
 export const getAccessToken = () => {
   return getFromLocalStorage<string>("accessToken");

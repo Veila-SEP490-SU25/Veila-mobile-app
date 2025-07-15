@@ -1,5 +1,3 @@
-import Constants from "expo-constants";
-
 export const getFirebaseConfig = () => {
   const apiKey = process.env.EXPO_PUBLIC_FIREBASE_API_KEY;
   const authDomain = process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN;
@@ -34,7 +32,7 @@ export const getFirebaseConfig = () => {
 };
 
 export const getVeilaServerConfig = (): string => {
-  const apiUrl = Constants.expoConfig?.extra?.EXPO_PUBLIC_API_URL;
+  const apiUrl = process.env.EXPO_PUBLIC_API_URL;
 
   if (!apiUrl) {
     throw new Error("Missing Veila server API URL in environment variables");

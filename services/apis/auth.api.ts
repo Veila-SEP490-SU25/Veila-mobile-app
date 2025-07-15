@@ -1,4 +1,5 @@
-import { baseQueryWithRefresh } from "@/services/apis/base.query";
+import { createApi } from "@reduxjs/toolkit/query/react";
+import { baseQueryWithRefresh } from "../../services/apis/base.query";
 import {
   IItemResponse,
   ILogin,
@@ -7,8 +8,7 @@ import {
   IToken,
   IUser,
   IVerifyOtp,
-} from "@/services/types";
-import { createApi } from "@reduxjs/toolkit/query/react";
+} from "../../services/types";
 
 export const authApi = createApi({
   reducerPath: "authApi",

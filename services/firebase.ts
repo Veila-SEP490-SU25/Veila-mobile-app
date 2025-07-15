@@ -1,4 +1,3 @@
-import { getFirebaseConfig } from "@/utils";
 import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 import { getAnalytics } from "firebase/analytics";
@@ -9,6 +8,7 @@ import {
   signInWithPopup,
   FacebookAuthProvider,
 } from "firebase/auth";
+import { getFirebaseConfig } from "utils";
 
 const getFirebase = () => {
   const firebaseConfig = getFirebaseConfig();

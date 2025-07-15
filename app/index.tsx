@@ -6,10 +6,11 @@ import { StyleSheet, View } from "react-native";
 
 export default function SplashIntroVideo() {
   const videoRef = useRef<Video>(null);
+  const videoSrc = require("../assets/videos/logo.mp4");
 
   useEffect(() => {
     const timeout = setTimeout(() => {
-      router.replace("/(onboarding)/onboarding");
+      router.replace("/_onboarding/onboarding");
     }, 6000);
     return () => clearTimeout(timeout);
   }, []);
@@ -18,7 +19,7 @@ export default function SplashIntroVideo() {
     <View style={styles.container}>
       <Video
         ref={videoRef}
-        source={require("../assets/logo.mp4")}
+        source={videoSrc}
         style={styles.video}
         resizeMode={ResizeMode.COVER}
         shouldPlay
@@ -26,7 +27,7 @@ export default function SplashIntroVideo() {
         onPlaybackStatusUpdate={(status: AVPlaybackStatus) => {
           if (!status.isLoaded) return;
           if (status.didJustFinish) {
-            router.replace("/(onboarding)/onboarding");
+            router.replace("/_onboarding/onboarding");
           }
         }}
       />
@@ -37,6 +38,7 @@ export default function SplashIntroVideo() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: "white",
   },
   video: {
     width: "100%",

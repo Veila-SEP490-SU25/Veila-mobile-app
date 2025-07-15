@@ -1,5 +1,5 @@
-import { slides } from "@/constants/slide";
-import { Slide } from "@/types/slide";
+import { slides } from "../../constants/slide";
+import { Slide } from "../../types/slide";
 import { router } from "expo-router";
 import React, { useRef, useState } from "react";
 import {
@@ -13,7 +13,7 @@ import {
 
 const { width, height } = Dimensions.get("window");
 
-export default function OnboardingScreen() {
+export default function Onboarding() {
   const [currentStep, setCurrentStep] = useState(0);
   const flatListRef = useRef<FlatList<Slide>>(null);
 
@@ -23,7 +23,7 @@ export default function OnboardingScreen() {
   };
 
   const handleDone = () => {
-    router.replace("/(auth)/login");
+    router.replace("/_auth/login");
   };
 
   return (
