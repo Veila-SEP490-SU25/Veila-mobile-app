@@ -1,19 +1,21 @@
 import { configureStore } from "@reduxjs/toolkit";
-import { setupListeners } from "@reduxjs/toolkit/query";
-import { authApi, slideApi } from "./apis";
+import { authApi } from "./apis/auth.api";
+import { locationApi } from "./apis/location.api";
+import { slideApi } from "./apis/slide.api";
 
-const store = configureStore({
+export const store = configureStore({
   reducer: {
     [authApi.reducerPath]: authApi.reducer,
     [slideApi.reducerPath]: slideApi.reducer,
+    [locationApi.reducerPath]: locationApi.reducer,
   },
   middleware: (getDefaultMiddleware) =>
-    getDefaultMiddleware().concat(authApi.middleware, slideApi.middleware),
+    getDefaultMiddleware().concat(
+      authApi.middleware,
+      slideApi.middleware,
+      locationApi.middleware
+    ),
 });
-
-setupListeners(store.dispatch);
 
 export type RootState = ReturnType<typeof store.getState>;
 export type AppDispatch = typeof store.dispatch;
-
-export default store;

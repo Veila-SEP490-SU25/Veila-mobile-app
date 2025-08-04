@@ -1,37 +1,23 @@
-import { initializeApp } from "firebase/app";
+import Constants from "expo-constants";
+import { getApp, getApps, initializeApp } from "firebase/app";
+import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
-import { getAnalytics } from "firebase/analytics";
 import { getStorage } from "firebase/storage";
-import {
-  getAuth,
-  GoogleAuthProvider,
-  signInWithPopup,
-  FacebookAuthProvider,
-} from "firebase/auth";
-import { getFirebaseConfig } from "utils";
 
-const getFirebase = () => {
-  const firebaseConfig = getFirebaseConfig();
+const extra = Constants.expoConfig?.extra || {};
 
-  const app = initializeApp(firebaseConfig);
-  const auth = getAuth(app);
-  const firestore = getFirestore(app);
-  firestore.app.automaticDataCollectionEnabled = true;
-  const storage = getStorage(app);
-  const analytics = getAnalytics(app);
-  const googleProvider = new GoogleAuthProvider();
-  const facebookProvider = new FacebookAuthProvider();
-
-  return {
-    app,
-    auth,
-    firestore,
-    storage,
-    analytics,
-    googleProvider,
-    facebookProvider,
-    signInWithPopup,
-  };
+const firebaseConfig = {
+  apiKey: extra.FIREBASE_API_KEY,
+  authDomain: extra.FIREBASE_AUTH_DOMAIN,
+  projectId: extra.FIREBASE_PROJECT_ID,
+  storageBucket: extra.FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: extra.FIREBASE_MESSAGING_SENDER_ID,
+  appId: extra.FIREBASE_APP_ID,
+  measurementId: extra.FIREBASE_MEASUREMENT_ID,
 };
 
-export const firebase = getFirebase();
+const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+
+export const auth = getAuth(app);
+export const db = getFirestore(app);
+export const storage = getStorage(app);

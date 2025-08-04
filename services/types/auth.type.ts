@@ -24,3 +24,20 @@ export interface IVerifyOtp {
   userId: string;
   otp: string;
 }
+
+export interface IUpdateProfile {
+  firstName: string;
+  middleName?: string;
+  lastName: string;
+  address?: string;
+  birthDate?: string;
+  avatarUrl?: string;
+  coverUrl?: string;
+  images?: string;
+}
+
+export interface IChangePassword {
+  currentPassword: string;
+  newPassword: string;
+  confirmPassword: string;
+}

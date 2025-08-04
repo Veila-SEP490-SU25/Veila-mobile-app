@@ -1,11 +1,13 @@
 import { createApi } from "@reduxjs/toolkit/query/react";
 import { baseQueryWithRefresh } from "../../services/apis/base.query";
 import {
+  IChangePassword,
   IItemResponse,
   ILogin,
   IRegister,
   IRequestOtp,
   IToken,
+  IUpdateProfile,
   IUser,
   IVerifyOtp,
 } from "../../services/types";
@@ -33,6 +35,22 @@ export const authApi = createApi({
       query: () => ({
         url: "auth/me",
         method: "GET",
+      }),
+    }),
+
+    updateProfile: builder.mutation<IItemResponse<IUser>, IUpdateProfile>({
+      query: (body) => ({
+        url: "auth/me",
+        method: "PUT",
+        body,
+      }),
+    }),
+
+    changePassword: builder.mutation<IItemResponse<null>, IChangePassword>({
+      query: (body) => ({
+        url: "auth/change-password",
+        method: "POST",
+        body,
       }),
     }),
 
@@ -77,6 +95,8 @@ export const {
   useLoginMutation,
   useLogoutMutation,
   useLazyGetMeQuery,
+  useUpdateProfileMutation,
+  useChangePasswordMutation,
   useRefreshTokenMutation,
   useRegisterMutation,
   useRequestOtpMutation,

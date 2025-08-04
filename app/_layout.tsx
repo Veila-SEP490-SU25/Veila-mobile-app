@@ -7,7 +7,8 @@ import Toast from "react-native-toast-message";
 import { Provider as ReduxProvider } from "react-redux";
 import { toastConfig } from "styles/toast.config";
 import { AuthProvider } from "../providers/auth.provider";
-import store from "../services/store";
+
+import { store } from "services/store";
 import "../styles/global.css";
 
 export default function RootLayout() {

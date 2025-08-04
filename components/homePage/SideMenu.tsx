@@ -256,7 +256,7 @@ export default function SideMenu({
           </View>
           <View style={styles.contactItem}>
             <Ionicons name="mail-outline" size={16} color="#666666" />
-            <Text style={styles.contactText}>support@veila.com</Text>
+            <Text style={styles.contactText}>veila.studio.mail@gmail.com</Text>
           </View>
         </View>
 

@@ -29,6 +29,7 @@ type AuthContextType = {
   login: (body: ILogin) => Promise<void>;
   logout: () => Promise<void>;
   verifyOtp: (body: IVerifyOtp) => Promise<void>;
+  refreshUser: () => Promise<void>;
   user: IUser | null;
   isAuthenticated: boolean;
   isLoading: boolean;
@@ -91,6 +92,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       router.replace("/_auth/login");
     }
   }, [getMe, router]);
+
+  const refreshUser = useCallback(async () => {
+    try {
+      const { item } = await getMe().unwrap();
+      setUser(item);
+      await setToLocalStorage("user", item);
+    } catch (error) {
+      console.log("Lỗi refresh user:", error);
+    }
+  }, [getMe]);
 
   const login = useCallback(
     async (body: ILogin) => {
@@ -194,7 +205,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   return (
     <AuthContext.Provider
-      value={{ login, logout, verifyOtp, user, isAuthenticated, isLoading }}
+      value={{
+        login,
+        logout,
+        verifyOtp,
+        refreshUser,
+        user,
+        isAuthenticated,
+        isLoading,
+      }}
     >
       {children}
     </AuthContext.Provider>

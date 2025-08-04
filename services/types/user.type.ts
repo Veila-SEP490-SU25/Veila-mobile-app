@@ -16,21 +16,21 @@ export enum UserStatus {
 
 export interface IUser {
   id: string;
-  username: string;
   email: string;
   firstName: string;
-  middleName: string | null;
+  middleName?: string;
   lastName: string;
-  phone: string | null;
-  address: string | null;
-  birthDate: Date | null;
-  avatarUrl: string | null;
-  coverUrl: string | null;
+  avatarUrl?: string;
+  coverUrl?: string;
+  address?: string;
+  birthDate?: string;
+  images?: string;
+  phoneNumber?: string;
   isVerified: boolean;
   isIdentified: boolean;
   reputation: number;
   role: UserRole;
   status: UserStatus;
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt: string;
+  updatedAt: string;
 }
