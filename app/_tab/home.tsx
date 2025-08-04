@@ -30,8 +30,8 @@ interface QuickAction {
 export default function Home() {
   const [showMenu, setShowMenu] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [fadeAnim] = useState(new Animated.Value(0));
-  const [slideAnim] = useState(new Animated.Value(50));
+  const fadeAnim = React.useRef(new Animated.Value(0)).current;
+  const slideAnim = React.useRef(new Animated.Value(50)).current;
 
   useTokenCheck();
 
@@ -48,7 +48,7 @@ export default function Home() {
         useNativeDriver: true,
       }),
     ]).start();
-  }, [fadeAnim, slideAnim]);
+  });
 
   const onRefresh = React.useCallback(() => {
     setRefreshing(true);
@@ -63,33 +63,41 @@ export default function Home() {
       id: "consultation",
       title: "Tư vấn miễn phí",
       subtitle: "Nhận tư vấn từ chuyên gia",
-      icon: "person-circle-outline",
+      icon: "chatbubble-ellipses-outline",
       color: "#E05C78",
       onPress: () => console.log("Consultation pressed"),
     },
     {
       id: "custom-design",
-      title: "Thiết kế riêng",
-      subtitle: "Tạo váy độc quyền",
-      icon: "brush-outline",
+      title: "Đặt may váy",
+      subtitle: "Thiết kế theo yêu cầu",
+      icon: "cut",
       color: "#8B5CF6",
       onPress: () => console.log("Custom design pressed"),
     },
     {
-      id: "virtual-try",
-      title: "Thử váy ảo",
-      subtitle: "AR thử váy tại nhà",
-      icon: "camera-outline",
+      id: "buy-dress",
+      title: "Mua váy cưới",
+      subtitle: "Sở hữu váy cưới yêu thích",
+      icon: "cart-outline",
       color: "#06B6D4",
-      onPress: () => console.log("Virtual try pressed"),
+      onPress: () => console.log("Buy dress pressed"),
     },
     {
-      id: "wedding-planner",
-      title: "Lập kế hoạch",
-      subtitle: "Quản lý đám cưới",
-      icon: "calendar-outline",
+      id: "rent-dress",
+      title: "Thuê váy cưới",
+      subtitle: "Tiết kiệm chi phí",
+      icon: "shirt-outline",
       color: "#10B981",
-      onPress: () => console.log("Wedding planner pressed"),
+      onPress: () => console.log("Rent dress pressed"),
+    },
+    {
+      id: "custom-request",
+      title: "Gửi yêu cầu đặt may",
+      subtitle: "Yêu cầu thiết kế cá nhân",
+      icon: "document-text-outline",
+      color: "#F59E0B",
+      onPress: () => console.log("Custom request pressed"),
     },
   ];
 
@@ -196,41 +204,6 @@ export default function Home() {
 
         <Animated.View style={{ opacity: fadeAnim }}>
           <RecommendedList />
-        </Animated.View>
-
-        <Animated.View
-          style={[styles.specialOffersSection, { opacity: fadeAnim }]}
-        >
-          <Text style={styles.sectionTitle}>Ưu đãi đặc biệt</Text>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.offersContainer}
-          >
-            <TouchableOpacity style={styles.offerCard} activeOpacity={0.8}>
-              <View style={styles.offerBadge}>
-                <Text style={styles.offerBadgeText}>-20%</Text>
-              </View>
-              <View style={styles.offerContent}>
-                <Text style={styles.offerTitle}>Giảm giá mùa cưới</Text>
-                <Text style={styles.offerSubtitle}>
-                  Áp dụng cho tất cả váy cưới
-                </Text>
-                <Text style={styles.offerExpiry}>Hết hạn: 31/12/2024</Text>
-              </View>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.offerCard} activeOpacity={0.8}>
-              <View style={styles.offerBadge}>
-                <Text style={styles.offerBadgeText}>FREE</Text>
-              </View>
-              <View style={styles.offerContent}>
-                <Text style={styles.offerTitle}>Tư vấn miễn phí</Text>
-                <Text style={styles.offerSubtitle}>Chuyên gia tư vấn 1-1</Text>
-                <Text style={styles.offerExpiry}>Không giới hạn thời gian</Text>
-              </View>
-            </TouchableOpacity>
-          </ScrollView>
         </Animated.View>
 
         <Animated.View style={[styles.ctaSection, { opacity: fadeAnim }]}>

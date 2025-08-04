@@ -122,10 +122,10 @@ export default function AccountScreen() {
   const supportMenuItems: ProfileMenuItem[] = [
     {
       id: "help",
-      title: "Trợ giúp & Phản hồi",
-      subtitle: "Liên hệ hỗ trợ khách hàng",
-      icon: "help-circle-outline",
-      onPress: () => console.log("Help pressed"),
+      title: "Hợp đồng khách hàng",
+      subtitle: "Xem điều khoản dịch vụ",
+      icon: "document-text-outline",
+      onPress: () => router.push("/contracts/customer"),
       showArrow: true,
       iconColor: "#6366F1",
     },
