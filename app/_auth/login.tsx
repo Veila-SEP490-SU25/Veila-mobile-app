@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 
-import Images from "assets";
+import { default as assets } from "assets";
 import { router } from "expo-router";
 import { Image, Text, TouchableOpacity, View } from "react-native";
 import { OtpLoginForm } from "../../components/auth/login/otp-login-form";
@@ -14,7 +14,7 @@ export default function LoginScreen() {
       <View className="flex-1 justify-between">
         <View>
           <Image
-            source={Images.logo}
+            source={assets.Images.logo}
             resizeMode="contain"
             className="w-40 h-24 mb-6 self-center"
           />
@@ -86,11 +86,14 @@ export default function LoginScreen() {
 
           <TouchableOpacity className="flex-row items-center justify-center w-full py-3 rounded-2xl bg-white border border-primary-500">
             <Image
-              source={Images.google}
+              source={assets.Images.google}
               className="w-5 h-5 mr-2"
               resizeMode="contain"
             />
-            <Text className="text-primary-500 font-medium">
+            <Text
+              className="text-primary-500 font-medium"
+              onPress={() => router.push("/_tab/home")}
+            >
               Đăng nhập với Google
             </Text>
           </TouchableOpacity>

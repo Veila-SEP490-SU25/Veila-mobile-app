@@ -1,4 +1,4 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import SplashIntroVideo from "@/index";
 import { useRouter } from "expo-router";
 import React, {
   createContext,
@@ -8,6 +8,14 @@ import React, {
   useState,
 } from "react";
 import Toast from "react-native-toast-message";
+import {
+  delTokens,
+  getAccessToken,
+  isTokenExpired,
+  setAccessToken,
+  setRefreshToken,
+  setToLocalStorage,
+} from "utils";
 import {
   useLazyGetMeQuery,
   useLoginMutation,
@@ -42,6 +50,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<IUser | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
+  const [isAuthChecking, setIsAuthChecking] = useState(true);
 
   const [loginMutation] = useLoginMutation();
   const [logoutMutation] = useLogoutMutation();
@@ -49,13 +58,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [requestOtpMutation] = useRequestOtpMutation();
   const [getMe, { isFetching: isGetMeLoading }] = useLazyGetMeQuery();
 
-  const saveTokens = async (access: string, refresh: string) => {
-    await AsyncStorage.setItem("accessToken", access);
-    await AsyncStorage.setItem("refreshToken", refresh);
-  };
-
-  const clearTokens = async () => {
-    await AsyncStorage.multiRemove(["accessToken", "refreshToken", "user"]);
+  const saveTokens = async (accessToken: string, refreshToken: string) => {
+    await setAccessToken(accessToken);
+    await setRefreshToken(refreshToken);
   };
 
   const logout = useCallback(async () => {
@@ -63,9 +68,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       await logoutMutation().unwrap();
     } catch {
     } finally {
-      await clearTokens();
       setUser(null);
       setIsAuthenticated(false);
+      await delTokens();
       router.replace("/_auth/login");
       Toast.show({ type: "success", text1: "Đăng xuất thành công" });
     }
@@ -76,11 +81,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       const { item } = await getMe().unwrap();
       setUser(item);
       setIsAuthenticated(true);
-      await AsyncStorage.setItem("user", JSON.stringify(item));
-    } catch {
-      await logout();
+      await setToLocalStorage("user", item);
+    } catch (error) {
+      console.log("Lỗi fetch user:", error);
+
+      setUser(null);
+      setIsAuthenticated(false);
+      await delTokens();
+      router.replace("/_auth/login");
     }
-  }, [getMe, logout]);
+  }, [getMe, router]);
 
   const login = useCallback(
     async (body: ILogin) => {
@@ -94,7 +104,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           await saveTokens(accessToken, refreshToken);
           await fetchUser();
           Toast.show({ type: "success", text1: "Đăng nhập thành công" });
-          router.replace("/");
+          router.replace("/_tab/home");
         } else if (statusCode === 401) {
           const { item: otpUserId } = await requestOtpMutation({
             email: body.email,
@@ -135,7 +145,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           await saveTokens(accessToken, refreshToken);
           await fetchUser();
           Toast.show({ type: "success", text1: "Xác thực thành công" });
-          router.replace("/");
+          router.replace("/_tab/home");
         } else {
           Toast.show({
             type: "error",
@@ -158,15 +168,29 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   useEffect(() => {
     const init = async () => {
-      const access = await AsyncStorage.getItem("accessToken");
-      if (access) {
-        await fetchUser();
+      try {
+        const access = await getAccessToken();
+        if (access && !isTokenExpired(access)) {
+          await fetchUser();
+        } else {
+          console.log("Token hết hạn hoặc không tồn tại trong AuthProvider");
+          await delTokens();
+        }
+      } catch (error) {
+        console.log("Lỗi kiểm tra token trong AuthProvider:", error);
+        await delTokens();
+      } finally {
+        setIsAuthChecking(false);
       }
     };
     init();
   }, [fetchUser]);
 
   const isLoading = isGetMeLoading || isAuthenticating;
+
+  if (isAuthChecking) {
+    return <SplashIntroVideo />;
+  }
 
   return (
     <AuthContext.Provider

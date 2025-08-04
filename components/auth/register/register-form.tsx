@@ -123,18 +123,27 @@ export const RegisterForm = () => {
           placeholder="Mật khẩu"
           value={password}
           onChangeText={setPassword}
-          secureTextEntry
+          secureTextEntry={true}
           className="w-full h-14 px-5 bg-gray-50 border border-primary-100 rounded-2xl text-base text-gray-800"
           placeholderTextColor="#9CA3AF"
+          textContentType="password"
+          autoComplete="off"
+          importantForAutofill="no"
+          autoCorrect={false}
+          autoCapitalize="none"
         />
 
         <TextInput
           placeholder="Xác nhận mật khẩu"
           value={confirmPassword}
           onChangeText={setConfirmPassword}
-          secureTextEntry
+          secureTextEntry={true}
           className="w-full h-14 px-5 bg-gray-50 border border-primary-100 rounded-2xl text-base text-gray-800"
           placeholderTextColor="#9CA3AF"
+          textContentType="password"
+          autoComplete="off"
+          autoCorrect={false}
+          autoCapitalize="none"
         />
 
         <TouchableOpacity

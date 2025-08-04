@@ -1,4 +1,4 @@
-import Images from "assets";
+import assets from "assets";
 import { LoadingItem } from "components/loadingItem";
 import React, { Suspense } from "react";
 import { Image, ScrollView, Text, View } from "react-native";
@@ -13,9 +13,9 @@ const VerifyOtpScreen = () => {
       keyboardShouldPersistTaps="handled"
       className="bg-white"
     >
-      <View className="flex-1 py-6 px-4 items-center gap-4">
+      <View className="flex-1 py-32 px-4 items-center gap-4">
         <Image
-          source={Images.logo}
+          source={assets.Images.logo}
           resizeMode="contain"
           className="w-1/2 h-20"
         />

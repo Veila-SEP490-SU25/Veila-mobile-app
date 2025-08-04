@@ -6,23 +6,23 @@ module.exports = {
     extend: {
       colors: {
         primary: {
-          100: "#FFF0F3", // Hồng phấn nền nhẹ (background section)
-          500: "#F4A6B1", // Hồng ánh nude (CTA, nút bấm chính)
-          600: "#D77485", // Hồng đậm hơn (hover, active)
+          100: "#FFE4E9", // nền nhẹ, hồng sáng hơn
+          500: "#E05C78", // hồng nổi bật, phù hợp CTA
+          600: "#C04060", // hồng đậm, hover/active
         },
         gray: {
-          100: "#F5F5F5",
-          200: "#E0E0E0",
-          300: "#CFCFCF",
-          400: "#9E9E9E",
-          700: "#4B4B4B",
+          100: "#F9F9F9",
+          200: "#E6E6E6",
+          300: "#CCCCCC",
+          400: "#999999",
+          700: "#333333", // tối hơn để dễ đọc
         },
         maroon: {
-          500: "#8C1C26", // Điểm nhấn đỏ mận (highlight brand)
+          500: "#72121E", // đậm hơn, sang trọng hơn
         },
         background: {
-          DEFAULT: "#FFFFFF", // Nền chính
-          soft: "#FAFAFA", // Nền nhẹ cho section phụ
+          DEFAULT: "#FFFFFF", // nền trắng
+          soft: "#F7F7F7", // nhẹ
         },
       },
       borderRadius: {
@@ -31,11 +31,11 @@ module.exports = {
         full: "9999px",
       },
       fontFamily: {
-        sans: ["Inter", "System"], // font mặc định
-        playfair: ["PlayfairDisplay", "serif"], // font đẹp
+        sans: ["Inter", "System"],
+        playfair: ["PlayfairDisplay", "serif"],
       },
       boxShadow: {
-        card: "0 4px 6px rgba(0,0,0,0.05)",
+        card: "0 6px 10px rgba(0,0,0,0.08)", // rõ nét hơn
       },
     },
   },

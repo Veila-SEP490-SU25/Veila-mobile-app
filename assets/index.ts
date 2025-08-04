@@ -3,4 +3,12 @@ const Images = {
   google: require("./images/google-icon.svg"),
 };
 
-export default Images;
+const Videos = {
+  logoClip: require("./videos/logo.mp4"),
+};
+
+const Fallback = {
+  FallbackImg: require("./fallback/fallback.png"),
+};
+
+export default { Images, Videos, Fallback };

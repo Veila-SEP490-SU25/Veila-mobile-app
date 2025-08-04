@@ -1,17 +1,17 @@
 export enum UserRole {
-  Customer = 'customer',
-  Supplier = 'supplier',
-  SystemOperator = 'system_operator',
-  Admin = 'admin',
-  SuperAdmin = 'super_admin',
+  Customer = "customer",
+  Supplier = "supplier",
+  SystemOperator = "system_operator",
+  Admin = "admin",
+  SuperAdmin = "super_admin",
 }
 
 export enum UserStatus {
-  Active = 'active',
-  Inactive = 'inactive',
-  Suspended = 'suspended',
-  Deleted = 'deleted',
-  Banned = 'banned',
+  Active = "ACTIVE",
+  Inactive = "INACTIVE",
+  Suspended = "SUSPENDED",
+  Deleted = "DELETED",
+  Banned = "BANNED",
 }
 
 export interface IUser {
@@ -27,6 +27,8 @@ export interface IUser {
   avatarUrl: string | null;
   coverUrl: string | null;
   isVerified: boolean;
+  isIdentified: boolean;
+  reputation: number;
   role: UserRole;
   status: UserStatus;
   createdAt: Date;

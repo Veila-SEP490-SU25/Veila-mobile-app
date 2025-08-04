@@ -4,38 +4,13 @@
     "slug": "Veila",
     "version": "1.0.0",
     "orientation": "portrait",
-
-    "icon": "./assets/logo.png",
-    "scheme": ["veila"],
+    "scheme": "veila",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true
     },
-    "android": {
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/logo.png",
-        "backgroundColor": "#ffffff"
-      },
-      "edgeToEdgeEnabled": true
-    },
-    "web": {
-      "bundler": "metro",
-      "output": "static",
-      "favicon": "./assets/logo.png"
-    },
-    "plugins": [
-      "expo-router",
-      [
-        "expo-splash-screen",
-        {
-          "image": "./assets/logo.png",
-          "imageWidth": 200,
-          "resizeMode": "contain",
-          "backgroundColor": "#ffffff"
-        }
-      ]
-    ],
+    "plugins": ["expo-router", "expo-video"],
     "experiments": {
       "typedRoutes": true
     }

@@ -1,5 +1,4 @@
-import { slides } from "../../constants/slide";
-import { Slide } from "../../types/slide";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
 import React, { useRef, useState } from "react";
 import {
@@ -10,6 +9,8 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { slides } from "../../constants/slide";
+import { Slide } from "../../services/types/slide";
 
 const { width, height } = Dimensions.get("window");
 
@@ -22,7 +23,8 @@ export default function Onboarding() {
     setCurrentStep(index);
   };
 
-  const handleDone = () => {
+  const handleDone = async () => {
+    await AsyncStorage.setItem("hasSeenIntro", "true");
     router.replace("/_auth/login");
   };
 

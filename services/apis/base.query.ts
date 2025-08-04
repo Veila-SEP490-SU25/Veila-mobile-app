@@ -1,3 +1,12 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import {
+  BaseQueryFn,
+  FetchArgs,
+  fetchBaseQuery,
+  FetchBaseQueryError,
+} from "@reduxjs/toolkit/query";
+import { router } from "expo-router";
+import toast from "react-native-toast-message";
 import { IItemResponse, IToken } from "../../services/types";
 import {
   clearLocalStorage,
@@ -5,28 +14,22 @@ import {
   getVeilaServerConfig,
   setTokens,
 } from "../../utils";
-import {
-  BaseQueryFn,
-  FetchArgs,
-  fetchBaseQuery,
-  FetchBaseQueryError,
-} from "@reduxjs/toolkit/query";
-import toast from "react-native-toast-message";
 
 const API_URL = getVeilaServerConfig();
 
 const baseQuery = fetchBaseQuery({
   baseUrl: API_URL,
-  prepareHeaders: (headers) => {
-    const { accessToken } = getTokens();
+  prepareHeaders: async (headers) => {
+    const { accessToken } = await getTokens();
     if (accessToken) {
       headers.set("Authorization", `Bearer ${accessToken}`);
     }
+    return headers;
   },
 });
 
 const toastError = (title: string, description?: string) => {
-  return toast.show({
+  toast.show({
     type: "error",
     text1: title,
     text2: description,
@@ -39,36 +42,49 @@ export const baseQueryWithRefresh: BaseQueryFn<
   FetchBaseQueryError
 > = async (args, api, extraOptions) => {
   let result = await baseQuery(args, api, extraOptions);
+
   if (result.error) {
-    toastError("Đã xảy ra lỗi", result.error.data as string);
-  } else {
-    const { statusCode, message } = result.data as IItemResponse<null>;
-    if (statusCode === 401) {
-      if (message.includes("hết hạn.")) {
-        const refreshToken = getTokens().refreshToken;
-        if (refreshToken) {
-          const refreshResult = await baseQuery(
-            {
-              url: "/auth/refresh-token",
-              method: "POST",
-              body: { refreshToken },
-            },
-            api,
-            extraOptions
-          );
-          const { statusCode, message, item } =
-            refreshResult.data as IItemResponse<IToken>;
-          if (statusCode === 200) {
-            setTokens(item.accessToken, item.refreshToken);
-            result = await baseQuery(args, api, extraOptions);
-          } else {
-            toastError("Đã xảy ra lỗi", message);
-            clearLocalStorage();
-            window.location.href = "/";
-          }
-        }
-      }
+    const errData = result.error.data as { message?: string } | undefined;
+    toastError("Đã xảy ra lỗi", errData?.message || "Unknown error");
+    return result;
+  }
+
+  const data = result.data as Partial<IItemResponse<unknown>> | undefined;
+
+  if (data?.statusCode === 401 && data.message?.includes("hết hạn")) {
+    const refreshToken = await AsyncStorage.getItem("refreshToken");
+
+    if (!refreshToken) {
+      toastError("Không tìm thấy refresh token");
+      clearLocalStorage();
+      router.replace("/_auth/login");
+      return result;
+    }
+
+    const refreshResult = await baseQuery(
+      {
+        url: "/auth/refresh-token",
+        method: "POST",
+        body: { refreshToken },
+      },
+      api,
+      extraOptions
+    );
+
+    const refreshData = refreshResult.data as
+      | Partial<IItemResponse<IToken>>
+      | undefined;
+
+    if (refreshData?.statusCode === 200 && refreshData.item) {
+      setTokens(refreshData.item.accessToken, refreshData.item.refreshToken);
+
+      result = await baseQuery(args, api, extraOptions);
+    } else {
+      toastError("Phiên đăng nhập hết hạn", refreshData?.message);
+      clearLocalStorage();
+      router.replace("/_auth/login");
     }
   }
+
   return result;
 };

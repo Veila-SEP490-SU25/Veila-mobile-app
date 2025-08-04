@@ -1,14 +1,18 @@
+import { useRouter } from "expo-router";
 import React, { useCallback, useState } from "react";
 import { Text, TextInput, TouchableOpacity, View } from "react-native";
 import Toast from "react-native-toast-message";
-import { useAuth } from "../../../providers/auth.provider";
+import { useRequestOtpMutation } from "../../../services/apis";
 
 export const OtpLoginForm = () => {
-  const { login, isLoading } = useAuth();
+  const router = useRouter();
   const [email, setEmail] = useState("");
+  const [requestOtp, { isLoading }] = useRequestOtpMutation();
 
   const handleRequestOtp = useCallback(async () => {
-    if (!email) {
+    const trimmedEmail = email.trim();
+
+    if (!trimmedEmail) {
       Toast.show({
         type: "error",
         text1: "Vui lòng nhập email",
@@ -17,9 +21,37 @@ export const OtpLoginForm = () => {
     }
 
     try {
-      await login({ email, password: "" });
-    } catch {}
-  }, [email, login]);
+      const res = await requestOtp({ email: trimmedEmail }).unwrap();
+
+      if (res.statusCode === 200) {
+        Toast.show({
+          type: "success",
+          text1: "Đã gửi mã OTP",
+          text2: "Vui lòng kiểm tra email của bạn.",
+        });
+        router.push({
+          pathname: "/_auth/verify-otp",
+          params: {
+            userId: res.item,
+            email,
+          },
+        });
+      } else {
+        Toast.show({
+          type: "error",
+          text1: "Không thể gửi mã OTP",
+          text2: res.message || "",
+        });
+      }
+    } catch (err) {
+      console.error(err);
+      Toast.show({
+        type: "error",
+        text1: "Lỗi",
+        text2: "Đã xảy ra lỗi khi gửi OTP. Vui lòng thử lại.",
+      });
+    }
+  }, [email, requestOtp, router]);
 
   return (
     <View className="w-full px-6 mt-8">

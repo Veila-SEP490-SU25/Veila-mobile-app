@@ -1,6 +1,6 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useAuth } from "providers/auth.provider";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Alert,
   StyleSheet,
@@ -19,7 +19,10 @@ export default function VerifyOtpScreen() {
   const { verifyOtp, isLoading } = useAuth();
   const [requestOtp] = useRequestOtpMutation();
 
-  const [otp, setOtp] = useState("");
+  const [otp, setOtp] = useState<string[]>(Array(6).fill(""));
+
+  const inputRefs = useRef<(TextInput | null)[]>([]);
+
   const [userId, setUserId] = useState("");
   const [email, setEmail] = useState("");
   const [timer, setTimer] = useState(300);
@@ -49,11 +52,12 @@ export default function VerifyOtpScreen() {
   }, [isRunning, timer]);
 
   const handleVerify = useCallback(async () => {
-    if (otp.length < 6) {
+    const code = otp.join("");
+    if (code.length < 6) {
       Alert.alert("Lỗi", "Vui lòng nhập mã OTP hợp lệ.");
       return;
     }
-    await verifyOtp({ userId, otp });
+    await verifyOtp({ userId, otp: code });
   }, [otp, userId, verifyOtp]);
 
   const handleResendOtp = useCallback(async () => {
@@ -62,6 +66,8 @@ export default function VerifyOtpScreen() {
       if (res.statusCode === 200) {
         Toast.show({ type: "success", text1: "Mã OTP đã được gửi lại." });
         setUserId(res.item);
+        setOtp(Array(6).fill(""));
+        inputRefs.current[0]?.focus();
         setTimer(300);
         setIsRunning(true);
       } else {
@@ -78,20 +84,31 @@ export default function VerifyOtpScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Xác thực email</Text>
+      <Text style={styles.title}>Nhập mã xác thực</Text>
 
       <View style={styles.otpContainer}>
-        {Array.from({ length: 6 }).map((_, idx) => (
+        {otp.map((digit, idx) => (
           <TextInput
             key={idx}
+            ref={(el) => {
+              inputRefs.current[idx] = el;
+            }}
             style={styles.otpInput}
             keyboardType="numeric"
             maxLength={1}
-            value={otp[idx] || ""}
-            onChangeText={(digit) => {
-              const next = otp.split("");
-              next[idx] = digit;
-              setOtp(next.join(""));
+            value={digit}
+            onChangeText={(val) => {
+              const next = [...otp];
+              next[idx] = val;
+              setOtp(next);
+
+              if (val && idx < 5) {
+                inputRefs.current[idx + 1]?.focus();
+              }
+
+              if (!val && idx > 0) {
+                inputRefs.current[idx - 1]?.focus();
+              }
             }}
           />
         ))}
