@@ -6,9 +6,9 @@ export const GOOGLE_AUTH_CONFIG = {
   // Google OAuth Client IDs
   // Lấy từ Firebase Console > Authentication > Sign-in method > Google > Web SDK configuration
   CLIENT_IDS: {
-    WEB: "YOUR_FIREBASE_WEB_CLIENT_ID", // Thay bằng Web client ID từ Firebase
-    IOS: "YOUR_FIREBASE_IOS_CLIENT_ID", // Thay bằng iOS client ID từ Firebase
-    ANDROID: "YOUR_FIREBASE_ANDROID_CLIENT_ID", // Thay bằng Android client ID từ Firebase
+    WEB: "406297796172-YOUR_WEB_CLIENT_ID.apps.googleusercontent.com", // Thay bằng Web client ID từ Firebase
+    IOS: "406297796172-YOUR_IOS_CLIENT_ID.apps.googleusercontent.com", // Thay bằng iOS client ID từ Firebase
+    ANDROID: "406297796172-YOUR_ANDROID_CLIENT_ID.apps.googleusercontent.com", // Thay bằng Android client ID từ Firebase
   },
 
   // Mock data cho testing
@@ -39,3 +39,8 @@ export const isUsingMock = () => GOOGLE_AUTH_CONFIG.USE_MOCK;
 // 2. Bật Google provider
 // 3. Copy Web client ID, iOS client ID, Android client ID
 // 4. Paste vào CLIENT_IDS ở trên
+//
+// Thông tin Firebase hiện tại:
+// - App ID: 1:406297796172:ios:37bdd1db3a4250d6d4dee9
+// - Bundle ID: com.veila.app
+// - App nickname: Veila

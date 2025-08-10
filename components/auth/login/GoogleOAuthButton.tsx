@@ -1,11 +1,9 @@
 import * as Google from "expo-auth-session/providers/google";
 import * as WebBrowser from "expo-web-browser";
-import { GoogleAuthProvider, signInWithCredential } from "firebase/auth";
 import React from "react";
 import { Alert, Image, Text, TouchableOpacity } from "react-native";
 import { default as assets } from "../../../assets";
 import { useAuth } from "../../../providers/auth.provider";
-import { auth } from "../../../services/firebase";
 import { getGoogleClientId } from "../../../utils/google-auth.config";
 
 WebBrowser.maybeCompleteAuthSession();
@@ -22,19 +20,22 @@ export const GoogleOAuthButton = () => {
   const handleGoogleSignIn = React.useCallback(
     async (idToken: string) => {
       try {
-        const credential = GoogleAuthProvider.credential(idToken);
+        // Lấy thông tin user từ Google
+        const response = await fetch(
+          "https://www.googleapis.com/userinfo/v2/me",
+          {
+            headers: { Authorization: `Bearer ${idToken}` },
+          }
+        );
+        const userInfo = await response.json();
 
-        const userCredential = await signInWithCredential(auth, credential);
-        const user = userCredential.user;
-
-        if (user) {
-          await googleLogin({
-            email: user.email || "",
-            fullname: user.displayName || "",
-          });
-        }
+        // Gọi API backend với thông tin user
+        await googleLogin({
+          email: userInfo.email,
+          fullname: userInfo.name,
+        });
       } catch (error) {
-        console.error("Firebase Google sign-in error:", error);
+        console.error("Google sign-in error:", error);
         Alert.alert("Lỗi", "Không thể đăng nhập với Google");
       }
     },
