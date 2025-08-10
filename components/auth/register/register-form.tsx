@@ -13,6 +13,7 @@ export const RegisterForm = () => {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [middleName, setMiddleName] = useState("");
+  const [agreeToTerms, setAgreeToTerms] = useState(false);
 
   const [registerMutation, { isLoading }] = useRegisterMutation();
 
@@ -33,6 +34,14 @@ export const RegisterForm = () => {
       return;
     }
 
+    if (!agreeToTerms) {
+      Toast.show({
+        type: "error",
+        text1: "Vui lòng đồng ý với điều khoản và dịch vụ",
+      });
+      return;
+    }
+
     try {
       const { item, message, statusCode } = await registerMutation({
         email,
@@ -40,6 +49,7 @@ export const RegisterForm = () => {
         firstName,
         lastName,
         middleName,
+        agreeToTerms,
       }).unwrap();
 
       if (statusCode === 200) {
@@ -73,9 +83,19 @@ export const RegisterForm = () => {
     firstName,
     lastName,
     middleName,
+    agreeToTerms,
     registerMutation,
     router,
   ]);
+
+  const handleTermsPress = () => {
+    // TODO: Navigate to terms page
+    Toast.show({
+      type: "info",
+      text1: "Điều khoản và dịch vụ",
+      text2: "Tính năng đang được phát triển",
+    });
+  };
 
   return (
     <View className="w-full px-6 mt-6">
@@ -145,6 +165,32 @@ export const RegisterForm = () => {
           autoCorrect={false}
           autoCapitalize="none"
         />
+
+        <View className="flex-row items-center mt-2">
+          <TouchableOpacity
+            onPress={() => setAgreeToTerms(!agreeToTerms)}
+            className="flex-row items-center"
+          >
+            <View
+              className={`w-5 h-5 border-2 rounded mr-3 items-center justify-center ${
+                agreeToTerms
+                  ? "bg-primary-500 border-primary-500"
+                  : "border-gray-300"
+              }`}
+            >
+              {agreeToTerms && <Text className="text-white text-xs">✓</Text>}
+            </View>
+            <Text className="text-sm text-gray-600 flex-1">
+              Tôi đồng ý với{" "}
+              <Text
+                className="text-primary-500 font-medium"
+                onPress={handleTermsPress}
+              >
+                điều khoản và dịch vụ
+              </Text>
+            </Text>
+          </TouchableOpacity>
+        </View>
 
         <TouchableOpacity
           onPress={handleRegister}

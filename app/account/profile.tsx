@@ -19,7 +19,6 @@ import AddressPicker from "../../components/profile/AddressPicker";
 import DatePicker from "../../components/profile/DatePicker";
 import ImagePickerModal from "../../components/profile/ImagePickerModal";
 import ValidationPopup from "../../components/profile/ValidationPopup";
-import { useTokenCheck } from "../../hooks/useTokenCheck";
 import { useAuth } from "../../providers/auth.provider";
 import {
   useChangePasswordMutation,
@@ -59,8 +58,6 @@ export default function ProfileScreen() {
     useUpdateProfileMutation();
   const [changePassword, { isLoading: isChangingPassword }] =
     useChangePasswordMutation();
-
-  useTokenCheck();
 
   const [profileForm, setProfileForm] = useState<IUpdateProfile>({
     firstName: user?.firstName || "",

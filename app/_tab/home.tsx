@@ -16,7 +16,6 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { useTokenCheck } from "../../hooks/useTokenCheck";
 
 interface QuickAction {
   id: string;
@@ -32,8 +31,6 @@ export default function Home() {
   const [refreshing, setRefreshing] = useState(false);
   const fadeAnim = React.useRef(new Animated.Value(0)).current;
   const slideAnim = React.useRef(new Animated.Value(50)).current;
-
-  useTokenCheck();
 
   useEffect(() => {
     Animated.parallel([

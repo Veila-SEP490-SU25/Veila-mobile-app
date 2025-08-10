@@ -78,12 +78,13 @@ const menuItems: MenuItem[] = [
 const supportItems: MenuItem[] = [
   {
     id: "help",
-    label: "Trợ giúp & Hỗ trợ",
-    subtitle: "Liên hệ chăm sóc khách hàng",
-    icon: "help-circle-outline",
-    route: "/help",
+    label: "Hợp đồng khách hàng",
+    subtitle: "Xem điều khoản dịch vụ",
+    icon: "document-text-outline",
+    route: "/contracts/customer",
     color: "#6366F1",
   },
+
   {
     id: "about",
     label: "Về Veila",

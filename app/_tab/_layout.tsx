@@ -4,7 +4,6 @@ import { View } from "react-native";
 import NotificationBadge from "../../components/notifications/NotificationBadge";
 
 export default function TabLayout() {
-  // Mock user data - in real app, get from auth context
   const currentUser = {
     id: "user123",
   };
@@ -57,7 +56,6 @@ export default function TabLayout() {
 
           const icon = <Ionicons name={iconName} size={20} color={color} />;
 
-          // Add badge for notifications tab
           if (route.name === "notifications") {
             return (
               <View style={{ position: "relative" }}>
@@ -71,8 +69,8 @@ export default function TabLayout() {
         },
       })}
     >
-      <Tabs.Screen name="home" />
-      <Tabs.Screen name="shopping" options={{ title: "Khám phá" }} />
+      <Tabs.Screen name="home" options={{ title: "Trang chủ" }} />
+      <Tabs.Screen name="shopping" options={{ title: "Mua sắm" }} />
       <Tabs.Screen name="chat" options={{ title: "Tin nhắn" }} />
       <Tabs.Screen name="notifications" options={{ title: "Thông báo" }} />
       <Tabs.Screen name="account" options={{ title: "Tài khoản" }} />

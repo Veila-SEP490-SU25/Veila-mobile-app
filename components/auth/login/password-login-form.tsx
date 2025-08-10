@@ -1,3 +1,4 @@
+import { router } from "expo-router";
 import React, { useCallback, useState } from "react";
 import { Text, TextInput, TouchableOpacity, View } from "react-native";
 import Toast from "react-native-toast-message";
@@ -22,6 +23,10 @@ export const PasswordLoginForm = () => {
       await login({ email, password });
     } catch {}
   }, [email, password, login]);
+
+  const handleForgotPassword = () => {
+    router.push("/_auth/forgot-password" as any);
+  };
 
   return (
     <View className="w-full px-6 mt-8">
@@ -48,6 +53,12 @@ export const PasswordLoginForm = () => {
           className="w-full h-14 px-5 bg-gray-50 border border-primary-100 rounded-2xl text-base text-gray-800 focus:border-primary-500"
           placeholderTextColor="#9CA3AF"
         />
+
+        <TouchableOpacity onPress={handleForgotPassword} className="self-end">
+          <Text className="text-primary-500 text-sm font-medium">
+            Quên mật khẩu?
+          </Text>
+        </TouchableOpacity>
 
         <TouchableOpacity
           onPress={handleLogin}

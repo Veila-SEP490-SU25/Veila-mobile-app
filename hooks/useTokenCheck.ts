@@ -1,9 +1,9 @@
-import { router } from "expo-router";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { checkAccessToken, isTokenExpired } from "../utils";
 
 export const useTokenCheck = () => {
   const hasChecked = useRef(false);
+  const [sessionExpired, setSessionExpired] = useState(false);
 
   useEffect(() => {
     if (hasChecked.current) return;
@@ -12,14 +12,14 @@ export const useTokenCheck = () => {
       try {
         const token = await checkAccessToken();
         if (!token || isTokenExpired(token)) {
-          console.log("Token hết hạn hoặc không tồn tại, chuyển về login");
-          router.replace("/_auth/login");
+          console.log("Phiên đăng nhập hết hạn");
+          setSessionExpired(true);
           return;
         }
         console.log("Token hợp lệ");
       } catch (error) {
         console.log("Lỗi kiểm tra token:", error);
-        router.replace("/_auth/login");
+        setSessionExpired(true);
       } finally {
         hasChecked.current = true;
       }
@@ -27,4 +27,5 @@ export const useTokenCheck = () => {
 
     checkToken();
   }, []);
+  return { sessionExpired, setSessionExpired };
 };

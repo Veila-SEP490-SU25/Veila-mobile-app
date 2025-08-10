@@ -1,24 +1,24 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
-import React, { useRef, useState } from "react";
+import React, { useState } from "react";
 import {
   Dimensions,
   FlatList,
   ImageBackground,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
 import { slides } from "../../constants/slide";
-import { Slide } from "../../services/types/slide";
 
 const { width, height } = Dimensions.get("window");
 
 export default function Onboarding() {
   const [currentStep, setCurrentStep] = useState(0);
-  const flatListRef = useRef<FlatList<Slide>>(null);
 
-  const handleScrollEnd = (e: any) => {
+  const handleScrollEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const index = Math.round(e.nativeEvent.contentOffset.x / width);
     setCurrentStep(index);
   };
@@ -36,9 +36,8 @@ export default function Onboarding() {
         horizontal
         pagingEnabled
         showsHorizontalScrollIndicator={false}
-        ref={flatListRef}
         onMomentumScrollEnd={handleScrollEnd}
-        renderItem={({ item, index }) => (
+        renderItem={({ item }) => (
           <ImageBackground
             source={item.image}
             resizeMode="cover"
@@ -57,7 +56,8 @@ export default function Onboarding() {
         )}
       />
 
-      <View className="absolute bottom-36 gap-2 w-full flex-row justify-center items-center space-x-2">
+      {/* Indicator */}
+      <View className="absolute bottom-36 gap-2 w-full flex-row justify-center items-center">
         {slides.map((_, index) => (
           <View
             key={index}
@@ -68,7 +68,8 @@ export default function Onboarding() {
         ))}
       </View>
 
-      {currentStep === slides.length - 1 && (
+      {/* Button */}
+      {currentStep >= slides.length - 1 && (
         <TouchableOpacity
           onPress={handleDone}
           className="absolute bottom-20 self-center bg-white px-6 py-3 rounded-full"

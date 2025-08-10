@@ -13,7 +13,6 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { UserStatus } from "services/types";
-import { useTokenCheck } from "../../hooks/useTokenCheck";
 import { useAuth } from "../../providers/auth.provider";
 
 interface ProfileMenuItem {
@@ -31,8 +30,6 @@ export default function AccountScreen() {
   const { user, logout } = useAuth();
   const router = useRouter();
   const [fadeAnim] = useState(new Animated.Value(0));
-
-  useTokenCheck();
 
   useEffect(() => {
     Animated.timing(fadeAnim, {
@@ -83,10 +80,10 @@ export default function AccountScreen() {
     },
     {
       id: "order-history",
-      title: "Lịch sử mua hàng",
-      subtitle: "Xem đơn hàng đã mua",
-      icon: "receipt-outline",
-      onPress: () => console.log("Order history pressed"),
+      title: "Đơn đã mua",
+      subtitle: "Xem các đơn hàng của bạn",
+      icon: "cube-outline",
+      onPress: () => router.push("/account/orders" as any),
       showArrow: true,
       iconColor: "#8B5CF6",
     },
@@ -107,15 +104,6 @@ export default function AccountScreen() {
       onPress: () => console.log("Address pressed"),
       showArrow: true,
       iconColor: "#06B6D4",
-    },
-    {
-      id: "settings",
-      title: "Cài đặt",
-      subtitle: "Tùy chỉnh ứng dụng",
-      icon: "settings-outline",
-      onPress: () => console.log("Settings pressed"),
-      showArrow: true,
-      iconColor: "#6B7280",
     },
   ];
 

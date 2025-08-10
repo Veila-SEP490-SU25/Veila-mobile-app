@@ -3,6 +3,7 @@ import React, { useState } from "react";
 import { default as assets } from "assets";
 import { router } from "expo-router";
 import { Image, Text, TouchableOpacity, View } from "react-native";
+import { GoogleOAuthButton } from "../../components/auth/login/GoogleOAuthButton";
 import { OtpLoginForm } from "../../components/auth/login/otp-login-form";
 import { PasswordLoginForm } from "../../components/auth/login/password-login-form";
 
@@ -84,19 +85,7 @@ export default function LoginScreen() {
             <View className="flex-1 h-px bg-gray-200" />
           </View>
 
-          <TouchableOpacity className="flex-row items-center justify-center w-full py-3 rounded-2xl bg-white border border-primary-500">
-            <Image
-              source={assets.Images.google}
-              className="w-5 h-5 mr-2"
-              resizeMode="contain"
-            />
-            <Text
-              className="text-primary-500 font-medium"
-              onPress={() => router.push("/_tab/home")}
-            >
-              Đăng nhập với Google
-            </Text>
-          </TouchableOpacity>
+          <GoogleOAuthButton />
         </View>
       </View>
     </View>

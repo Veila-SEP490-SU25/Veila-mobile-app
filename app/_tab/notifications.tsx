@@ -1,12 +1,8 @@
 import React from "react";
 import { StatusBar, StyleSheet, View } from "react-native";
 import NotificationList from "../../components/notifications/NotificationList";
-import { useTokenCheck } from "../../hooks/useTokenCheck";
 
 export default function Notifications() {
-  useTokenCheck();
-
-  // Mock user data - in real app, get from auth context
   const currentUser = {
     id: "user123",
   };

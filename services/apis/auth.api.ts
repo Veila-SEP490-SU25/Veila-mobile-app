@@ -2,10 +2,13 @@ import { createApi } from "@reduxjs/toolkit/query/react";
 import { baseQueryWithRefresh } from "../../services/apis/base.query";
 import {
   IChangePassword,
+  IGoogleLogin,
   IItemResponse,
   ILogin,
   IRegister,
   IRequestOtp,
+  IRequestResetPassword,
+  IResetPassword,
   IToken,
   IUpdateProfile,
   IUser,
@@ -19,6 +22,14 @@ export const authApi = createApi({
     login: builder.mutation<IItemResponse<IToken>, ILogin>({
       query: (body) => ({
         url: "auth/login",
+        method: "POST",
+        body,
+      }),
+    }),
+
+    googleLogin: builder.mutation<IItemResponse<IToken>, IGoogleLogin>({
+      query: (body) => ({
+        url: "auth/google/login",
         method: "POST",
         body,
       }),
@@ -88,11 +99,31 @@ export const authApi = createApi({
         body,
       }),
     }),
+
+    requestResetPassword: builder.mutation<
+      IItemResponse<string>,
+      IRequestResetPassword
+    >({
+      query: (body) => ({
+        url: "auth/reset-password",
+        method: "POST",
+        body,
+      }),
+    }),
+
+    resetPassword: builder.mutation<IItemResponse<null>, IResetPassword>({
+      query: (body) => ({
+        url: "auth/reset-password",
+        method: "POST",
+        body,
+      }),
+    }),
   }),
 });
 
 export const {
   useLoginMutation,
+  useGoogleLoginMutation,
   useLogoutMutation,
   useLazyGetMeQuery,
   useUpdateProfileMutation,
@@ -101,4 +132,6 @@ export const {
   useRegisterMutation,
   useRequestOtpMutation,
   useVerifyOtpMutation,
+  useRequestResetPasswordMutation,
+  useResetPasswordMutation,
 } = authApi;

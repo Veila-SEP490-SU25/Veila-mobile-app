@@ -10,6 +10,7 @@ import { AuthProvider } from "../providers/auth.provider";
 
 import { store } from "services/store";
 import "../styles/global.css";
+import { SessionProvider } from "./context/SessionContext";
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
@@ -34,17 +35,20 @@ export default function RootLayout() {
   return (
     <ReduxProvider store={store}>
       <AuthProvider>
-        <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="not-found" options={{ headerShown: false }} />
-          <Stack.Screen name="index" options={{ headerShown: false }} />
-        </Stack>
-        <Toast
-          config={toastConfig}
-          position="bottom"
-          bottomOffset={100}
-          visibilityTime={3000}
-          autoHide={true}
-        />
+        {" "}
+        <SessionProvider>
+          <Stack screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="not-found" options={{ headerShown: false }} />
+            <Stack.Screen name="index" options={{ headerShown: false }} />
+          </Stack>
+          <Toast
+            config={toastConfig}
+            position="bottom"
+            bottomOffset={100}
+            visibilityTime={3000}
+            autoHide={true}
+          />
+        </SessionProvider>
       </AuthProvider>
     </ReduxProvider>
   );
