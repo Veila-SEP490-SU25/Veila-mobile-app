@@ -1,5 +1,21 @@
 export type DressStatus = "AVAILABLE" | "UNAVAILABLE" | "OUT_OF_STOCK";
 
+export interface DressCategory {
+  id: string;
+  name: string;
+  images: string[] | null;
+  description: string;
+  type: string; // e.g., "DRESS"
+}
+
+export interface DressShop {
+  id: string;
+  name: string;
+  address: string;
+  logoUrl: string;
+  reputation: number;
+}
+
 export interface Dress {
   id: string;
   name: string;
@@ -10,6 +26,8 @@ export interface Dress {
   isSellable: boolean;
   isRentable: boolean;
   status: DressStatus;
+  user?: { shop?: DressShop };
+  category?: DressCategory;
 }
 
 export interface DressListResponse {

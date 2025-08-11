@@ -16,6 +16,7 @@ import {
   setRefreshToken,
   setToLocalStorage,
 } from "utils";
+import { useSession } from "../app/context/SessionContext";
 import {
   useGoogleLoginMutation,
   useLazyGetMeQuery,
@@ -49,6 +50,7 @@ export const useAuth = () => {
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const router = useRouter();
+  const { resetSession } = useSession();
 
   const [user, setUser] = useState<IUser | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -86,15 +88,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setUser(item);
       setIsAuthenticated(true);
       await setToLocalStorage("user", item);
+      resetSession();
     } catch (error) {
-      console.log("Lỗi fetch user:", error);
+      console.log("Lỗi fetch user:", error?.toString());
 
       setUser(null);
       setIsAuthenticated(false);
       await delTokens();
       router.replace("/_auth/login");
     }
-  }, [getMe, router]);
+  }, [getMe, router, resetSession]);
 
   const refreshUser = useCallback(async () => {
     try {
@@ -102,7 +105,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setUser(item);
       await setToLocalStorage("user", item);
     } catch (error) {
-      console.log("Lỗi refresh user:", error);
+      console.log("Lỗi refresh user:", error?.toString());
     }
   }, [getMe]);
 
@@ -117,6 +120,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           const { accessToken, refreshToken } = item;
           await saveTokens(accessToken, refreshToken);
           await fetchUser();
+          resetSession();
           Toast.show({ type: "success", text1: "Đăng nhập thành công" });
           router.replace("/_tab/home");
         } else if (statusCode === 401) {
@@ -144,7 +148,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setIsAuthenticating(false);
       }
     },
-    [loginMutation, requestOtpMutation, router, fetchUser]
+    [loginMutation, requestOtpMutation, router, fetchUser, resetSession]
   );
 
   const googleLogin = useCallback(
@@ -158,6 +162,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           const { accessToken, refreshToken } = item;
           await saveTokens(accessToken, refreshToken);
           await fetchUser();
+          resetSession();
           Toast.show({ type: "success", text1: "Đăng nhập Google thành công" });
           router.replace("/_tab/home");
         } else {
@@ -177,7 +182,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setIsAuthenticating(false);
       }
     },
-    [googleLoginMutation, router, fetchUser]
+    [googleLoginMutation, router, fetchUser, resetSession]
   );
 
   const verifyOtp = useCallback(
@@ -191,6 +196,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           const { accessToken, refreshToken } = item;
           await saveTokens(accessToken, refreshToken);
           await fetchUser();
+          resetSession();
           Toast.show({ type: "success", text1: "Xác thực thành công" });
           router.replace("/_tab/home");
         } else {
@@ -210,7 +216,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setIsAuthenticating(false);
       }
     },
-    [verifyOtpMutation, router, fetchUser]
+    [verifyOtpMutation, router, fetchUser, resetSession]
   );
 
   useEffect(() => {
@@ -224,7 +230,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           await delTokens();
         }
       } catch (error) {
-        console.log("Lỗi kiểm tra token trong AuthProvider:", error);
+        console.log(
+          "Lỗi kiểm tra token trong AuthProvider:",
+          error?.toString()
+        );
         await delTokens();
       } finally {
         setIsAuthChecking(false);

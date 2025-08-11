@@ -1,3 +1,19 @@
+export interface Shop {
+  id: string;
+  name: string;
+  address: string;
+  logoUrl: string;
+  reputation: number;
+}
+
+export interface Category {
+  id: string;
+  name: string;
+  images: string[] | null;
+  description: string;
+  type: string;
+}
+
 export interface BlogPost {
   id: string;
   title: string;
@@ -8,6 +24,10 @@ export interface BlogPost {
   summary?: string;
   tags?: string[];
   viewCount?: number;
+  user: {
+    shop: Shop;
+  };
+  category: Category;
 }
 
 export interface BlogPostListResponse {

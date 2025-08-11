@@ -13,21 +13,22 @@ import {
 import { dressApi } from "../../services/apis/dress.api";
 import { shopApi } from "../../services/apis/shop.api";
 import { Dress } from "../../services/types/dress.type";
-import { Shop } from "../../services/types/shop.type";
 
 export default function DressDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [dress, setDress] = useState<Dress | null>(null);
-  const [shop, setShop] = useState<Shop | null>(null);
+  const [shop, setShop] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
 
   const loadDressDetail = useCallback(async () => {
     try {
       if (!id) return;
-      const dressData = await dressApi.getDressById(id);
+      const dressData = await dressApi.getDressById(id as string);
       setDress(dressData);
-      // Giả sử dress có trường shopId, nếu không có thì bỏ đoạn này
-      if ((dressData as any).shopId) {
+      // Ưu tiên lấy shop từ dữ liệu dress mới (user.shop)
+      if ((dressData as any)?.user?.shop) {
+        setShop((dressData as any).user.shop);
+      } else if ((dressData as any).shopId) {
         const shopData = await shopApi.getShopById((dressData as any).shopId);
         setShop(shopData);
       }
@@ -41,6 +42,10 @@ export default function DressDetailScreen() {
   useEffect(() => {
     loadDressDetail();
   }, [loadDressDetail]);
+
+  const handleShopPress = useCallback(() => {
+    if (shop?.id) router.push(`/shop/${shop.id}` as any);
+  }, [shop]);
 
   if (loading) {
     return (
@@ -93,12 +98,14 @@ export default function DressDetailScreen() {
         <View style={styles.infoContainer}>
           <Text style={styles.dressName}>{dress.name}</Text>
           <View style={styles.priceRow}>
-            {dress.isSellable && (
-              <Text style={styles.sellPrice}>Mua: {dress.sellPrice}</Text>
-            )}
-            {dress.isRentable && (
-              <Text style={styles.rentPrice}>Thuê: {dress.rentalPrice}</Text>
-            )}
+            <Text style={styles.sellPrice}>
+              {dress.isSellable ? `Mua: ${dress.sellPrice}` : "Không bán"}
+            </Text>
+            <Text style={styles.rentPrice}>
+              {dress.isRentable
+                ? `Thuê: ${dress.rentalPrice}`
+                : "Không cho thuê"}
+            </Text>
           </View>
           <View style={styles.ratingRow}>
             <Ionicons name="star" size={16} color="#F59E0B" />
@@ -111,12 +118,10 @@ export default function DressDetailScreen() {
                   : "Không khả dụng"}
             </Text>
           </View>
-          {/* Shop info nếu có */}
+
+          {/* Shop info dưới giống blog */}
           {shop && (
-            <TouchableOpacity
-              style={styles.shopCard}
-              onPress={() => router.push(`/shop/${shop.id}` as any)}
-            >
+            <TouchableOpacity style={styles.shopCard} onPress={handleShopPress}>
               <Image
                 source={{
                   uri:
@@ -128,10 +133,29 @@ export default function DressDetailScreen() {
               <View style={{ flex: 1 }}>
                 <Text style={styles.shopName}>{shop.name}</Text>
                 <Text style={styles.shopAddress}>{shop.address}</Text>
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    marginTop: 4,
+                  }}
+                >
+                  <Ionicons name="star" size={14} color="#F59E0B" />
+                  <Text
+                    style={{
+                      marginLeft: 6,
+                      color: "#6B7280",
+                      fontWeight: "600",
+                    }}
+                  >
+                    Đánh giá: {shop.reputation ?? "-"}
+                  </Text>
+                </View>
               </View>
               <Ionicons name="chevron-forward" size={20} color="#E05C78" />
             </TouchableOpacity>
           )}
+
           <TouchableOpacity style={styles.chatButton}>
             <Ionicons
               name="chatbubble-ellipses-outline"
@@ -147,10 +171,7 @@ export default function DressDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#FFFFFF",
-  },
+  container: { flex: 1, backgroundColor: "#FFFFFF" },
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -186,53 +207,30 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  scrollView: {
-    flex: 1,
-  },
+  scrollView: { flex: 1 },
   imageContainer: {
     width: "100%",
     aspectRatio: 2 / 3,
     backgroundColor: "#F9F9F9",
   },
-  dressImage: {
-    width: "100%",
-    height: "100%",
-  },
-  infoContainer: {
-    padding: 20,
-  },
+  dressImage: { width: "100%", height: "100%" },
+  infoContainer: { padding: 20 },
   dressName: {
     fontSize: 24,
     fontWeight: "700",
     color: "#333333",
     marginBottom: 12,
   },
-  priceRow: {
-    flexDirection: "row",
-    gap: 16,
-    marginBottom: 8,
-  },
-  sellPrice: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#E05C78",
-  },
-  rentPrice: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#666666",
-  },
+  priceRow: { flexDirection: "row", gap: 16, marginBottom: 8 },
+  sellPrice: { fontSize: 16, fontWeight: "700", color: "#E05C78" },
+  rentPrice: { fontSize: 16, fontWeight: "700", color: "#10B981" },
   ratingRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
     marginBottom: 12,
   },
-  ratingText: {
-    fontSize: 14,
-    color: "#666666",
-    marginLeft: 4,
-  },
+  ratingText: { fontSize: 14, color: "#666666", marginLeft: 4 },
   statusText: {
     fontSize: 14,
     color: "#E05C78",
@@ -245,8 +243,8 @@ const styles = StyleSheet.create({
     backgroundColor: "#F8F9FA",
     borderRadius: 16,
     padding: 12,
-    marginBottom: 16,
     marginTop: 8,
+    marginBottom: 12,
     shadowColor: "#E05C78",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
@@ -260,15 +258,8 @@ const styles = StyleSheet.create({
     marginRight: 12,
     backgroundColor: "#FFF",
   },
-  shopName: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#333333",
-  },
-  shopAddress: {
-    fontSize: 12,
-    color: "#666666",
-  },
+  shopName: { fontSize: 16, fontWeight: "700", color: "#333333" },
+  shopAddress: { fontSize: 12, color: "#666666" },
   chatButton: {
     flexDirection: "row",
     alignItems: "center",
@@ -295,19 +286,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     padding: 20,
   },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: "#666666",
-  },
+  loadingText: { marginTop: 12, fontSize: 16, color: "#666666" },
   errorContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
     padding: 20,
   },
-  errorText: {
-    fontSize: 16,
-    color: "#666666",
-  },
+  errorText: { fontSize: 16, color: "#666666" },
 });

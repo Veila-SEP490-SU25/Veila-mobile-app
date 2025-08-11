@@ -19,12 +19,24 @@ const makeRequest = async (endpoint: string, options: RequestInit = {}) => {
   return response.json();
 };
 
+export type DressQuery = {
+  page?: number;
+  size?: number;
+  sort?: string; // e.g., name:asc
+  filter?: string; // e.g., name:like:áo
+  mode?: "buy" | "rent"; // optional filter client-side or server may support
+};
+
 export const dressApi = {
-  getDresses: async (
-    page: number = 0,
-    size: number = 10
-  ): Promise<DressListResponse> => {
-    return makeRequest(`/dresses?page=${page}&size=${size}`);
+  getDresses: async (query: DressQuery = {}): Promise<DressListResponse> => {
+    const params = new URLSearchParams();
+    if (query.page !== undefined) params.append("page", String(query.page));
+    if (query.size !== undefined) params.append("size", String(query.size));
+    if (query.sort) params.append("sort", query.sort);
+    if (query.filter) params.append("filter", query.filter);
+    if (query.mode) params.append("mode", query.mode);
+    const qs = params.toString();
+    return makeRequest(`/dresses${qs ? `?${qs}` : ""}`);
   },
   getDressById: async (id: string): Promise<Dress> => {
     return makeRequest(`/dresses/${id}`);

@@ -1,6 +1,6 @@
 import Constants from "expo-constants";
 import { getApp, getApps, initializeApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
+import { getAuth, initializeAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
@@ -18,6 +18,13 @@ const firebaseConfig = {
 
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 
-export const auth = getAuth(app);
+let auth;
+try {
+  auth = getAuth(app);
+} catch {
+  auth = initializeAuth(app); // tạm bỏ persistence
+}
+
+export { auth };
 export const db = getFirestore(app);
 export const storage = getStorage(app);

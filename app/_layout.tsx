@@ -10,7 +10,7 @@ import { AuthProvider } from "../providers/auth.provider";
 
 import { store } from "services/store";
 import "../styles/global.css";
-import { SessionProvider } from "./context/SessionContext";
+import SessionProvider from "./context/SessionContext";
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
@@ -34,9 +34,8 @@ export default function RootLayout() {
 
   return (
     <ReduxProvider store={store}>
-      <AuthProvider>
-        {" "}
-        <SessionProvider>
+      <SessionProvider>
+        <AuthProvider>
           <Stack screenOptions={{ headerShown: false }}>
             <Stack.Screen name="not-found" options={{ headerShown: false }} />
             <Stack.Screen name="index" options={{ headerShown: false }} />
@@ -48,8 +47,8 @@ export default function RootLayout() {
             visibilityTime={3000}
             autoHide={true}
           />
-        </SessionProvider>
-      </AuthProvider>
+        </AuthProvider>
+      </SessionProvider>
     </ReduxProvider>
   );
 }

@@ -1,11 +1,12 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { usePathname, useRouter } from "expo-router";
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { Modal, Text, TouchableOpacity, View } from "react-native";
+import { delTokens, getAccessToken } from "../../utils/token.util";
 
 const SessionContext = createContext({
   sessionExpired: false,
   setSessionExpired: () => {},
+  resetSession: () => {},
 });
 
 const publicRoutes = [
@@ -17,11 +18,11 @@ const publicRoutes = [
 
 export const useSession = () => useContext(SessionContext);
 
-export const SessionProvider = ({
+export default function SessionProvider({
   children,
 }: {
   children: React.ReactNode;
-}) => {
+}) {
   const [sessionExpired, setSessionExpired] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
@@ -30,9 +31,11 @@ export const SessionProvider = ({
     const checkToken = async () => {
       if (publicRoutes.includes(pathname)) return;
 
-      const token = await AsyncStorage.getItem("token");
+      const token = await getAccessToken();
       if (!token) {
         setSessionExpired(true);
+      } else {
+        setSessionExpired(false);
       }
     };
 
@@ -41,8 +44,12 @@ export const SessionProvider = ({
 
   const handleOk = () => {
     setSessionExpired(false);
-    AsyncStorage.removeItem("token");
+    delTokens();
     router.replace("/_auth/login");
+  };
+
+  const resetSession = () => {
+    setSessionExpired(false);
   };
 
   return (
@@ -50,6 +57,7 @@ export const SessionProvider = ({
       value={{
         sessionExpired,
         setSessionExpired: () => setSessionExpired(true),
+        resetSession,
       }}
     >
       {children}
@@ -71,4 +79,4 @@ export const SessionProvider = ({
       </Modal>
     </SessionContext.Provider>
   );
-};
+}

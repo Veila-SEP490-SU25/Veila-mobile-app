@@ -131,7 +131,7 @@ export default function OrdersScreen() {
 
   return (
     <View className="flex-1 bg-white">
-      <View className="pt-12 pb-2 px-4 bg-white shadow-sm z-10">
+      <View className="pt-20 pb-2 px-4 bg-white shadow-sm z-10">
         <View className="flex-row items-center mb-3">
           <TouchableOpacity
             className="w-10 h-10 rounded-full bg-primary-100 justify-center items-center mr-2"

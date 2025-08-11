@@ -30,8 +30,7 @@ export default function SplashIntroVideo() {
       } else {
         router.replace("/_auth/login");
       }
-    } catch (err) {
-      console.error("Error navigating from splash:", err);
+    } catch {
       router.replace("/_auth/login");
     }
   }, [navigated]);
@@ -39,7 +38,7 @@ export default function SplashIntroVideo() {
   useEffect(() => {
     const fallback = setTimeout(() => {
       navigate();
-    }, 4000);
+    }, 3000);
 
     return () => clearTimeout(fallback);
   }, [navigate]);
