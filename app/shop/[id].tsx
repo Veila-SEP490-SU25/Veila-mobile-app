@@ -179,13 +179,6 @@ export default function ShopDetailScreen() {
               </Text>
             </View>
           )}
-          {selectedCategory === "SERVICE" && (
-            <View style={styles.placeholderContainer}>
-              <Text style={styles.placeholderText}>
-                Dịch vụ - Đang phát triển
-              </Text>
-            </View>
-          )}
           {selectedCategory === "BLOG" && (
             <View style={styles.placeholderContainer}>
               <Text style={styles.placeholderText}>Blog - Đang phát triển</Text>

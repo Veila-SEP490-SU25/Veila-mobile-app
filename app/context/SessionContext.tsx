@@ -1,7 +1,17 @@
 import { usePathname, useRouter } from "expo-router";
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { Modal, Text, TouchableOpacity, View } from "react-native";
-import { delTokens, getAccessToken } from "../../utils/token.util";
+import {
+  delTokens,
+  getAccessToken,
+  isTokenExpired,
+} from "../../utils/token.util";
 
 const SessionContext = createContext({
   sessionExpired: false,
@@ -24,18 +34,36 @@ export default function SessionProvider({
   children: React.ReactNode;
 }) {
   const [sessionExpired, setSessionExpired] = useState(false);
+  const hasChecked = useRef(false);
   const pathname = usePathname();
   const router = useRouter();
 
   useEffect(() => {
     const checkToken = async () => {
-      if (publicRoutes.includes(pathname)) return;
-
-      const token = await getAccessToken();
-      if (!token) {
-        setSessionExpired(true);
-      } else {
+      if (publicRoutes.includes(pathname)) {
         setSessionExpired(false);
+        hasChecked.current = false;
+        return;
+      }
+
+      if (hasChecked.current) return; // Tránh check nhiều lần
+      hasChecked.current = true;
+
+      // Thêm delay nhỏ để tránh check quá sớm
+      await new Promise((resolve) => setTimeout(resolve, 800));
+
+      try {
+        const token = await getAccessToken();
+        if (!token || isTokenExpired(token)) {
+          console.log("Token không hợp lệ hoặc hết hạn trong SessionContext");
+          setSessionExpired(true);
+        } else {
+          console.log("Token hợp lệ trong SessionContext");
+          setSessionExpired(false);
+        }
+      } catch (error) {
+        console.log("Lỗi kiểm tra token trong SessionContext:", error);
+        setSessionExpired(true);
       }
     };
 
@@ -44,12 +72,17 @@ export default function SessionProvider({
 
   const handleOk = () => {
     setSessionExpired(false);
+    hasChecked.current = false;
     delTokens();
-    router.replace("/_auth/login");
+    // Thêm delay nhỏ để tránh xung đột
+    setTimeout(() => {
+      router.replace("/_auth/login");
+    }, 100);
   };
 
   const resetSession = () => {
     setSessionExpired(false);
+    hasChecked.current = false;
   };
 
   return (
@@ -68,11 +101,16 @@ export default function SessionProvider({
             <Text className="text-lg font-bold mb-3 text-gray-700 text-center">
               Phiên đăng nhập đã hết hạn
             </Text>
+            <Text className="text-sm text-gray-500 text-center mb-4">
+              Vui lòng đăng nhập lại để tiếp tục sử dụng
+            </Text>
             <TouchableOpacity
-              className="bg-primary-500 py-2 rounded-xl mt-4"
+              className="bg-primary-500 py-3 rounded-xl mt-2"
               onPress={handleOk}
             >
-              <Text className="text-white font-semibold text-center">OK</Text>
+              <Text className="text-white font-semibold text-center">
+                Đăng nhập lại
+              </Text>
             </TouchableOpacity>
           </View>
         </View>

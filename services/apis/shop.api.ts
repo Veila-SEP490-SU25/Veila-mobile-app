@@ -1,7 +1,6 @@
 import { getTokens, getVeilaServerConfig } from "../../utils";
 import {
   AccessoryListResponse,
-  BlogListResponse,
   CategoryListResponse,
   DressListResponse,
   ServiceListResponse,
@@ -34,9 +33,21 @@ export const shopApi = {
   // Get all shops
   getShops: async (
     page: number = 0,
-    size: number = 10
+    size: number = 10,
+    filter?: string,
+    sort?: string
   ): Promise<ShopListResponse> => {
-    return makeRequest(`/shops?page=${page}&size=${size}`);
+    let url = `/shops?page=${page}&size=${size}`;
+    
+    if (filter) {
+      url += `&filter=${encodeURIComponent(filter)}`;
+    }
+    
+    if (sort) {
+      url += `&sort=${encodeURIComponent(sort)}`;
+    }
+    
+    return makeRequest(url);
   },
 
   // Get shop detail
@@ -87,7 +98,7 @@ export const shopApi = {
     shopId: string,
     page: number = 0,
     size: number = 10
-  ): Promise<BlogListResponse> => {
+  ): Promise<any> => {
     return makeRequest(`/shops/${shopId}/blogs?page=${page}&size=${size}`);
   },
 };

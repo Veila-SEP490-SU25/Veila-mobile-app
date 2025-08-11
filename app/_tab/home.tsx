@@ -5,7 +5,7 @@ import HomeHeader from "components/homePage/HomeHeader";
 import RecommendedList from "components/homePage/RecommendedList";
 import SideMenu from "components/homePage/SideMenu";
 import { router } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   Animated,
   RefreshControl,
@@ -33,7 +33,8 @@ export default function Home() {
   const slideAnim = React.useRef(new Animated.Value(50)).current;
 
   useEffect(() => {
-    Animated.parallel([
+    // Create animation once and store reference
+    const animation = Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
         duration: 1000,
@@ -44,8 +45,16 @@ export default function Home() {
         duration: 800,
         useNativeDriver: true,
       }),
-    ]).start();
-  });
+    ]);
+    
+    // Start animation
+    animation.start();
+    
+    // Cleanup function to prevent memory leaks
+    return () => {
+      animation.stop();
+    };
+  }, []); // Empty dependency array - run only once
 
   const onRefresh = React.useCallback(() => {
     setRefreshing(true);
@@ -53,6 +62,40 @@ export default function Home() {
     setTimeout(() => {
       setRefreshing(false);
     }, 2000);
+  }, []);
+
+  const handleMenuPress = useCallback(() => {
+    setShowMenu(true);
+  }, []);
+
+  const handleMenuClose = useCallback(() => {
+    setShowMenu(false);
+  }, []);
+
+  const handleNavigate = useCallback((route: string) => {
+    // Close menu first
+    setShowMenu(false);
+    
+    // Simple navigation without complex timing
+    setTimeout(() => {
+      if (
+        route === "/_tab/home" ||
+        route === "/_tab/shopping" ||
+        route === "/_tab/chat" ||
+        route === "/_tab/notifications" ||
+        route === "/_tab/account"
+      ) {
+        router.push(route as any);
+      } else if (route.startsWith("/account/")) {
+        router.push(route as any);
+      } else if (route.startsWith("/contracts/")) {
+        router.push(route as any);
+      } else if (route === "/shop") {
+        router.push(route as any);
+      } else {
+        console.log("Navigate to:", route);
+      }
+    }, 200);
   }, []);
 
   const quickActions: QuickAction[] = [
@@ -124,7 +167,7 @@ export default function Home() {
           <Text style={styles.quickActionSubtitle}>{action.subtitle}</Text>
         </View>
         <Ionicons name="chevron-forward" size={16} color="#CCCCCC" />
-      </TouchableOpacity>
+        </TouchableOpacity>
     </Animated.View>
   );
 
@@ -135,32 +178,19 @@ export default function Home() {
       {showMenu && (
         <TouchableOpacity
           style={styles.overlay}
-          onPress={() => setShowMenu(false)}
+          onPress={handleMenuClose}
           activeOpacity={1}
         />
       )}
 
       {showMenu && (
         <SideMenu
-          onClose={() => setShowMenu(false)}
-          navigate={(route: string) => {
-            if (
-              route === "/_tab/home" ||
-              route === "/_tab/shopping" ||
-              route === "/_tab/chat" ||
-              route === "/_tab/notifications" ||
-              route === "/_tab/account"
-            ) {
-              router.push(route as any);
-            } else {
-              console.log("Navigate to:", route);
-            }
-            setShowMenu(false);
-          }}
+          onClose={handleMenuClose}
+          navigate={handleNavigate}
         />
       )}
 
-      <HomeHeader onMenuPress={() => setShowMenu(true)} />
+      <HomeHeader onMenuPress={handleMenuPress} />
 
       <ScrollView
         showsVerticalScrollIndicator={false}

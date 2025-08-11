@@ -1,7 +1,7 @@
 import React from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
-export type CategoryType = "DRESS" | "SHOP" | "CUSTOM" | "BLOG";
+export type CategoryType = "DRESS" | "ACCESSORY" | "BLOG";
 
 interface CategoryTab {
   id: CategoryType;
@@ -21,14 +21,9 @@ const categories: CategoryTab[] = [
     icon: "👗",
   },
   {
-    id: "SHOP",
-    label: "Shop",
-    icon: "🏪",
-  },
-  {
-    id: "CUSTOM",
-    label: "Đặt may",
-    icon: "✂️",
+    id: "ACCESSORY",
+    label: "Phụ kiện",
+    icon: "💍",
   },
   {
     id: "BLOG",

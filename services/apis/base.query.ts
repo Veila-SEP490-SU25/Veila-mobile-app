@@ -5,15 +5,9 @@ import {
   fetchBaseQuery,
   FetchBaseQueryError,
 } from "@reduxjs/toolkit/query";
-import { router } from "expo-router";
 import toast from "react-native-toast-message";
 import { IItemResponse, IToken } from "../../services/types";
-import {
-  clearLocalStorage,
-  getTokens,
-  getVeilaServerConfig,
-  setTokens,
-} from "../../utils";
+import { getTokens, getVeilaServerConfig, setTokens } from "../../utils";
 
 const API_URL = getVeilaServerConfig();
 
@@ -36,6 +30,9 @@ const toastError = (title: string, description?: string) => {
   });
 };
 
+let isRefreshing = false;
+let refreshPromise: Promise<any> | null = null;
+
 export const baseQueryWithRefresh: BaseQueryFn<
   string | FetchArgs,
   unknown,
@@ -43,46 +40,109 @@ export const baseQueryWithRefresh: BaseQueryFn<
 > = async (args, api, extraOptions) => {
   let result = await baseQuery(args, api, extraOptions);
 
-  if (result.error) {
-    const errData = result.error.data as { message?: string } | undefined;
-    toastError("Đã xảy ra lỗi", errData?.message || "Unknown error");
-    return result;
-  }
+  // Kiểm tra nếu có lỗi 401 (Unauthorized) và không phải là request refresh token
+  if (result.error && result.error.status === 401 && !isRefreshing) {
+    // Kiểm tra để tránh vòng lặp vô hạn
+    const isRefreshRequest =
+      typeof args === "object" && args.url === "/auth/refresh-token";
 
-  const data = result.data as Partial<IItemResponse<unknown>> | undefined;
-
-  if (data?.statusCode === 401 && data.message?.includes("hết hạn")) {
-    const refreshToken = await AsyncStorage.getItem("refreshToken");
-
-    if (!refreshToken) {
-      toastError("Không tìm thấy refresh token");
-      clearLocalStorage();
-      router.replace("/_auth/login");
+    if (isRefreshRequest) {
+      console.log("Đây là request refresh token, không thử refresh nữa");
       return result;
     }
 
-    const refreshResult = await baseQuery(
-      {
-        url: "/auth/refresh-token",
-        method: "POST",
-        body: { refreshToken },
-      },
-      api,
-      extraOptions
-    );
-
-    const refreshData = refreshResult.data as
-      | Partial<IItemResponse<IToken>>
-      | undefined;
-
-    if (refreshData?.statusCode === 200 && refreshData.item) {
-      setTokens(refreshData.item.accessToken, refreshData.item.refreshToken);
-
+    // Nếu đang có refresh promise, đợi nó hoàn thành
+    if (refreshPromise) {
+      console.log("Đang đợi refresh token hoàn thành...");
+      await refreshPromise;
+      // Thử lại request ban đầu
       result = await baseQuery(args, api, extraOptions);
-    } else {
-      toastError("Phiên đăng nhập hết hạn", refreshData?.message);
-      clearLocalStorage();
-      router.replace("/_auth/login");
+      return result;
+    }
+
+    isRefreshing = true;
+    console.log("Bắt đầu refresh token từ base query...");
+
+    // Tạo promise mới cho refresh token
+    refreshPromise = (async () => {
+      try {
+        // Lấy refresh token từ AsyncStorage
+        const refreshToken = await AsyncStorage.getItem("refreshToken");
+
+        if (!refreshToken) {
+          console.log("Không tìm thấy refresh token");
+          return false;
+        }
+
+        console.log("Đang thử refresh token từ base query...");
+
+        // Gọi API refresh token
+        const refreshResult = await baseQuery(
+          {
+            url: "/auth/refresh-token",
+            method: "POST",
+            body: { refreshToken },
+          },
+          api,
+          extraOptions
+        );
+
+        if (refreshResult.error) {
+          console.log(
+            "Refresh token thất bại từ base query:",
+            refreshResult.error
+          );
+          return false;
+        }
+
+        const refreshData = refreshResult.data as
+          | Partial<IItemResponse<IToken>>
+          | undefined;
+
+        if (refreshData?.statusCode === 200 && refreshData.item) {
+          console.log(
+            "Refresh token thành công từ base query, đang lưu token mới"
+          );
+
+          // Lưu token mới
+          await setTokens(
+            refreshData.item.accessToken,
+            refreshData.item.refreshToken
+          );
+          return true;
+        } else {
+          console.log(
+            "Refresh token response không hợp lệ từ base query:",
+            refreshData
+          );
+          return false;
+        }
+      } catch (error) {
+        console.log("Lỗi trong quá trình refresh token từ base query:", error);
+        return false;
+      }
+    })();
+
+    try {
+      const refreshSuccess = await refreshPromise;
+
+      if (refreshSuccess) {
+        // Thử lại request ban đầu với token mới
+        console.log("Đang thử lại request ban đầu...");
+        result = await baseQuery(args, api, extraOptions);
+
+        if (result.error) {
+          console.log("Request sau refresh vẫn thất bại:", result.error);
+        } else {
+          console.log("Request sau refresh thành công");
+        }
+      } else {
+        console.log("Refresh token thất bại, không thử lại request");
+      }
+    } finally {
+      isRefreshing = false;
+      refreshPromise = null;
+      console.log("Kết thúc refresh token từ base query");
     }
   }
 

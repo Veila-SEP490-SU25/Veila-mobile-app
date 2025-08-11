@@ -6,16 +6,26 @@ import {
   FlatList,
   Image,
   RefreshControl,
+  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
+  Modal,
+  Alert,
 } from "react-native";
 import { useGetBlogsQuery } from "../../services/apis/blog.api";
 import { BlogPost } from "../../services/types";
 
 interface BlogListProps {
   onBlogPress: (blog: BlogPost) => void;
+}
+
+interface FilterOptions {
+  title?: string;
+  sort?: string;
+  size: number;
+  page: number;
 }
 
 export default function BlogList({ onBlogPress }: BlogListProps) {
@@ -25,12 +35,21 @@ export default function BlogList({ onBlogPress }: BlogListProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState("title:asc");
+  
+  // Filter state
+  const [showFilters, setShowFilters] = useState(false);
+  const [filterOptions, setFilterOptions] = useState<FilterOptions>({
+    title: "",
+    sort: "title:asc",
+    size: 10,
+    page: 0,
+  });
 
   // Gọi API với page, size = 10, sort, filter
   const { data, isLoading, isFetching, refetch, error } = useGetBlogsQuery({
     page,
-    size: 10, // mỗi page 10 bài
-    sort: sortBy,
+    size: filterOptions.size,
+    sort: filterOptions.sort,
     filter: debouncedSearchQuery
       ? `title:like:${debouncedSearchQuery}`
       : undefined,
@@ -40,15 +59,15 @@ export default function BlogList({ onBlogPress }: BlogListProps) {
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearchQuery(searchQuery);
-      setPage(0); // reset page khi thay đổi từ khóa tìm kiếm
+      setFilterOptions(prev => ({ ...prev, page: 0 }));
     }, 500);
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
   // Khi sortBy thay đổi, reset page về 0 luôn
   useEffect(() => {
-    setPage(0);
-  }, [sortBy]);
+    setFilterOptions(prev => ({ ...prev, page: 0 }));
+  }, [filterOptions.sort]);
 
   // Khi data thay đổi, update danh sách blogs
   useEffect(() => {
@@ -71,7 +90,7 @@ export default function BlogList({ onBlogPress }: BlogListProps) {
   // Refresh lại danh sách
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    setPage(0); // reset về trang đầu
+    setFilterOptions(prev => ({ ...prev, page: 0 })); // reset về trang đầu
     refetch().finally(() => setRefreshing(false)); // tắt refreshing sau khi load xong
   }, [refetch]);
 
@@ -88,7 +107,13 @@ export default function BlogList({ onBlogPress }: BlogListProps) {
   }, []);
 
   const handleSort = useCallback((sort: string) => {
-    setSortBy(sort);
+    setFilterOptions(prev => ({ ...prev, sort, page: 0 }));
+    setShowFilters(false);
+  }, []);
+
+  const handleSizeChange = useCallback((size: number) => {
+    setFilterOptions(prev => ({ ...prev, size, page: 0 }));
+    setShowFilters(false);
   }, []);
 
   const handleShopPress = useCallback((shopId: string) => {
@@ -99,11 +124,11 @@ export default function BlogList({ onBlogPress }: BlogListProps) {
   const renderBlog = useCallback(
     ({ item }: { item: BlogPost }) => (
       <TouchableOpacity
-        className="mb-20 bg-white mx-5 rounded-2xl shadow-card overflow-hidden"
+        style={styles.blogCard}
         onPress={() => onBlogPress(item)}
         activeOpacity={0.85}
       >
-        <View className="w-full aspect-[2/1] bg-gray-100">
+        <View style={styles.imageContainer}>
           <Image
             source={{
               uri:
@@ -111,77 +136,65 @@ export default function BlogList({ onBlogPress }: BlogListProps) {
                   ? item.images[0]
                   : "https://placehold.co/600x300?text=Blog",
             }}
-            className="w-full h-full rounded-t-2xl"
+            style={styles.blogImage}
             resizeMode="cover"
           />
         </View>
-        <View className="p-4">
-          <Text
-            className="font-bold text-lg text-primary-600 mb-2"
-            numberOfLines={2}
-          >
+        <View style={styles.blogContent}>
+          <Text style={styles.blogTitle} numberOfLines={2}>
             {item.title}
           </Text>
 
           {/* Shop Info */}
           <TouchableOpacity
-            className="flex-row items-center mb-3"
+            style={styles.shopInfo}
             onPress={() => handleShopPress(item.user.shop.id)}
             activeOpacity={0.7}
           >
             <Image
               source={{ uri: item.user.shop.logoUrl }}
-              className="w-8 h-8 rounded-full mr-3"
+              style={styles.shopLogo}
               resizeMode="cover"
             />
-            <View className="flex-1">
-              <Text className="text-sm font-semibold text-gray-700">
+            <View style={styles.shopDetails}>
+              <Text style={styles.shopName}>
                 {item.user.shop.name}
               </Text>
-              <Text className="text-xs text-gray-500" numberOfLines={1}>
+              <Text style={styles.shopAddress} numberOfLines={1}>
                 {item.user.shop.address}
               </Text>
             </View>
-            <View className="flex-row items-center">
-              <Text className="text-xs text-primary-600 ml-1">
+            <View style={styles.reputationContainer}>
+              <Text style={styles.reputationLabel}>
                 Điểm uy tín:
               </Text>
-              <Text className="text-xs text-gray-600 ml-1">
+              <Text style={styles.reputationValue}>
                 {item.user.shop.reputation}
               </Text>
             </View>
           </TouchableOpacity>
 
-          {/* Category */}
-          {/* <View className="flex-row items-center mb-2">
-            <View className="bg-primary-100 px-3 py-1 rounded-full">
-              <Text className="text-xs text-primary-600 font-semibold">
-                {item.category.name}
-              </Text>
-            </View>
-          </View> */}
-
           {/* Summary */}
           {item.summary ? (
-            <Text className="text-gray-500 text-sm mb-2" numberOfLines={2}>
+            <Text style={styles.blogSummary} numberOfLines={2}>
               {item.summary}
             </Text>
           ) : null}
 
           {/* Meta Info */}
-          <View className="flex-row items-center justify-between">
-            <View className="flex-row items-center">
+          <View style={styles.metaInfo}>
+            <View style={styles.categoryContainer}>
               <Ionicons
                 name="document-text-outline"
                 size={16}
                 color="#E05C78"
               />
-              <Text className="ml-2 text-xs text-gray-400">
+              <Text style={styles.categoryText}>
                 {item.category.name}
               </Text>
             </View>
             {item.publishedAt && (
-              <Text className="text-xs text-gray-400">
+              <Text style={styles.publishDate}>
                 {new Date(item.publishedAt).toLocaleDateString("vi-VN")}
               </Text>
             )}
@@ -195,89 +208,70 @@ export default function BlogList({ onBlogPress }: BlogListProps) {
   // Header gồm thanh tìm kiếm và chọn sort
   const renderHeader = useCallback(
     () => (
-      <View className="px-5 pb-5 bg-white rounded-b-xl">
-        {/* Search Bar */}
-        <View className="mb-5">
-          <View className="flex-row items-center bg-gray-200 mt-4 rounded-full px-5 py-3 shadow-sm">
-            <Ionicons name="search" size={22} color="#888" />
+      <View style={styles.headerContainer}>
+        {/* Search and Filter Header */}
+        <View style={styles.searchFilterHeader}>
+          <View style={styles.searchContainer}>
+            <Ionicons name="search" size={20} color="#666666" style={styles.searchIcon} />
             <TextInput
-              className="flex-1 ml-4 text-base text-gray-800 font-medium"
+              style={styles.searchInput}
               placeholder="Tìm kiếm bài viết..."
+              placeholderTextColor="#999999"
               value={searchQuery}
               onChangeText={handleSearch}
-              placeholderTextColor="#aaa"
-              selectionColor="#E05C78"
             />
             {searchQuery.length > 0 && (
               <TouchableOpacity
+                style={styles.clearButton}
                 onPress={() => handleSearch("")}
-                className="p-1 rounded-full active:opacity-70"
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
-                <Ionicons name="close-circle" size={22} color="#888" />
+                <Ionicons name="close-circle" size={20} color="#999999" />
               </TouchableOpacity>
             )}
           </View>
+          
+          <TouchableOpacity
+            style={styles.filterButton}
+            onPress={() => setShowFilters(true)}
+          >
+            <Ionicons name="filter" size={20} color="#E05C78" />
+            <Text style={styles.filterButtonText}>Bộ lọc</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Results Info */}
+        <View style={styles.resultsInfo}>
+          <Text style={styles.resultsText}>
+            {blogs.length} bài viết
+            {searchQuery && ` cho "${searchQuery}"`}
+          </Text>
           {searchQuery !== debouncedSearchQuery && (
-            <View className="flex-row items-center mt-3">
+            <View style={styles.searchingIndicator}>
               <ActivityIndicator size="small" color="#E05C78" />
-              <Text className="ml-3 text-sm text-gray-500 italic">
-                Đang tìm kiếm...
-              </Text>
+              <Text style={styles.searchingText}>Đang tìm kiếm...</Text>
             </View>
           )}
         </View>
-
-        {/* Sort Options */}
-        <View className="flex-row justify-start space-x-3">
-          {[
-            { label: "A-Z", value: "title:asc" },
-            { label: "Z-A", value: "title:desc" },
-            { label: "Mới nhất", value: "publishedAt:desc" },
-          ].map(({ label, value }) => {
-            const isActive = sortBy === value;
-            return (
-              <TouchableOpacity
-                key={value}
-                className={`px-5 py-2 rounded-full border transition-colors duration-200 ${
-                  isActive
-                    ? "bg-primary-600 border-primary-600"
-                    : "bg-white border-gray-300"
-                }`}
-                onPress={() => handleSort(value)}
-                activeOpacity={0.75}
-              >
-                <Text
-                  className={`text-sm font-semibold ${
-                    isActive ? "text-white" : "text-gray-700"
-                  }`}
-                >
-                  {label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
       </View>
     ),
-    [searchQuery, debouncedSearchQuery, sortBy, handleSearch, handleSort]
+    [searchQuery, debouncedSearchQuery, blogs.length, handleSearch]
   );
 
   if (error) {
     return (
-      <View className="flex-1 justify-center items-center py-10 px-4">
+      <View style={styles.errorContainer}>
         <Ionicons name="alert-circle-outline" size={64} color="#EF4444" />
-        <Text className="text-xl font-bold text-gray-700 mt-6 mb-2">
+        <Text style={styles.errorTitle}>
           Có lỗi xảy ra
         </Text>
-        <Text className="text-base text-gray-500 text-center mb-4">
+        <Text style={styles.errorMessage}>
           Không thể tải danh sách bài viết. Vui lòng thử lại.
         </Text>
         <TouchableOpacity
-          className="bg-primary-500 px-6 py-3 rounded-xl"
+          style={styles.retryButton}
           onPress={() => refetch()}
         >
-          <Text className="text-white font-semibold">Thử lại</Text>
+          <Text style={styles.retryButtonText}>Thử lại</Text>
         </TouchableOpacity>
       </View>
     );
@@ -285,9 +279,9 @@ export default function BlogList({ onBlogPress }: BlogListProps) {
 
   if (isLoading && blogs.length === 0) {
     return (
-      <View className="flex-1 justify-center items-center py-10">
+      <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#E05C78" />
-        <Text className="mt-4 text-base text-gray-500">
+        <Text style={styles.loadingText}>
           Đang tải bài viết...
         </Text>
       </View>
@@ -295,47 +289,538 @@ export default function BlogList({ onBlogPress }: BlogListProps) {
   }
 
   return (
-    <FlatList
-      data={blogs}
-      renderItem={renderBlog}
-      keyExtractor={(item) => item.id}
-      contentContainerStyle={{ paddingBottom: 32 }}
-      showsVerticalScrollIndicator={false}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-      }
-      onEndReached={loadMore}
-      onEndReachedThreshold={0.1}
-      ListHeaderComponent={renderHeader}
-      ListFooterComponent={
-        data?.hasNextPage ? (
-          <View className="py-4 items-center">
-            <ActivityIndicator size="small" color="#E05C78" />
-            <Text className="mt-2 text-sm text-gray-400">Đang tải thêm...</Text>
+    <View style={styles.mainContainer}>
+      <FlatList
+        data={blogs}
+        renderItem={renderBlog}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={{ paddingBottom: 32 }}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+        onEndReached={loadMore}
+        onEndReachedThreshold={0.1}
+        ListHeaderComponent={renderHeader}
+        ListFooterComponent={
+          data?.hasNextPage ? (
+            <View style={styles.loadingMore}>
+              <ActivityIndicator size="small" color="#E05C78" />
+              <Text style={styles.loadingMoreText}>Đang tải thêm...</Text>
+            </View>
+          ) : blogs.length > 0 ? (
+            <View style={styles.resultsSummary}>
+              <Text style={styles.resultsSummaryText}>
+                Hiển thị {blogs.length} / {data?.totalItems || 0} bài viết
+              </Text>
+            </View>
+          ) : null
+        }
+        ListEmptyComponent={
+          !isLoading ? (
+            <View style={styles.emptyContainer}>
+              <Ionicons name="document-text-outline" size={64} color="#CCCCCC" />
+              <Text style={styles.emptyTitle}>
+                Không có bài viết nào
+              </Text>
+              <Text style={styles.emptyMessage}>
+                {debouncedSearchQuery
+                  ? "Không tìm thấy bài viết phù hợp với từ khóa tìm kiếm"
+                  : "Hãy quay lại sau để xem bài viết mới"}
+              </Text>
+            </View>
+          ) : null
+        }
+      />
+
+      {/* Filter Modal */}
+      <Modal
+        visible={showFilters}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowFilters(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Bộ lọc</Text>
+              <TouchableOpacity
+                style={styles.closeButton}
+                onPress={() => setShowFilters(false)}
+              >
+                <Ionicons name="close" size={24} color="#666666" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Sort Options */}
+            <View style={styles.filterSection}>
+              <Text style={styles.filterSectionTitle}>Sắp xếp theo</Text>
+              <View style={styles.sortOptions}>
+                <TouchableOpacity
+                  style={[
+                    styles.sortOption,
+                    filterOptions.sort === "title:asc" && styles.activeSortOption
+                  ]}
+                  onPress={() => handleSort("title:asc")}
+                >
+                  <Text style={[
+                    styles.sortOptionText,
+                    filterOptions.sort === "title:asc" && styles.activeSortOptionText
+                  ]}>
+                    Tên A-Z
+                  </Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={[
+                    styles.sortOption,
+                    filterOptions.sort === "title:desc" && styles.activeSortOption
+                  ]}
+                  onPress={() => handleSort("title:desc")}
+                >
+                  <Text style={[
+                    styles.sortOptionText,
+                    filterOptions.sort === "title:desc" && styles.activeSortOptionText
+                  ]}>
+                    Tên Z-A
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.sortOption,
+                    filterOptions.sort === "publishedAt:desc" && styles.activeSortOption
+                  ]}
+                  onPress={() => handleSort("publishedAt:desc")}
+                >
+                  <Text style={[
+                    styles.sortOptionText,
+                    filterOptions.sort === "publishedAt:desc" && styles.activeSortOptionText
+                  ]}>
+                    Mới nhất
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Size Options */}
+            <View style={styles.filterSection}>
+              <Text style={styles.filterSectionTitle}>Số lượng mỗi trang</Text>
+              <View style={styles.sizeOptions}>
+                {[5, 10, 15, 20].map((size) => (
+                  <TouchableOpacity
+                    key={size}
+                    style={[
+                      styles.sizeOption,
+                      filterOptions.size === size && styles.activeSizeOption
+                    ]}
+                    onPress={() => handleSizeChange(size)}
+                  >
+                    <Text style={[
+                      styles.sizeOptionText,
+                      filterOptions.size === size && styles.activeSizeOptionText
+                    ]}>
+                      {size}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            {/* Apply Button */}
+            <TouchableOpacity
+              style={styles.applyButton}
+              onPress={() => setShowFilters(false)}
+            >
+              <Text style={styles.applyButtonText}>Áp dụng</Text>
+            </TouchableOpacity>
           </View>
-        ) : blogs.length > 0 ? (
-          <View className="py-4 items-center">
-            <Text className="text-sm text-gray-400">
-              Hiển thị {blogs.length} / {data?.totalItems || 0} bài viết
-            </Text>
-          </View>
-        ) : null
-      }
-      ListEmptyComponent={
-        !isLoading ? (
-          <View className="flex-1 justify-center items-center py-20">
-            <Ionicons name="document-text-outline" size={64} color="#CCCCCC" />
-            <Text className="text-xl font-bold text-gray-400 mt-6 mb-2">
-              Không có bài viết nào
-            </Text>
-            <Text className="text-base text-gray-400 text-center">
-              {debouncedSearchQuery
-                ? "Không tìm thấy bài viết phù hợp với từ khóa tìm kiếm"
-                : "Hãy quay lại sau để xem bài viết mới"}
-            </Text>
-          </View>
-        ) : null
-      }
-    />
+        </View>
+      </Modal>
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  mainContainer: {
+    flex: 1,
+    backgroundColor: "#F5F5F5",
+  },
+  headerContainer: {
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+    backgroundColor: "#FFFFFF",
+    borderBottomWidth: 1,
+    borderBottomColor: "#E0E0E0",
+  },
+  searchFilterHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  searchContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F5F5F5",
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    flex: 1, // Allow search input to take available space
+  },
+  searchIcon: {
+    marginRight: 8,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 14,
+    color: "#333333",
+  },
+  clearButton: {
+    padding: 4,
+  },
+  filterButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F5F5F5",
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: "#E0E0E0",
+  },
+  filterButtonText: {
+    fontSize: 14,
+    color: "#E05C78",
+    marginLeft: 5,
+  },
+  sortContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-around",
+    marginBottom: 12,
+  },
+  sortChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#E0E0E0",
+    backgroundColor: "#F5F5F5",
+    marginHorizontal: 4,
+    marginVertical: 4,
+  },
+  sortChipActive: {
+    borderColor: "#E05C78",
+    backgroundColor: "#FFF5F7",
+  },
+  sortChipText: {
+    fontSize: 12,
+    color: "#666666",
+  },
+  sortChipTextActive: {
+    color: "#E05C78",
+    fontWeight: "bold",
+  },
+  resultsInfo: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: 8,
+  },
+  resultsText: {
+    fontSize: 14,
+    color: "#666666",
+  },
+  searchingIndicator: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  searchingText: {
+    fontSize: 12,
+    color: "#E05C78",
+    marginLeft: 4,
+  },
+  blogCard: {
+    marginBottom: 20,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  imageContainer: {
+    width: "100%",
+    aspectRatio: 2 / 1,
+    backgroundColor: "#F0F0F0",
+  },
+  blogImage: {
+    width: "100%",
+    height: "100%",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+  },
+  blogContent: {
+    padding: 16,
+  },
+  blogTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#333333",
+    marginBottom: 8,
+  },
+  shopInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  shopLogo: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginRight: 10,
+  },
+  shopDetails: {
+    flex: 1,
+  },
+  shopName: {
+    fontSize: 14,
+    fontWeight: "semibold",
+    color: "#333333",
+  },
+  shopAddress: {
+    fontSize: 12,
+    color: "#666666",
+    marginTop: 2,
+  },
+  reputationContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 8,
+  },
+  reputationLabel: {
+    fontSize: 12,
+    color: "#E05C78",
+    marginRight: 5,
+  },
+  reputationValue: {
+    fontSize: 12,
+    color: "#666666",
+  },
+  blogSummary: {
+    fontSize: 14,
+    color: "#555555",
+    marginBottom: 12,
+  },
+  metaInfo: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  categoryContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F0F0F0",
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  categoryText: {
+    fontSize: 12,
+    color: "#E05C78",
+    fontWeight: "semibold",
+    marginLeft: 5,
+  },
+  publishDate: {
+    fontSize: 12,
+    color: "#999999",
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+    backgroundColor: "#FFFFFF",
+  },
+  errorTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: "#EF4444",
+    marginTop: 10,
+  },
+  errorMessage: {
+    fontSize: 14,
+    color: "#666666",
+    textAlign: "center",
+    marginTop: 5,
+    marginBottom: 20,
+  },
+  retryButton: {
+    backgroundColor: "#E05C78",
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 10,
+  },
+  retryButtonText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "bold",
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+    backgroundColor: "#FFFFFF",
+  },
+  loadingText: {
+    fontSize: 16,
+    color: "#E05C78",
+    marginTop: 10,
+  },
+  loadingMore: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 10,
+    backgroundColor: "#F5F5F5",
+  },
+  loadingMoreText: {
+    fontSize: 12,
+    color: "#E05C78",
+    marginLeft: 5,
+  },
+  resultsSummary: {
+    alignItems: "center",
+    paddingVertical: 10,
+    backgroundColor: "#F5F5F5",
+  },
+  resultsSummaryText: {
+    fontSize: 12,
+    color: "#666666",
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+    backgroundColor: "#FFFFFF",
+  },
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: "#CCCCCC",
+    marginTop: 10,
+  },
+  emptyMessage: {
+    fontSize: 14,
+    color: "#CCCCCC",
+    textAlign: "center",
+    marginTop: 5,
+    marginBottom: 20,
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+  },
+  modalContent: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    padding: 20,
+    width: "90%",
+    alignItems: "center",
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    width: "100%",
+    marginBottom: 20,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: "#333333",
+  },
+  closeButton: {
+    padding: 5,
+  },
+  filterSection: {
+    width: "100%",
+    marginBottom: 20,
+  },
+  filterSectionTitle: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#333333",
+    marginBottom: 10,
+  },
+  sortOptions: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    backgroundColor: "#F0F0F0",
+    borderRadius: 10,
+    padding: 5,
+  },
+  sortOption: {
+    paddingVertical: 8,
+    paddingHorizontal: 15,
+    borderRadius: 20,
+  },
+  activeSortOption: {
+    backgroundColor: "#E05C78",
+    borderColor: "#E05C78",
+    borderWidth: 1,
+  },
+  sortOptionText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#333333",
+  },
+  activeSortOptionText: {
+    color: "#FFFFFF",
+  },
+  sizeOptions: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    backgroundColor: "#F0F0F0",
+    borderRadius: 10,
+    padding: 5,
+  },
+  sizeOption: {
+    paddingVertical: 8,
+    paddingHorizontal: 15,
+    borderRadius: 20,
+  },
+  activeSizeOption: {
+    backgroundColor: "#E05C78",
+    borderColor: "#E05C78",
+    borderWidth: 1,
+  },
+  sizeOptionText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#333333",
+  },
+  activeSizeOptionText: {
+    color: "#FFFFFF",
+  },
+  applyButton: {
+    backgroundColor: "#E05C78",
+    paddingVertical: 12,
+    paddingHorizontal: 30,
+    borderRadius: 25,
+    width: "100%",
+  },
+  applyButtonText: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#FFFFFF",
+    textAlign: "center",
+  },
+});

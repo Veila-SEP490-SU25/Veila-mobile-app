@@ -10,6 +10,8 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  Modal,
+  Alert,
 } from "react-native";
 import { dressApi } from "../../services/apis/dress.api";
 import { shopApi } from "../../services/apis/shop.api";
@@ -21,22 +23,38 @@ interface DressGridProps {
 }
 
 type Mode = "buy" | "rent";
+
+interface FilterOptions {
+  name?: string;
+  sort?: string;
+  size: number;
+  page: number;
+}
+
 export default function DressGrid({ shopId, onDressPress }: DressGridProps) {
   const [dresses, setDresses] = useState<Dress[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const [mode, setMode] = useState<Mode>("buy");
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState("name:asc");
+  
+  // Filter state
+  const [showFilters, setShowFilters] = useState(false);
+  const [filterOptions, setFilterOptions] = useState<FilterOptions>({
+    name: "",
+    sort: "name:asc",
+    size: 10,
+    page: 0,
+  });
 
   // Debounce search
   useEffect(() => {
     const t = setTimeout(() => {
       setDebouncedSearchQuery(searchQuery);
-      setPage(0);
+      setFilterOptions(prev => ({ ...prev, page: 0 }));
     }, 400);
     return () => clearTimeout(t);
   }, [searchQuery]);
@@ -47,12 +65,12 @@ export default function DressGrid({ shopId, onDressPress }: DressGridProps) {
         setLoading(pageNum === 0 && !refresh ? true : loading);
         let newResponse;
         if (shopId) {
-          newResponse = await shopApi.getShopDresses(shopId, pageNum, 10);
+          newResponse = await shopApi.getShopDresses(shopId, pageNum, filterOptions.size);
         } else {
           newResponse = await dressApi.getDresses({
             page: pageNum,
-            size: 10,
-            sort: sortBy,
+            size: filterOptions.size,
+            sort: filterOptions.sort,
             filter: debouncedSearchQuery
               ? `name:like:${debouncedSearchQuery}`
               : undefined,
@@ -71,38 +89,49 @@ export default function DressGrid({ shopId, onDressPress }: DressGridProps) {
         }
 
         setHasMore(newResponse.hasNextPage);
-        setPage(pageNum);
+        setFilterOptions(prev => ({ ...prev, page: pageNum }));
       } catch (error) {
         console.error("Error loading dresses:", error);
+        Alert.alert("Lỗi", "Không thể tải danh sách váy cưới");
       } finally {
         setLoading(false);
         setRefreshing(false);
       }
     },
-    [debouncedSearchQuery, sortBy, shopId, loading]
+    [debouncedSearchQuery, filterOptions.sort, filterOptions.size, shopId, loading]
   );
 
   useEffect(() => {
     loadDresses(0, true);
   }, [loadDresses]);
 
-  // Reset page on sort/mode change (mode just toggles price display)
+  // Reset page on sort/mode change
   useEffect(() => {
-    setPage(0);
+    setFilterOptions(prev => ({ ...prev, page: 0 }));
     loadDresses(0, true);
-  }, [sortBy, loadDresses]);
+  }, [filterOptions.sort, loadDresses]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    setPage(0);
+    setFilterOptions(prev => ({ ...prev, page: 0 }));
     loadDresses(0, true);
   }, [loadDresses]);
 
   const loadMore = useCallback(() => {
     if (hasMore && !loading) {
-      loadDresses(page + 1);
+      loadDresses(filterOptions.page + 1);
     }
-  }, [hasMore, loading, loadDresses, page]);
+  }, [hasMore, loading, loadDresses, filterOptions.page]);
+
+  const handleSortChange = (sortOption: string) => {
+    setFilterOptions(prev => ({ ...prev, sort: sortOption, page: 0 }));
+    setShowFilters(false);
+  };
+
+  const handleSizeChange = (size: number) => {
+    setFilterOptions(prev => ({ ...prev, size, page: 0 }));
+    setShowFilters(false);
+  };
 
   const renderPrice = useCallback(
     (item: Dress) => {
@@ -178,7 +207,7 @@ export default function DressGrid({ shopId, onDressPress }: DressGridProps) {
   );
 
   const renderHeader = () => (
-    <View style={{ paddingHorizontal: 16, paddingBottom: 8 }}>
+    <View style={styles.headerContainer}>
       {/* Sub tabs Buy/Rent */}
       <View style={styles.subTabsContainer}>
         {[
@@ -202,46 +231,42 @@ export default function DressGrid({ shopId, onDressPress }: DressGridProps) {
         })}
       </View>
 
-      {/* Search */}
-      <View style={styles.searchBar}>
-        <Ionicons name="search" size={18} color="#888" />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Tìm theo tên váy..."
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          placeholderTextColor="#aaa"
-          selectionColor="#E05C78"
-        />
-        {searchQuery.length > 0 && (
-          <TouchableOpacity onPress={() => setSearchQuery("")}>
-            <Ionicons name="close-circle" size={20} color="#999" />
-          </TouchableOpacity>
-        )}
+      {/* Search and Filter Header */}
+      <View style={styles.searchFilterHeader}>
+        <View style={styles.searchContainer}>
+          <Ionicons name="search" size={20} color="#666666" style={styles.searchIcon} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Tìm kiếm váy cưới..."
+            placeholderTextColor="#999999"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity
+              style={styles.clearButton}
+              onPress={() => setSearchQuery("")}
+            >
+              <Ionicons name="close-circle" size={20} color="#999999" />
+            </TouchableOpacity>
+          )}
+        </View>
+        
+        <TouchableOpacity
+          style={styles.filterButton}
+          onPress={() => setShowFilters(true)}
+        >
+          <Ionicons name="filter" size={20} color="#E05C78" />
+          <Text style={styles.filterButtonText}>Bộ lọc</Text>
+        </TouchableOpacity>
       </View>
 
-      {/* Sort */}
-      <View style={styles.sortRow}>
-        {["name:asc", "name:desc"].map((s) => {
-          const active = sortBy === s;
-          const label = s === "name:asc" ? "A-Z" : "Z-A";
-          return (
-            <TouchableOpacity
-              key={s}
-              style={[styles.sortChip, active && styles.sortChipActive]}
-              onPress={() => setSortBy(s)}
-            >
-              <Text
-                style={[
-                  styles.sortChipText,
-                  active && styles.sortChipTextActive,
-                ]}
-              >
-                {label}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
+      {/* Results Info */}
+      <View style={styles.resultsInfo}>
+        <Text style={styles.resultsText}>
+          {dresses.length} váy cưới
+          {searchQuery && ` cho "${searchQuery}"`}
+        </Text>
       </View>
     </View>
   );
@@ -256,38 +281,130 @@ export default function DressGrid({ shopId, onDressPress }: DressGridProps) {
   }
 
   return (
-    <FlatList
-      data={dresses}
-      renderItem={renderDress}
-      keyExtractor={(item) => item.id}
-      numColumns={2}
-      columnWrapperStyle={styles.row}
-      contentContainerStyle={styles.container}
-      showsVerticalScrollIndicator={false}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-      }
-      onEndReached={loadMore}
-      onEndReachedThreshold={0.1}
-      ListHeaderComponent={renderHeader}
-      ListFooterComponent={
-        hasMore ? (
-          <View style={styles.loadingMore}>
-            <ActivityIndicator size="small" color="#E05C78" />
-            <Text style={styles.loadingMoreText}>Đang tải thêm...</Text>
+    <View style={styles.mainContainer}>
+      <FlatList
+        data={dresses}
+        renderItem={renderDress}
+        keyExtractor={(item) => item.id}
+        numColumns={2}
+        columnWrapperStyle={styles.row}
+        contentContainerStyle={styles.container}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+        onEndReached={loadMore}
+        onEndReachedThreshold={0.1}
+        ListHeaderComponent={renderHeader}
+        ListFooterComponent={
+          hasMore ? (
+            <View style={styles.loadingMore}>
+              <ActivityIndicator size="small" color="#E05C78" />
+              <Text style={styles.loadingMoreText}>Đang tải thêm...</Text>
+            </View>
+          ) : null
+        }
+        ListEmptyComponent={
+          !loading ? (
+            <View style={styles.emptyContainer}>
+              <Ionicons name="shirt-outline" size={64} color="#CCCCCC" />
+              <Text style={styles.emptyText}>Không có váy cưới nào</Text>
+              <Text style={styles.emptySubtext}>Hãy thử từ khóa khác</Text>
+            </View>
+          ) : null
+        }
+      />
+
+      {/* Filter Modal */}
+      <Modal
+        visible={showFilters}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowFilters(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Bộ lọc</Text>
+              <TouchableOpacity
+                style={styles.closeButton}
+                onPress={() => setShowFilters(false)}
+              >
+                <Ionicons name="close" size={24} color="#666666" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Sort Options */}
+            <View style={styles.filterSection}>
+              <Text style={styles.filterSectionTitle}>Sắp xếp theo</Text>
+              <View style={styles.sortOptions}>
+                <TouchableOpacity
+                  style={[
+                    styles.sortOption,
+                    filterOptions.sort === "name:asc" && styles.activeSortOption
+                  ]}
+                  onPress={() => handleSortChange("name:asc")}
+                >
+                  <Text style={[
+                    styles.sortOptionText,
+                    filterOptions.sort === "name:asc" && styles.activeSortOptionText
+                  ]}>
+                    Tên A-Z
+                  </Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={[
+                    styles.sortOption,
+                    filterOptions.sort === "name:desc" && styles.activeSortOption
+                  ]}
+                  onPress={() => handleSortChange("name:desc")}
+                >
+                  <Text style={[
+                    styles.sortOptionText,
+                    filterOptions.sort === "name:desc" && styles.activeSortOptionText
+                  ]}>
+                    Tên Z-A
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Size Options */}
+            <View style={styles.filterSection}>
+              <Text style={styles.filterSectionTitle}>Số lượng mỗi trang</Text>
+              <View style={styles.sizeOptions}>
+                {[5, 10, 15, 20].map((size) => (
+                  <TouchableOpacity
+                    key={size}
+                    style={[
+                      styles.sizeOption,
+                      filterOptions.size === size && styles.activeSizeOption
+                    ]}
+                    onPress={() => handleSizeChange(size)}
+                  >
+                    <Text style={[
+                      styles.sizeOptionText,
+                      filterOptions.size === size && styles.activeSizeOptionText
+                    ]}>
+                      {size}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            {/* Apply Button */}
+            <TouchableOpacity
+              style={styles.applyButton}
+              onPress={() => setShowFilters(false)}
+            >
+              <Text style={styles.applyButtonText}>Áp dụng</Text>
+            </TouchableOpacity>
           </View>
-        ) : null
-      }
-      ListEmptyComponent={
-        !loading ? (
-          <View style={styles.emptyContainer}>
-            <Ionicons name="shirt-outline" size={64} color="#CCCCCC" />
-            <Text style={styles.emptyText}>Không có váy cưới nào</Text>
-            <Text style={styles.emptySubtext}>Hãy thử từ khóa khác</Text>
-          </View>
-        ) : null
-      }
-    />
+        </View>
+      </Modal>
+    </View>
   );
 }
 
@@ -298,13 +415,26 @@ const styles = StyleSheet.create({
   row: {
     justifyContent: "space-between",
   },
+  headerContainer: {
+    paddingHorizontal: 16,
+    paddingBottom: 8,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    marginBottom: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+    padding: 16,
+  },
   subTabsContainer: {
     flexDirection: "row",
-    backgroundColor: "#fff",
+    backgroundColor: "#F8F9FA",
     borderRadius: 12,
     padding: 6,
     gap: 6,
-    marginBottom: 10,
+    marginBottom: 16,
   },
   subTab: {
     flex: 1,
@@ -323,30 +453,36 @@ const styles = StyleSheet.create({
   subTabTextActive: {
     color: "#fff",
   },
-  searchBar: {
+  searchContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#F3F4F6",
-    borderRadius: 12,
+    backgroundColor: "#F0F0F0",
+    borderRadius: 20,
     paddingHorizontal: 12,
     paddingVertical: 8,
-    gap: 8,
-    marginBottom: 10,
+    marginBottom: 16,
+  },
+  searchIcon: {
+    marginRight: 8,
   },
   searchInput: {
     flex: 1,
-    color: "#333",
+    fontSize: 14,
+    color: "#333333",
   },
-  sortRow: {
+  clearButton: {
+    padding: 4,
+  },
+  sortContainer: {
     flexDirection: "row",
     gap: 8,
-    marginBottom: 10,
+    marginBottom: 16,
   },
   sortChip: {
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 16,
-    backgroundColor: "#fff",
+    backgroundColor: "#F8F9FA",
     borderWidth: 1,
     borderColor: "#E5E7EB",
   },
@@ -360,6 +496,16 @@ const styles = StyleSheet.create({
   },
   sortChipTextActive: {
     color: "#fff",
+  },
+  resultsInfo: {
+    alignItems: "center",
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: "#F0F0F0",
+  },
+  resultsText: {
+    fontSize: 14,
+    color: "#666666",
   },
   dressCard: {
     width: "48%",
@@ -500,6 +646,131 @@ const styles = StyleSheet.create({
   emptySubtext: {
     fontSize: 14,
     color: "#666666",
+    textAlign: "center",
+  },
+  searchFilterHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  filterButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F8F9FA",
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: "#E05C78",
+  },
+  filterButtonText: {
+    color: "#E05C78",
+    fontWeight: "600",
+    marginLeft: 8,
+  },
+  mainContainer: {
+    flex: 1,
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+  },
+  modalContent: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    padding: 20,
+    width: "90%",
+    alignItems: "center",
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    width: "100%",
+    marginBottom: 20,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: "#333333",
+  },
+  closeButton: {
+    padding: 5,
+  },
+  filterSection: {
+    width: "100%",
+    marginBottom: 20,
+  },
+  filterSectionTitle: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#333333",
+    marginBottom: 10,
+  },
+  sortOptions: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    backgroundColor: "#F0F0F0",
+    borderRadius: 10,
+    padding: 5,
+  },
+  sortOption: {
+    paddingVertical: 8,
+    paddingHorizontal: 15,
+    borderRadius: 20,
+  },
+  activeSortOption: {
+    backgroundColor: "#E05C78",
+    borderColor: "#E05C78",
+    borderWidth: 1,
+  },
+  sortOptionText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#333333",
+  },
+  activeSortOptionText: {
+    color: "#FFFFFF",
+  },
+  sizeOptions: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    backgroundColor: "#F0F0F0",
+    borderRadius: 10,
+    padding: 5,
+  },
+  sizeOption: {
+    paddingVertical: 8,
+    paddingHorizontal: 15,
+    borderRadius: 20,
+  },
+  activeSizeOption: {
+    backgroundColor: "#E05C78",
+    borderColor: "#E05C78",
+    borderWidth: 1,
+  },
+  sizeOptionText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#333333",
+  },
+  activeSizeOptionText: {
+    color: "#FFFFFF",
+  },
+  applyButton: {
+    backgroundColor: "#E05C78",
+    paddingVertical: 12,
+    paddingHorizontal: 30,
+    borderRadius: 25,
+    width: "100%",
+  },
+  applyButtonText: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#FFFFFF",
     textAlign: "center",
   },
 });

@@ -36,10 +36,8 @@ export default function Shopping() {
     switch (selectedCategory) {
       case "DRESS":
         return "Váy cưới";
-      case "SHOP":
-        return "Cửa hàng";
-      case "CUSTOM":
-        return "Đặt may";
+      case "ACCESSORY":
+        return "Phụ kiện";
       case "BLOG":
         return "Blog";
       default:
@@ -51,22 +49,20 @@ export default function Shopping() {
     switch (selectedCategory) {
       case "DRESS":
         return <DressGrid onDressPress={handleDressPress} />;
-      case "SHOP":
-        return <ShopList onShopPress={handleShopPress} />;
-      case "CUSTOM":
+      case "ACCESSORY":
         return (
           <View className="flex-1 bg-gray-50">
             {/* Header Section */}
             <View className="bg-white px-6 py-8 shadow-sm">
               <View className="items-center">
                 <View className="w-20 h-20 bg-primary-100 rounded-full items-center justify-center mb-4">
-                  <Ionicons name="cut-outline" size={40} color="#E05C78" />
+                  <Ionicons name="diamond-outline" size={40} color="#E05C78" />
                 </View>
                 <Text className="text-2xl font-bold text-gray-800 mb-2 text-center">
-                  Dịch vụ đặt may
+                  Phụ kiện cưới
                 </Text>
                 <Text className="text-base text-gray-600 text-center leading-6">
-                  Tùy chỉnh váy cưới theo ý muốn của bạn
+                  Khám phá bộ sưu tập phụ kiện đẹp mắt
                 </Text>
               </View>
             </View>
@@ -84,68 +80,65 @@ export default function Shopping() {
                   </View>
                   <View className="flex-1">
                     <Text className="text-lg font-semibold text-gray-800">
-                      Thiết kế riêng
+                      Chất lượng cao
                     </Text>
                     <Text className="text-sm text-gray-600">
-                      Váy được thiết kế theo ý muốn của bạn
+                      Phụ kiện được làm từ chất liệu tốt nhất
                     </Text>
                   </View>
                 </View>
 
                 <View className="flex-row items-center mb-4">
                   <View className="w-10 h-10 bg-blue-100 rounded-full items-center justify-center mr-4">
-                    <Ionicons name="color-palette" size={24} color="#3B82F6" />
+                    <Ionicons name="sparkles" size={24} color="#3B82F6" />
                   </View>
                   <View className="flex-1">
                     <Text className="text-lg font-semibold text-gray-800">
-                      Chất liệu cao cấp
+                      Thiết kế độc đáo
                     </Text>
                     <Text className="text-sm text-gray-600">
-                      Sử dụng vải cao cấp, đảm bảo chất lượng
+                      Mỗi phụ kiện đều có thiết kế riêng biệt
                     </Text>
                   </View>
                 </View>
 
                 <View className="flex-row items-center">
                   <View className="w-10 h-10 bg-purple-100 rounded-full items-center justify-center mr-4">
-                    <Ionicons name="time" size={24} color="#8B5CF6" />
+                    <Ionicons name="star" size={24} color="#8B5CF6" />
                   </View>
                   <View className="flex-1">
                     <Text className="text-lg font-semibold text-gray-800">
-                      Giao hàng đúng hẹn
+                      Giá cả hợp lý
                     </Text>
                     <Text className="text-sm text-gray-600">
-                      Cam kết giao hàng đúng thời gian
+                      Chất lượng tốt với mức giá phù hợp
                     </Text>
                   </View>
                 </View>
               </View>
 
-              {/* Contact Buttons */}
-              <View className="space-y-3">
-                <TouchableOpacity
-                  className="bg-primary-500 py-4 rounded-2xl items-center shadow-lg"
-                  onPress={() => {
-                    // TODO: Navigate to custom order form
-                    console.log("Navigate to custom order form");
-                  }}
-                >
-                  <Text className="text-white font-bold text-lg">
-                    Đặt may ngay
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  className="bg-white py-4 rounded-2xl items-center border border-gray-200"
-                  onPress={() => {
-                    // TODO: Navigate to contact page
-                    console.log("Navigate to contact");
-                  }}
-                >
-                  <Text className="text-gray-700 font-semibold text-lg">
-                    Liên hệ tư vấn
-                  </Text>
-                </TouchableOpacity>
+              <View className="bg-white rounded-2xl p-6 shadow-sm">
+                <Text className="text-lg font-semibold text-gray-800 mb-4">
+                  Phụ kiện phổ biến
+                </Text>
+                <View className="space-y-3">
+                  <View className="flex-row items-center">
+                    <Ionicons name="diamond" size={20} color="#E05C78" />
+                    <Text className="text-base text-gray-700 ml-3">Vòng tay</Text>
+                  </View>
+                  <View className="flex-row items-center">
+                    <Ionicons name="diamond" size={20} color="#E05C78" />
+                    <Text className="text-base text-gray-700 ml-3">Vòng cổ</Text>
+                  </View>
+                  <View className="flex-row items-center">
+                    <Ionicons name="diamond" size={20} color="#E05C78" />
+                    <Text className="text-base text-gray-700 ml-3">Bông tai</Text>
+                  </View>
+                  <View className="flex-row items-center">
+                    <Ionicons name="diamond" size={20} color="#E05C78" />
+                    <Text className="text-base text-gray-700 ml-3">Vương miện</Text>
+                  </View>
+                </View>
               </View>
             </View>
           </View>

@@ -5,12 +5,14 @@ import React, {
   useCallback,
   useContext,
   useEffect,
+  useRef,
   useState,
 } from "react";
 import Toast from "react-native-toast-message";
 import {
   delTokens,
   getAccessToken,
+  getRefreshToken,
   isTokenExpired,
   setAccessToken,
   setRefreshToken,
@@ -22,6 +24,7 @@ import {
   useLazyGetMeQuery,
   useLoginMutation,
   useLogoutMutation,
+  useRefreshTokenMutation,
   useRequestOtpMutation,
   useVerifyOtpMutation,
 } from "../services/apis";
@@ -56,6 +59,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [isAuthChecking, setIsAuthChecking] = useState(true);
+  const hasRefreshed = useRef(false);
 
   const [loginMutation] = useLoginMutation();
   const [googleLoginMutation] = useGoogleLoginMutation();
@@ -63,24 +67,36 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [verifyOtpMutation] = useVerifyOtpMutation();
   const [requestOtpMutation] = useRequestOtpMutation();
   const [getMe, { isFetching: isGetMeLoading }] = useLazyGetMeQuery();
+  const [refreshTokenMutation] = useRefreshTokenMutation();
 
   const saveTokens = async (accessToken: string, refreshToken: string) => {
     await setAccessToken(accessToken);
     await setRefreshToken(refreshToken);
   };
 
-  const logout = useCallback(async () => {
+  const handleLogout = useCallback(async () => {
     try {
-      await logoutMutation().unwrap();
-    } catch {
+      // Thử gọi API logout nếu có token
+      const token = await getAccessToken();
+      if (token) {
+        await logoutMutation().unwrap();
+      }
+    } catch (error) {
+      console.log("Lỗi logout API:", error);
     } finally {
+      // Luôn clear local state và tokens
       setUser(null);
       setIsAuthenticated(false);
+      hasRefreshed.current = false;
       await delTokens();
-      router.replace("/_auth/login");
+      resetSession(); // Reset session context
+      // Thêm delay nhỏ để tránh xung đột
+      setTimeout(() => {
+        router.replace("/_auth/login");
+      }, 100);
       Toast.show({ type: "success", text1: "Đăng xuất thành công" });
     }
-  }, [logoutMutation, router]);
+  }, [logoutMutation, router, resetSession]);
 
   const fetchUser = useCallback(async () => {
     try {
@@ -225,9 +241,41 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         const access = await getAccessToken();
         if (access && !isTokenExpired(access)) {
           await fetchUser();
-        } else {
-          console.log("Token hết hạn hoặc không tồn tại trong AuthProvider");
-          await delTokens();
+        } else if (access && isTokenExpired(access) && !hasRefreshed.current) {
+          console.log("Token hết hạn trong AuthProvider, đang thử refresh...");
+          hasRefreshed.current = true;
+          try {
+            // Thử refresh token
+            const refreshToken = await getRefreshToken();
+            if (refreshToken) {
+              const refreshResult = await refreshTokenMutation({
+                refreshToken,
+              }).unwrap();
+              if (refreshResult.statusCode === 200 && refreshResult.item) {
+                console.log("Refresh token thành công trong AuthProvider");
+                await saveTokens(
+                  refreshResult.item.accessToken,
+                  refreshResult.item.refreshToken
+                );
+                await fetchUser();
+              } else {
+                console.log("Refresh token thất bại trong AuthProvider");
+                await delTokens();
+                // Không redirect ngay, để SessionContext xử lý
+              }
+            } else {
+              console.log("Không có refresh token trong AuthProvider");
+              await delTokens();
+              // Không redirect ngay, để SessionContext xử lý
+            }
+          } catch (refreshError) {
+            console.log("Lỗi refresh token trong AuthProvider:", refreshError);
+            await delTokens();
+            // Không redirect ngay, để SessionContext xử lý
+          }
+        } else if (!access) {
+          console.log("Không có token trong AuthProvider");
+          // Không redirect ngay, để SessionContext xử lý
         }
       } catch (error) {
         console.log(
@@ -235,12 +283,25 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           error?.toString()
         );
         await delTokens();
+        // Không redirect ngay, để SessionContext xử lý
       } finally {
         setIsAuthChecking(false);
       }
     };
     init();
-  }, [fetchUser]);
+  }, [fetchUser, refreshTokenMutation]);
+
+  // Reset refresh flag khi user thay đổi
+  useEffect(() => {
+    if (user) {
+      hasRefreshed.current = false;
+    }
+  }, [user]);
+
+  // Reset refresh flag khi logout
+  const logout = useCallback(async () => {
+    await handleLogout();
+  }, [handleLogout]);
 
   const isLoading = isGetMeLoading || isAuthenticating;
 

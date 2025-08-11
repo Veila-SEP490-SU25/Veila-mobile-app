@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useCallback } from "react";
 import {
   Animated,
   Dimensions,
@@ -45,7 +45,7 @@ const menuItems: MenuItem[] = [
     label: "Danh sách cửa hàng",
     subtitle: "Showroom gần bạn",
     icon: "storefront-outline",
-    route: "/_tab/stores",
+    route: "/shop",
     color: "#06B6D4",
   },
   {
@@ -53,7 +53,7 @@ const menuItems: MenuItem[] = [
     label: "Kiểm tra đơn hàng",
     subtitle: "Theo dõi đơn hàng",
     icon: "document-text-outline",
-    route: "/orders",
+    route: "/account/orders",
     color: "#10B981",
     badge: 2,
   },
@@ -62,7 +62,7 @@ const menuItems: MenuItem[] = [
     label: "Danh sách yêu thích",
     subtitle: "Sản phẩm đã lưu",
     icon: "heart-outline",
-    route: "/favorites",
+    route: "/_tab/shopping",
     color: "#EF4444",
   },
   {
@@ -70,7 +70,7 @@ const menuItems: MenuItem[] = [
     label: "Quản lý tài khoản",
     subtitle: "Thông tin cá nhân",
     icon: "person-outline",
-    route: "/account",
+    route: "/_tab/account",
     color: "#F59E0B",
   },
 ];
@@ -84,13 +84,12 @@ const supportItems: MenuItem[] = [
     route: "/contracts/customer",
     color: "#6366F1",
   },
-
   {
     id: "about",
     label: "Về Veila",
     subtitle: "Thông tin ứng dụng",
     icon: "information-circle-outline",
-    route: "/about",
+    route: "/_tab/home",
     color: "#8B5CF6",
   },
 ];
@@ -106,8 +105,10 @@ export default function SideMenu({
   const slideAnim = useRef(new Animated.Value(-screenWidth)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
+  // Simple animation without complex callbacks
   useEffect(() => {
-    Animated.parallel([
+    // Create animation once
+    const openAnimation = Animated.parallel([
       Animated.timing(slideAnim, {
         toValue: 0,
         duration: 300,
@@ -118,11 +119,20 @@ export default function SideMenu({
         duration: 300,
         useNativeDriver: true,
       }),
-    ]).start();
-  }, [slideAnim, fadeAnim]);
+    ]);
+    
+    // Start animation
+    openAnimation.start();
+    
+    // Cleanup function
+    return () => {
+      openAnimation.stop();
+    };
+  }, []); // Empty dependency array - run only once
 
   const handleClose = () => {
-    Animated.parallel([
+    // Create close animation
+    const closeAnimation = Animated.parallel([
       Animated.timing(slideAnim, {
         toValue: -screenWidth,
         duration: 250,
@@ -133,16 +143,20 @@ export default function SideMenu({
         duration: 250,
         useNativeDriver: true,
       }),
-    ]).start(() => {
+    ]);
+    
+    // Start close animation
+    closeAnimation.start(() => {
       onClose();
     });
   };
 
   const handleNavigate = (route: string) => {
     handleClose();
+    // Simple timeout for navigation
     setTimeout(() => {
       navigate(route);
-    }, 250);
+    }, 300);
   };
 
   const getFullName = () => {
