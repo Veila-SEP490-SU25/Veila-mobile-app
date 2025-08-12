@@ -7,7 +7,6 @@ import {
   Image,
   Modal,
   RefreshControl,
-  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
@@ -20,6 +19,8 @@ import { Dress } from "../../services/types/dress.type";
 interface DressGridProps {
   shopId?: string;
   onDressPress: (dress: Dress) => void;
+  onCustomRequestPress?: () => void;
+  onChatPress?: () => void;
 }
 
 type Mode = "buy" | "rent";
@@ -31,7 +32,12 @@ interface FilterOptions {
   page: number;
 }
 
-export default function DressGrid({ shopId, onDressPress }: DressGridProps) {
+export default function DressGrid({
+  shopId,
+  onDressPress,
+  onCustomRequestPress,
+  onChatPress,
+}: DressGridProps) {
   const [dresses, setDresses] = useState<Dress[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -39,7 +45,6 @@ export default function DressGrid({ shopId, onDressPress }: DressGridProps) {
   const [mode, setMode] = useState<Mode>("buy");
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
-  const [sortBy, setSortBy] = useState("name:asc");
 
   // Filter state
   const [showFilters, setShowFilters] = useState(false);
@@ -147,15 +152,37 @@ export default function DressGrid({ shopId, onDressPress }: DressGridProps) {
     (item: Dress) => {
       if (mode === "buy") {
         return item.isSellable ? (
-          <Text style={styles.sellPrice}>Mua: {item.sellPrice}</Text>
+          <View className="flex-row items-center mb-1">
+            <Text className="text-sm font-semibold text-gray-700 mr-2">
+              Mua:
+            </Text>
+            <Text className="text-base font-bold text-primary-500">
+              {item.sellPrice}đ
+            </Text>
+          </View>
         ) : (
-          <Text style={styles.unavailableText}>Không bán</Text>
+          <View className="mb-1">
+            <Text className="text-sm text-gray-400 font-medium italic">
+              Không bán
+            </Text>
+          </View>
         );
       }
       return item.isRentable ? (
-        <Text style={styles.rentPrice}>Thuê: {item.rentalPrice}</Text>
+        <View className="flex-row items-center mb-1">
+          <Text className="text-sm font-semibold text-gray-700 mr-2">
+            Thuê:
+          </Text>
+          <Text className="text-base font-bold text-green-600">
+            {item.rentalPrice}đ
+          </Text>
+        </View>
       ) : (
-        <Text style={styles.unavailableText}>Không cho thuê</Text>
+        <View className="mb-1">
+          <Text className="text-sm text-gray-400 font-medium italic">
+            Không cho thuê
+          </Text>
+        </View>
       );
     },
     [mode]
@@ -163,11 +190,11 @@ export default function DressGrid({ shopId, onDressPress }: DressGridProps) {
 
   const renderDress = ({ item }: { item: Dress }) => (
     <TouchableOpacity
-      style={styles.dressCard}
+      className="w-[48%] bg-white rounded-2xl mb-4 shadow-sm border border-gray-200 overflow-hidden"
       onPress={() => onDressPress(item)}
       activeOpacity={0.8}
     >
-      <View style={styles.imageContainer}>
+      <View className="relative h-48">
         <Image
           source={{
             uri:
@@ -175,41 +202,60 @@ export default function DressGrid({ shopId, onDressPress }: DressGridProps) {
                 ? item.images[0]
                 : "https://via.placeholder.com/200x300?text=Váy+cưới",
           }}
-          style={styles.dressImage}
+          className="w-full h-full"
           resizeMode="cover"
         />
-        <TouchableOpacity style={styles.favoriteButton}>
-          <Ionicons name="heart-outline" size={20} color="#FFFFFF" />
+        <TouchableOpacity className="absolute top-2 right-2 w-8 h-8 bg-black/30 rounded-full items-center justify-center">
+          <Ionicons name="heart-outline" size={18} color="#FFFFFF" />
         </TouchableOpacity>
         {item.status === "OUT_OF_STOCK" && (
-          <View style={styles.outOfStockBadge}>
-            <Text style={styles.outOfStockText}>Hết hàng</Text>
+          <View className="absolute top-2 left-2 bg-red-500 px-2 py-1 rounded-lg">
+            <Text className="text-white text-xs font-bold">Hết hàng</Text>
           </View>
         )}
       </View>
 
-      <View style={styles.dressInfo}>
-        <Text style={styles.dressName} numberOfLines={2}>
+      <View className="p-4">
+        <Text
+          className="text-sm font-bold text-gray-800 mb-2 leading-5"
+          numberOfLines={2}
+        >
           {item.name}
         </Text>
 
-        <View style={styles.ratingContainer}>
+        <View className="flex-row items-center mb-2">
           <Ionicons name="star" size={14} color="#F59E0B" />
-          <Text style={styles.ratingText}>{item.ratingAverage}</Text>
+          <Text className="text-xs text-gray-600 ml-1 font-medium">
+            {item.ratingAverage}
+          </Text>
+          <Text className="text-xs text-gray-400 ml-1">
+            ({Math.floor(Math.random() * 100) + 20})
+          </Text>
         </View>
 
-        <View style={styles.priceContainer}>{renderPrice(item)}</View>
+        <View className="mb-3">{renderPrice(item)}</View>
 
         {/* Shop info short */}
         {item.user?.shop && (
-          <View style={styles.shopRow}>
+          <View className="flex-row items-center">
             <Image
               source={{ uri: item.user.shop.logoUrl! }}
-              style={styles.shopLogoMini}
+              className="w-5 h-5 rounded-full bg-gray-100 mr-2"
             />
-            <Text style={styles.shopNameMini} numberOfLines={1}>
-              {item.user.shop.name}
-            </Text>
+            <View className="flex-1">
+              <Text
+                className="text-xs text-gray-600 font-medium"
+                numberOfLines={1}
+              >
+                {item.user.shop.name}
+              </Text>
+              <View className="flex-row items-center mt-1">
+                <Ionicons name="star" size={10} color="#F59E0B" />
+                <Text className="text-xs text-gray-500 ml-1">
+                  {Math.floor(Math.random() * 50) + 50}
+                </Text>
+              </View>
+            </View>
           </View>
         )}
       </View>
@@ -217,9 +263,9 @@ export default function DressGrid({ shopId, onDressPress }: DressGridProps) {
   );
 
   const renderHeader = () => (
-    <View style={styles.headerContainer}>
+    <View className="px-4 pb-8 bg-white rounded-2xl mb-4 shadow-sm border border-gray-200">
       {/* Sub tabs Buy/Rent */}
-      <View style={styles.subTabsContainer}>
+      <View className="flex-row bg-gray-10 mt-4 rounded-xl p-1 gap-2 mb-4 border border-gray-200">
         {[
           { key: "buy", label: "Mua" },
           { key: "rent", label: "Thuê" },
@@ -228,11 +274,18 @@ export default function DressGrid({ shopId, onDressPress }: DressGridProps) {
           return (
             <TouchableOpacity
               key={t.key}
-              style={[styles.subTab, active && styles.subTabActive]}
+              className={`flex-1 m-2 py-3 px-4 rounded-lg items-center justify-center transition-all ${
+                active
+                  ? "bg-primary-500 shadow-md transform scale-105"
+                  : "bg-white hover:bg-gray-50"
+              }`}
               onPress={() => setMode(t.key as Mode)}
+              activeOpacity={0.8}
             >
               <Text
-                style={[styles.subTabText, active && styles.subTabTextActive]}
+                className={`text-sm font-bold ${
+                  active ? "text-white" : "text-gray-700"
+                }`}
               >
                 {t.label}
               </Text>
@@ -241,44 +294,77 @@ export default function DressGrid({ shopId, onDressPress }: DressGridProps) {
         })}
       </View>
 
-      {/* Search and Filter Header */}
-      <View style={styles.searchFilterHeader}>
-        <View style={styles.searchContainer}>
-          <Ionicons
-            name="search"
-            size={20}
-            color="#666666"
-            style={styles.searchIcon}
-          />
+      {/* Quick Actions */}
+      <View className="flex-row justify-around mb-4 gap-3">
+        <TouchableOpacity
+          className="flex-row items-center bg-gradient-to-r from-primary-50 to-primary-100 rounded-2xl py-3 px-5 gap-2 border border-primary-500 "
+          onPress={() => {
+            if (onCustomRequestPress) {
+              onCustomRequestPress();
+            } else {
+              console.log("Navigate to custom request create");
+            }
+          }}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="cut-outline" size={16} color="#E05C78" />
+          <Text className="text-sm font-semibold text-primary-600">
+            Đặt may
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          className="flex-row items-center bg-gradient-to-r from-blue-50 to-blue-100 rounded-2xl py-3 px-5 gap-2 border border-blue-500 "
+          onPress={() => {
+            if (onChatPress) {
+              onChatPress();
+            } else {
+              console.log("Navigate to chat");
+            }
+          }}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="chatbubble-outline" size={16} color="#3B82F6" />
+          <Text className="text-sm font-semibold text-blue-600">Tư vấn</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View className="flex-row justify-between items-center mb-4 gap-3">
+        <View className="flex-1 flex-row bg-gray-100 rounded-2xl p-3 border border-gray-200">
+          <Ionicons name="search" size={20} color="#6B7280" className="mr-3" />
           <TextInput
-            style={styles.searchInput}
+            style={{ fontSize: 14, color: "#374151" }}
             placeholder="Tìm kiếm váy cưới..."
-            placeholderTextColor="#999999"
+            placeholderTextColor="#9CA3AF"
             value={searchQuery}
             onChangeText={setSearchQuery}
+            className="flex-1"
           />
           {searchQuery.length > 0 && (
             <TouchableOpacity
-              style={styles.clearButton}
+              className="p-1"
               onPress={() => setSearchQuery("")}
             >
-              <Ionicons name="close-circle" size={20} color="#999999" />
+              <Ionicons name="close-circle" size={20} color="#9CA3AF" />
             </TouchableOpacity>
           )}
         </View>
 
         <TouchableOpacity
-          style={styles.filterButton}
+          className="flex-row items-center bg-primary-50 rounded-2xl p-3 border border-primary-100"
           onPress={() => setShowFilters(true)}
+          activeOpacity={0.8}
         >
           <Ionicons name="filter" size={20} color="#E05C78" />
-          <Text style={styles.filterButtonText}>Bộ lọc</Text>
+          <Text className="text-sm font-semibold text-primary-600 ml-2">
+            Bộ lọc
+          </Text>
         </TouchableOpacity>
       </View>
 
       {/* Results Info */}
-      <View style={styles.resultsInfo}>
-        <Text style={styles.resultsText}>
+      <View className="items-center pt-4 border-t border-gray-200">
+        <Text className="text-sm text-gray-600">
           {dresses.length} váy cưới
           {searchQuery && ` cho "${searchQuery}"`}
         </Text>
@@ -288,22 +374,24 @@ export default function DressGrid({ shopId, onDressPress }: DressGridProps) {
 
   if (loading && dresses.length === 0) {
     return (
-      <View style={styles.loadingContainer}>
+      <View className="flex-1 justify-center items-center p-8">
         <ActivityIndicator size="large" color="#E05C78" />
-        <Text style={styles.loadingText}>Đang tải váy cưới...</Text>
+        <Text className="mt-4 text-base text-gray-600">
+          Đang tải váy cưới...
+        </Text>
       </View>
     );
   }
 
   return (
-    <View style={styles.mainContainer}>
+    <View className="flex-1 bg-gray-50">
       <FlatList
         data={dresses}
         renderItem={renderDress}
         keyExtractor={(item) => item.id}
         numColumns={2}
-        columnWrapperStyle={styles.row}
-        contentContainerStyle={styles.container}
+        columnWrapperStyle={{ justifyContent: "space-between" }}
+        contentContainerStyle={{ padding: 16 }}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
@@ -313,18 +401,24 @@ export default function DressGrid({ shopId, onDressPress }: DressGridProps) {
         ListHeaderComponent={renderHeader}
         ListFooterComponent={
           hasMore ? (
-            <View style={styles.loadingMore}>
+            <View className="items-center py-4">
               <ActivityIndicator size="small" color="#E05C78" />
-              <Text style={styles.loadingMoreText}>Đang tải thêm...</Text>
+              <Text className="mt-2 text-sm text-gray-600">
+                Đang tải thêm...
+              </Text>
             </View>
           ) : null
         }
         ListEmptyComponent={
           !loading ? (
-            <View style={styles.emptyContainer}>
+            <View className="flex-1 justify-center items-center p-16">
               <Ionicons name="shirt-outline" size={64} color="#CCCCCC" />
-              <Text style={styles.emptyText}>Không có váy cưới nào</Text>
-              <Text style={styles.emptySubtext}>Hãy thử từ khóa khác</Text>
+              <Text className="mt-4 text-lg font-semibold text-gray-800">
+                Không có váy cưới nào
+              </Text>
+              <Text className="mt-2 text-base text-gray-600 text-center">
+                Hãy thử từ khóa khác
+              </Text>
             </View>
           ) : null
         }
@@ -337,12 +431,12 @@ export default function DressGrid({ shopId, onDressPress }: DressGridProps) {
         animationType="slide"
         onRequestClose={() => setShowFilters(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Bộ lọc</Text>
+        <View className="flex-1 justify-center items-center bg-black/50">
+          <View className="bg-white rounded-3xl p-6 w-full max-w-md">
+            <View className="flex-row justify-between items-center mb-4">
+              <Text className="text-2xl font-bold text-gray-800">Bộ lọc</Text>
               <TouchableOpacity
-                style={styles.closeButton}
+                className="p-2"
                 onPress={() => setShowFilters(false)}
               >
                 <Ionicons name="close" size={24} color="#666666" />
@@ -350,42 +444,28 @@ export default function DressGrid({ shopId, onDressPress }: DressGridProps) {
             </View>
 
             {/* Sort Options */}
-            <View style={styles.filterSection}>
-              <Text style={styles.filterSectionTitle}>Sắp xếp theo</Text>
-              <View style={styles.sortOptions}>
+            <View className="mb-4">
+              <Text className="text-lg font-bold text-gray-800 mb-3">
+                Sắp xếp theo
+              </Text>
+              <View className="flex-row justify-around bg-gray-100 rounded-xl p-1">
                 <TouchableOpacity
-                  style={[
-                    styles.sortOption,
-                    filterOptions.sort === "name:asc" &&
-                      styles.activeSortOption,
-                  ]}
+                  className={`py-2 px-4 rounded-lg ${filterOptions.sort === "name:asc" ? "bg-primary-500 shadow-md" : ""}`}
                   onPress={() => handleSortChange("name:asc")}
                 >
                   <Text
-                    style={[
-                      styles.sortOptionText,
-                      filterOptions.sort === "name:asc" &&
-                        styles.activeSortOptionText,
-                    ]}
+                    className={`text-sm font-semibold ${filterOptions.sort === "name:asc" ? "text-white" : "text-gray-700"}`}
                   >
                     Tên A-Z
                   </Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={[
-                    styles.sortOption,
-                    filterOptions.sort === "name:desc" &&
-                      styles.activeSortOption,
-                  ]}
+                  className={`py-2 px-4 rounded-lg ${filterOptions.sort === "name:desc" ? "bg-primary-500 shadow-md" : ""}`}
                   onPress={() => handleSortChange("name:desc")}
                 >
                   <Text
-                    style={[
-                      styles.sortOptionText,
-                      filterOptions.sort === "name:desc" &&
-                        styles.activeSortOptionText,
-                    ]}
+                    className={`text-sm font-semibold ${filterOptions.sort === "name:desc" ? "text-white" : "text-gray-700"}`}
                   >
                     Tên Z-A
                   </Text>
@@ -394,24 +474,19 @@ export default function DressGrid({ shopId, onDressPress }: DressGridProps) {
             </View>
 
             {/* Size Options */}
-            <View style={styles.filterSection}>
-              <Text style={styles.filterSectionTitle}>Số lượng mỗi trang</Text>
-              <View style={styles.sizeOptions}>
+            <View className="mb-4">
+              <Text className="text-lg font-bold text-gray-800 mb-3">
+                Số lượng mỗi trang
+              </Text>
+              <View className="flex-row justify-around bg-gray-100 rounded-xl p-1">
                 {[5, 10, 15, 20].map((size) => (
                   <TouchableOpacity
                     key={size}
-                    style={[
-                      styles.sizeOption,
-                      filterOptions.size === size && styles.activeSizeOption,
-                    ]}
+                    className={`py-2 px-4 rounded-lg ${filterOptions.size === size ? "bg-primary-500 shadow-md" : ""}`}
                     onPress={() => handleSizeChange(size)}
                   >
                     <Text
-                      style={[
-                        styles.sizeOptionText,
-                        filterOptions.size === size &&
-                          styles.activeSizeOptionText,
-                      ]}
+                      className={`text-sm font-semibold ${filterOptions.size === size ? "text-white" : "text-gray-700"}`}
                     >
                       {size}
                     </Text>
@@ -422,10 +497,10 @@ export default function DressGrid({ shopId, onDressPress }: DressGridProps) {
 
             {/* Apply Button */}
             <TouchableOpacity
-              style={styles.applyButton}
+              className="bg-primary-500 rounded-2xl py-3 px-10 items-center"
               onPress={() => setShowFilters(false)}
             >
-              <Text style={styles.applyButtonText}>Áp dụng</Text>
+              <Text className="text-lg font-bold text-white">Áp dụng</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -433,370 +508,3 @@ export default function DressGrid({ shopId, onDressPress }: DressGridProps) {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    padding: 16,
-  },
-  row: {
-    justifyContent: "space-between",
-  },
-  headerContainer: {
-    paddingHorizontal: 16,
-    paddingBottom: 8,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 12,
-    marginBottom: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-    padding: 16,
-  },
-  subTabsContainer: {
-    flexDirection: "row",
-    backgroundColor: "#F8F9FA",
-    borderRadius: 12,
-    padding: 6,
-    gap: 6,
-    marginBottom: 16,
-  },
-  subTab: {
-    flex: 1,
-    paddingVertical: 10,
-    borderRadius: 10,
-    alignItems: "center",
-    backgroundColor: "#F3F4F6",
-  },
-  subTabActive: {
-    backgroundColor: "#E05C78",
-  },
-  subTabText: {
-    fontWeight: "600",
-    color: "#666",
-  },
-  subTabTextActive: {
-    color: "#fff",
-  },
-  searchContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#F0F0F0",
-    borderRadius: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    marginBottom: 16,
-  },
-  searchIcon: {
-    marginRight: 8,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 14,
-    color: "#333333",
-  },
-  clearButton: {
-    padding: 4,
-  },
-  sortContainer: {
-    flexDirection: "row",
-    gap: 8,
-    marginBottom: 16,
-  },
-  sortChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 16,
-    backgroundColor: "#F8F9FA",
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-  },
-  sortChipActive: {
-    backgroundColor: "#E05C78",
-    borderColor: "#E05C78",
-  },
-  sortChipText: {
-    color: "#374151",
-    fontWeight: "600",
-  },
-  sortChipTextActive: {
-    color: "#fff",
-  },
-  resultsInfo: {
-    alignItems: "center",
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: "#F0F0F0",
-  },
-  resultsText: {
-    fontSize: 14,
-    color: "#666666",
-  },
-  dressCard: {
-    width: "48%",
-    backgroundColor: "#FFFFFF",
-    borderRadius: 12,
-    marginBottom: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  imageContainer: {
-    position: "relative",
-    height: 200,
-    borderTopLeftRadius: 12,
-    borderTopRightRadius: 12,
-    overflow: "hidden",
-  },
-  dressImage: {
-    width: "100%",
-    height: "100%",
-  },
-  favoriteButton: {
-    position: "absolute",
-    top: 8,
-    right: 8,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: "rgba(0, 0, 0, 0.3)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  outOfStockBadge: {
-    position: "absolute",
-    top: 8,
-    left: 8,
-    backgroundColor: "#EF4444",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  outOfStockText: {
-    color: "#FFFFFF",
-    fontSize: 10,
-    fontWeight: "600",
-  },
-  dressInfo: {
-    padding: 12,
-  },
-  dressName: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#333333",
-    marginBottom: 4,
-    lineHeight: 18,
-  },
-  ratingContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 8,
-  },
-  ratingText: {
-    fontSize: 12,
-    color: "#666666",
-    marginLeft: 4,
-  },
-  priceContainer: {
-    marginBottom: 8,
-  },
-  sellPrice: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#E05C78",
-    marginBottom: 2,
-  },
-  rentPrice: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#10B981",
-  },
-  unavailableText: {
-    fontSize: 12,
-    color: "#9CA3AF",
-    fontStyle: "italic",
-  },
-  shopRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 6,
-    gap: 6,
-  },
-  shopLogoMini: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: "#fff",
-  },
-  shopNameMini: {
-    flex: 1,
-    fontSize: 11,
-    color: "#6B7280",
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 20,
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: "#666666",
-  },
-  loadingMore: {
-    paddingVertical: 16,
-    alignItems: "center",
-  },
-  loadingMoreText: {
-    marginTop: 8,
-    fontSize: 14,
-    color: "#666666",
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 40,
-  },
-  emptyText: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#333333",
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  emptySubtext: {
-    fontSize: 14,
-    color: "#666666",
-    textAlign: "center",
-  },
-  searchFilterHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  filterButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#F8F9FA",
-    borderRadius: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderWidth: 1,
-    borderColor: "#E05C78",
-  },
-  filterButtonText: {
-    color: "#E05C78",
-    fontWeight: "600",
-    marginLeft: 8,
-  },
-  mainContainer: {
-    flex: 1,
-  },
-  modalOverlay: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-  },
-  modalContent: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 20,
-    padding: 20,
-    width: "90%",
-    alignItems: "center",
-  },
-  modalHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    width: "100%",
-    marginBottom: 20,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "#333333",
-  },
-  closeButton: {
-    padding: 5,
-  },
-  filterSection: {
-    width: "100%",
-    marginBottom: 20,
-  },
-  filterSectionTitle: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "#333333",
-    marginBottom: 10,
-  },
-  sortOptions: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    backgroundColor: "#F0F0F0",
-    borderRadius: 10,
-    padding: 5,
-  },
-  sortOption: {
-    paddingVertical: 8,
-    paddingHorizontal: 15,
-    borderRadius: 20,
-  },
-  activeSortOption: {
-    backgroundColor: "#E05C78",
-    borderColor: "#E05C78",
-    borderWidth: 1,
-  },
-  sortOptionText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#333333",
-  },
-  activeSortOptionText: {
-    color: "#FFFFFF",
-  },
-  sizeOptions: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    backgroundColor: "#F0F0F0",
-    borderRadius: 10,
-    padding: 5,
-  },
-  sizeOption: {
-    paddingVertical: 8,
-    paddingHorizontal: 15,
-    borderRadius: 20,
-  },
-  activeSizeOption: {
-    backgroundColor: "#E05C78",
-    borderColor: "#E05C78",
-    borderWidth: 1,
-  },
-  sizeOptionText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#333333",
-  },
-  activeSizeOptionText: {
-    color: "#FFFFFF",
-  },
-  applyButton: {
-    backgroundColor: "#E05C78",
-    paddingVertical: 12,
-    paddingHorizontal: 30,
-    borderRadius: 25,
-    width: "100%",
-  },
-  applyButtonText: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "#FFFFFF",
-    textAlign: "center",
-  },
-});

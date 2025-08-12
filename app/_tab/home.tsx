@@ -54,7 +54,7 @@ export default function Home() {
     return () => {
       animation.stop();
     };
-  }, []); // Empty dependency array - run only once
+  }, [fadeAnim, slideAnim]); // Empty dependency array - run only once
 
   const onRefresh = React.useCallback(() => {
     setRefreshing(true);
@@ -102,10 +102,10 @@ export default function Home() {
     {
       id: "consultation",
       title: "Tư vấn miễn phí",
-      subtitle: "Nhận tư vấn từ chuyên gia",
+      subtitle: "Nhận tư vấn từ shop",
       icon: "chatbubble-ellipses-outline",
       color: "#E05C78",
-      onPress: () => console.log("Consultation pressed"),
+      onPress: () => router.push("/shop" as any),
     },
     {
       id: "custom-design",
@@ -113,7 +113,7 @@ export default function Home() {
       subtitle: "Thiết kế theo yêu cầu",
       icon: "cut",
       color: "#8B5CF6",
-      onPress: () => console.log("Custom design pressed"),
+      onPress: () => router.push("/shop" as any),
     },
     {
       id: "buy-dress",

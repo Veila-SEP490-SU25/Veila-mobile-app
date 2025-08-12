@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
-import React, { useState } from "react";
+import { router, useLocalSearchParams } from "expo-router";
+import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -12,12 +12,14 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { customRequestApi } from "../../../services/apis/custom-request.api";
-import { CustomRequestCreate } from "../../../services/types";
+import { customRequestApi } from "../../../../services/apis/custom-request.api";
+import { CustomRequestUpdate } from "../../../../services/types";
 
-export default function CreateCustomRequestScreen() {
-  const [loading, setLoading] = useState(false);
-  const [formData, setFormData] = useState<CustomRequestCreate>({
+export default function EditCustomRequestScreen() {
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [formData, setFormData] = useState<CustomRequestUpdate>({
     title: "",
     description: "",
     high: 0,
@@ -44,8 +46,58 @@ export default function CreateCustomRequestScreen() {
     status: "DRAFT",
   });
 
+  useEffect(() => {
+    if (id) {
+      loadRequest();
+    }
+  }, [id]);
+
+  const loadRequest = async () => {
+    try {
+      setLoading(true);
+      const response = await customRequestApi.getRequestById(id);
+      if (response.statusCode === 200) {
+        const request = response.item;
+        setFormData({
+          title: request.title,
+          description: request.description,
+          high: request.high,
+          weight: request.weight,
+          bust: request.bust,
+          waist: request.waist,
+          hip: request.hip,
+          armpit: request.armpit,
+          bicep: request.bicep,
+          neck: request.neck,
+          shoulderWidth: request.shoulderWidth,
+          sleeveLength: request.sleeveLength,
+          backLength: request.backLength,
+          lowerWaist: request.lowerWaist,
+          waistToFloor: request.waistToFloor,
+          dressStyle: request.dressStyle,
+          curtainNeckline: request.curtainNeckline,
+          sleeveStyle: request.sleeveStyle,
+          material: request.material,
+          color: request.color,
+          specialElement: request.specialElement,
+          coverage: request.coverage,
+          isPrivate: request.isPrivate,
+          status:
+            request.status === "DRAFT" || request.status === "SUBMIT"
+              ? request.status
+              : "DRAFT",
+        });
+      }
+    } catch (error) {
+      console.error("Error loading request:", error);
+      Alert.alert("Lỗi", "Không thể tải thông tin yêu cầu");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const updateField = (
-    field: keyof CustomRequestCreate,
+    field: keyof CustomRequestUpdate,
     value: string | number | boolean
   ) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -53,25 +105,20 @@ export default function CreateCustomRequestScreen() {
 
   const handleSubmit = async () => {
     // Validation
-    if (!formData.title.trim()) {
+    if (!formData.title?.trim()) {
       Alert.alert("Lỗi", "Vui lòng nhập tiêu đề yêu cầu");
       return;
     }
-    if (!formData.description.trim()) {
+    if (!formData.description?.trim()) {
       Alert.alert("Lỗi", "Vui lòng nhập mô tả yêu cầu");
       return;
     }
 
     try {
-      setLoading(true);
-      const response = await customRequestApi.createRequest(formData);
+      setSaving(true);
+      const response = await customRequestApi.updateRequest(id, formData);
       if (response.statusCode === 200) {
-        const successMessage =
-          formData.status === "DRAFT"
-            ? "Đã lưu nháp yêu cầu. Bạn có thể chỉnh sửa và gửi sau."
-            : "Đã gửi yêu cầu đặt may. Chúng tôi sẽ xem xét và liên hệ với bạn sớm nhất.";
-
-        Alert.alert("Thành công", successMessage, [
+        Alert.alert("Thành công", "Đã cập nhật yêu cầu đặt may", [
           {
             text: "OK",
             onPress: () => router.back(),
@@ -79,16 +126,16 @@ export default function CreateCustomRequestScreen() {
         ]);
       }
     } catch (error) {
-      console.error("Error creating request:", error);
-      Alert.alert("Lỗi", "Không thể tạo yêu cầu. Vui lòng thử lại.");
+      console.error("Error updating request:", error);
+      Alert.alert("Lỗi", "Không thể cập nhật yêu cầu. Vui lòng thử lại.");
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
 
   const renderInputField = (
     label: string,
-    field: keyof CustomRequestCreate,
+    field: keyof CustomRequestUpdate,
     placeholder: string,
     keyboardType: "default" | "numeric" = "default",
     multiline = false
@@ -218,6 +265,20 @@ export default function CreateCustomRequestScreen() {
     </View>
   );
 
+  if (loading) {
+    return (
+      <SafeAreaView className="flex-1 bg-gray-50">
+        <StatusBar barStyle="dark-content" backgroundColor="#F9FAFB" />
+        <View className="flex-1 justify-center items-center">
+          <ActivityIndicator size="large" color="#E05C78" />
+          <Text className="text-lg text-gray-600 mt-4">
+            Đang tải thông tin...
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView className="flex-1 bg-gray-50">
       <StatusBar barStyle="dark-content" backgroundColor="#F9FAFB" />
@@ -232,7 +293,7 @@ export default function CreateCustomRequestScreen() {
             <Ionicons name="arrow-back" size={20} color="#374151" />
           </TouchableOpacity>
           <Text className="text-lg font-semibold text-gray-800">
-            Tạo yêu cầu đặt may
+            Chỉnh sửa yêu cầu
           </Text>
           <View className="w-10" />
         </View>
@@ -265,111 +326,6 @@ export default function CreateCustomRequestScreen() {
 
           {/* Design Preferences */}
           {renderDesignSection()}
-
-          {/* Status Selection */}
-          <View className="bg-white rounded-2xl p-4 mb-6 shadow-soft">
-            <Text className="text-lg font-semibold text-gray-800 mb-4">
-              Trạng thái yêu cầu
-            </Text>
-
-            <View className="space-y-3">
-              <TouchableOpacity
-                className={`flex-row items-center justify-between p-4 border-2 rounded-xl ${
-                  formData.status === "DRAFT"
-                    ? "border-primary-500 bg-primary-50"
-                    : "border-gray-200 bg-gray-50"
-                }`}
-                onPress={() => updateField("status", "DRAFT")}
-              >
-                <View className="flex-row items-center">
-                  <View
-                    className={`w-6 h-6 rounded-full border-2 mr-3 ${
-                      formData.status === "DRAFT"
-                        ? "border-primary-500 bg-primary-500"
-                        : "border-gray-300"
-                    }`}
-                  >
-                    {formData.status === "DRAFT" && (
-                      <View className="w-2 h-2 bg-white rounded-full m-auto" />
-                    )}
-                  </View>
-                  <View>
-                    <Text
-                      className={`text-base font-medium ${
-                        formData.status === "DRAFT"
-                          ? "text-primary-600"
-                          : "text-gray-700"
-                      }`}
-                    >
-                      Lưu nháp
-                    </Text>
-                    <Text
-                      className={`text-sm ${
-                        formData.status === "DRAFT"
-                          ? "text-primary-500"
-                          : "text-gray-500"
-                      }`}
-                    >
-                      Lưu yêu cầu để chỉnh sửa sau
-                    </Text>
-                  </View>
-                </View>
-                <Ionicons
-                  name="save-outline"
-                  size={24}
-                  color={formData.status === "DRAFT" ? "#E05C78" : "#9CA3AF"}
-                />
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                className={`flex-row items-center justify-between p-4 border-2 rounded-xl ${
-                  formData.status === "SUBMIT"
-                    ? "border-primary-500 bg-primary-50"
-                    : "border-gray-200 bg-gray-50"
-                }`}
-                onPress={() => updateField("status", "SUBMIT")}
-              >
-                <View className="flex-row items-center">
-                  <View
-                    className={`w-6 h-6 rounded-full border-2 mr-3 ${
-                      formData.status === "SUBMIT"
-                        ? "border-primary-500 bg-primary-500"
-                        : "border-gray-300"
-                    }`}
-                  >
-                    {formData.status === "SUBMIT" && (
-                      <View className="w-2 h-2 bg-white rounded-full m-auto" />
-                    )}
-                  </View>
-                  <View>
-                    <Text
-                      className={`text-base font-medium ${
-                        formData.status === "SUBMIT"
-                          ? "text-primary-600"
-                          : "text-gray-700"
-                      }`}
-                    >
-                      Gửi yêu cầu
-                    </Text>
-                    <Text
-                      className={`text-sm ${
-                        formData.status === "SUBMIT"
-                          ? "text-primary-500"
-                          : "text-gray-500"
-                      }`}
-                    >
-                      Gửi yêu cầu để chúng tôi xem xét
-                    </Text>
-                  </View>
-                </View>
-                <Ionicons
-                  name="paper-plane"
-                  size={24}
-                  color={formData.status === "SUBMIT" ? "#E05C78" : "#9CA3AF"}
-                />
-              </TouchableOpacity>
-            </View>
-          </View>
 
           {/* Privacy Settings */}
           <View className="bg-white rounded-2xl p-4 mb-6 shadow-soft">
@@ -415,23 +371,21 @@ export default function CreateCustomRequestScreen() {
           {/* Submit Button */}
           <TouchableOpacity
             className={`w-full py-4 rounded-xl mb-8 ${
-              loading ? "bg-gray-400" : "bg-primary-500"
+              saving ? "bg-gray-400" : "bg-primary-500"
             }`}
             onPress={handleSubmit}
-            disabled={loading}
+            disabled={saving}
           >
-            {loading ? (
+            {saving ? (
               <View className="flex-row items-center justify-center">
                 <ActivityIndicator size="small" color="#FFFFFF" />
                 <Text className="text-white font-semibold ml-2">
-                  {formData.status === "DRAFT" ? "Đang lưu..." : "Đang gửi..."}
+                  Đang cập nhật...
                 </Text>
               </View>
             ) : (
               <Text className="text-white font-semibold text-center text-lg">
-                {formData.status === "DRAFT"
-                  ? "Lưu nháp"
-                  : "Gửi yêu cầu đặt may"}
+                Cập nhật yêu cầu
               </Text>
             )}
           </TouchableOpacity>

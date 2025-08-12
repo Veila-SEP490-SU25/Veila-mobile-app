@@ -28,12 +28,24 @@ const makeRequest = async (endpoint: string, options: RequestInit = {}) => {
 };
 
 export const customRequestApi = {
-  // Get all custom requests for current user
+  // Get all custom requests for current user with search and filter
   getMyRequests: async (
     page: number = 0,
-    size: number = 10
+    size: number = 10,
+    filter?: string,
+    sort?: string
   ): Promise<CustomRequestListResponse> => {
-    return makeRequest(`/requests/me?page=${page}&size=${size}`);
+    let url = `/requests/me?page=${page}&size=${size}`;
+
+    if (filter) {
+      url += `&filter=${encodeURIComponent(filter)}`;
+    }
+
+    if (sort) {
+      url += `&sort=${encodeURIComponent(sort)}`;
+    }
+
+    return makeRequest(url);
   },
 
   // Get custom request detail by ID

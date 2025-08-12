@@ -3,36 +3,61 @@ import { router, useLocalSearchParams } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Image,
   ScrollView,
-  StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
 import { dressApi } from "../../services/apis/dress.api";
-import { shopApi } from "../../services/apis/shop.api";
+import { ChatService } from "../../services/chat.service";
 import { Dress } from "../../services/types/dress.type";
+import { getTokens } from "../../utils";
+
+// Extended Dress interface for the new data structure
+interface DressDetail extends Dress {
+  description?: string;
+  ratingCount?: number;
+  feedbacks?: Array<{
+    id: string;
+    customer: { username: string };
+    content: string;
+    rating: string;
+    images: string[] | null;
+  }>;
+}
 
 export default function DressDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const [dress, setDress] = useState<Dress | null>(null);
+  const [dress, setDress] = useState<DressDetail | null>(null);
   const [shop, setShop] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isFavorite, setIsFavorite] = useState(false);
+  const [currentFeedbackPage, setCurrentFeedbackPage] = useState(0);
+  const [chatLoading, setChatLoading] = useState(false);
+  const feedbacksPerPage = 5;
 
   const loadDressDetail = useCallback(async () => {
     try {
       if (!id) return;
-      const dressData = await dressApi.getDressById(id as string);
-      setDress(dressData);
-      // Ưu tiên lấy shop từ dữ liệu dress mới (user.shop)
-      if ((dressData as any)?.user?.shop) {
-        setShop((dressData as any).user.shop);
-      } else if ((dressData as any).shopId) {
-        const shopData = await shopApi.getShopById((dressData as any).shopId);
-        setShop(shopData);
+      const response = await dressApi.getDressById(id as string);
+
+      let dressData: DressDetail;
+      if ("item" in response && response.item) {
+        dressData = response.item as DressDetail;
+      } else {
+        dressData = response as DressDetail;
       }
-    } catch {
+
+      setDress(dressData);
+
+      // Lấy shop từ dữ liệu dress (user.shop)
+      if (dressData?.user?.shop) {
+        setShop(dressData.user.shop);
+      }
+    } catch (error) {
+      console.error("Error loading dress detail:", error);
       setDress(null);
     } finally {
       setLoading(false);
@@ -47,251 +72,510 @@ export default function DressDetailScreen() {
     if (shop?.id) router.push(`/shop/${shop.id}` as any);
   }, [shop]);
 
+  const handleChatPress = useCallback(async () => {
+    try {
+      setChatLoading(true);
+
+      if (!shop?.id || !dress?.id) {
+        Alert.alert("Lỗi", "Không thể tìm thấy thông tin shop hoặc váy cưới");
+        return;
+      }
+
+      const { accessToken } = await getTokens();
+      if (!accessToken) {
+        Alert.alert("Lỗi", "Vui lòng đăng nhập để nhắn tin");
+        return;
+      }
+
+      // Tạo hoặc tham gia chat room với shop
+      const chatRoomId = await ChatService.createChatRoom({
+        shopId: shop.id,
+        shopName: shop.name,
+        customerId: "current-user-id", // TODO: Get from auth context
+        customerName: "Khách hàng", // TODO: Get from user profile
+        unreadCount: 0,
+        isActive: true,
+      });
+
+      if (chatRoomId) {
+        // Navigate đến chat room
+        router.push(`/chat/${chatRoomId}` as any);
+      } else {
+        Alert.alert("Lỗi", "Không thể tạo phòng chat. Vui lòng thử lại.");
+      }
+    } catch (error) {
+      console.error("Error creating chat room:", error);
+      Alert.alert("Lỗi", "Không thể kết nối chat. Vui lòng thử lại.");
+    } finally {
+      setChatLoading(false);
+    }
+  }, [shop, dress]);
+
+  const handleFavoritePress = useCallback(() => {
+    setIsFavorite(!isFavorite);
+    // TODO: Implement actual favorite logic with API
+    console.log("Toggle favorite:", !isFavorite);
+  }, [isFavorite]);
+
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
+      <View className="flex-1 justify-center items-center p-8">
         <ActivityIndicator size="large" color="#E05C78" />
-        <Text style={styles.loadingText}>Đang tải thông tin váy cưới...</Text>
+        <Text className="mt-4 text-base text-gray-600">
+          Đang tải thông tin váy cưới...
+        </Text>
       </View>
     );
   }
 
   if (!dress) {
     return (
-      <View style={styles.errorContainer}>
-        <Text style={styles.errorText}>Không tìm thấy thông tin váy cưới</Text>
+      <View className="flex-1 justify-center items-center p-8">
+        <Ionicons name="alert-circle-outline" size={64} color="#E05C78" />
+        <Text className="mt-4 text-lg font-semibold text-gray-800">
+          Không tìm thấy thông tin váy cưới
+        </Text>
+        <TouchableOpacity
+          className="mt-4 bg-primary-500 px-6 py-3 rounded-xl"
+          onPress={() => router.back()}
+        >
+          <Text className="text-white font-semibold">Quay lại</Text>
+        </TouchableOpacity>
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
+    <View className="flex-1 bg-white">
+      <View className="flex-row items-center justify-between pt-20 pb-4 px-4 bg-white border-b border-gray-200">
         <TouchableOpacity
-          style={styles.backButton}
+          className="w-10 h-10 bg-primary-50 rounded-full items-center justify-center"
           onPress={() => router.back()}
         >
           <Ionicons name="arrow-back" size={24} color="#E05C78" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle} numberOfLines={1}>
+        <Text
+          className="text-xl font-[700] font-bold text-primary-600 flex-1 text-center mx-4"
+          numberOfLines={1}
+        >
           Chi tiết váy cưới
         </Text>
-        <TouchableOpacity style={styles.favoriteButton}>
-          <Ionicons name="heart-outline" size={24} color="#E05C78" />
-        </TouchableOpacity>
+        <View className="flex-row gap-2">
+          <TouchableOpacity
+            className="w-10 h-10 bg-primary-50 rounded-full items-center justify-center"
+            onPress={handleFavoritePress}
+          >
+            <Ionicons
+              name={isFavorite ? "heart" : "heart-outline"}
+              size={24}
+              color={isFavorite ? "#E05C78" : "#E05C78"}
+            />
+          </TouchableOpacity>
+          <TouchableOpacity
+            className="w-10 h-10 bg-primary-50 rounded-full items-center justify-center"
+            onPress={handleChatPress}
+          >
+            <Ionicons
+              name="chatbubble-ellipses-outline"
+              size={24}
+              color="#E05C78"
+            />
+          </TouchableOpacity>
+        </View>
       </View>
-      <ScrollView
-        style={styles.scrollView}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.imageContainer}>
+
+      <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
+        {/* Dress Image */}
+        <View className="w-full aspect-[4/3] bg-gray-100">
           <Image
             source={{
               uri:
                 dress.images?.[0] ||
-                "https://via.placeholder.com/400x600?text=Váy+cưới",
+                "https://via.placeholder.com/400x300?text=Váy+cưới",
             }}
-            style={styles.dressImage}
+            className="w-full h-full"
             resizeMode="cover"
           />
         </View>
-        <View style={styles.infoContainer}>
-          <Text style={styles.dressName}>{dress.name}</Text>
-          <View style={styles.priceRow}>
-            <Text style={styles.sellPrice}>
-              {dress.isSellable ? `Mua: ${dress.sellPrice}` : "Không bán"}
-            </Text>
-            <Text style={styles.rentPrice}>
-              {dress.isRentable
-                ? `Thuê: ${dress.rentalPrice}`
-                : "Không cho thuê"}
-            </Text>
-          </View>
-          <View style={styles.ratingRow}>
-            <Ionicons name="star" size={16} color="#F59E0B" />
-            <Text style={styles.ratingText}>{dress.ratingAverage}</Text>
-            <Text style={styles.statusText}>
-              {dress.status === "AVAILABLE"
-                ? "Còn hàng"
-                : dress.status === "OUT_OF_STOCK"
-                  ? "Hết hàng"
-                  : "Không khả dụng"}
-            </Text>
+
+        {/* Dress Info */}
+        <View className="p-6">
+          {/* Title and Rating */}
+          <Text className="text-2xl font-bold text-gray-800 mb-3">
+            {dress.name}
+          </Text>
+
+          {/* Category Badge */}
+          {dress.category && (
+            <View className="mb-4">
+              <View className="bg-primary-50 px-3 py-2 rounded-full self-start border border-primary-200">
+                <Text className="text-sm font-semibold text-primary-600">
+                  {dress.category.name.toUpperCase()}
+                </Text>
+              </View>
+            </View>
+          )}
+
+          <View className="flex-row items-center mb-4">
+            <View className="flex-row items-center bg-yellow-50 px-3 py-2 rounded-full">
+              <Ionicons name="star" size={16} color="#F59E0B" />
+              <Text className="text-sm font-semibold text-gray-800 ml-2">
+                {dress.ratingAverage}
+              </Text>
+              <Text className="text-xs text-gray-500 ml-1">
+                ({dress.ratingCount || 0} đánh giá)
+              </Text>
+            </View>
+            <View className="ml-3 px-3 py-1 rounded-full bg-green-100">
+              <Text className="text-xs font-semibold text-green-700">
+                {dress.status === "AVAILABLE" ? "Còn hàng" : "Hết hàng"}
+              </Text>
+            </View>
           </View>
 
-          {/* Shop info dưới giống blog */}
-          {shop && (
-            <TouchableOpacity style={styles.shopCard} onPress={handleShopPress}>
-              <Image
-                source={{
-                  uri:
-                    shop.logoUrl ||
-                    "https://via.placeholder.com/60x60?text=Logo",
-                }}
-                style={styles.shopLogo}
-              />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.shopName}>{shop.name}</Text>
-                <Text style={styles.shopAddress}>{shop.address}</Text>
-                <View
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    marginTop: 4,
-                  }}
-                >
-                  <Ionicons name="star" size={14} color="#F59E0B" />
-                  <Text
-                    style={{
-                      marginLeft: 6,
-                      color: "#6B7280",
-                      fontWeight: "600",
-                    }}
-                  >
-                    Đánh giá: {shop.reputation ?? "-"}
+          {/* Description */}
+          {dress.description && (
+            <View className="mb-6">
+              <Text className="text-sm text-gray-600 leading-6">
+                {dress.description}
+              </Text>
+            </View>
+          )}
+
+          {/* Pricing Details - Moved Up */}
+          <View className="bg-gray-50 rounded-2xl p-4 mb-6">
+            <Text className="text-lg font-bold text-gray-800 mb-3">
+              Thông tin giá
+            </Text>
+            <View className="space-y-3">
+              {dress.isSellable && (
+                <View className="flex-row items-center justify-between bg-white p-3 rounded-xl border border-gray-200">
+                  <View className="flex-row items-center">
+                    <Ionicons name="shirt-outline" size={20} color="#E05C78" />
+                    <Text className="text-base font-semibold text-gray-700 ml-2">
+                      Giá mua
+                    </Text>
+                  </View>
+                  <Text className="text-xl font-bold text-primary-500">
+                    {dress.sellPrice}đ
                   </Text>
                 </View>
+              )}
+              {dress.isRentable && (
+                <View className="flex-row items-center justify-between bg-white p-3 rounded-xl border border-gray-200">
+                  <View className="flex-row items-center">
+                    <Ionicons name="repeat-outline" size={20} color="#10B981" />
+                    <Text className="text-base font-semibold text-gray-700 ml-2">
+                      Giá thuê
+                    </Text>
+                  </View>
+                  <Text className="text-xl font-bold text-green-600">
+                    {dress.rentalPrice}đ
+                  </Text>
+                </View>
+              )}
+            </View>
+          </View>
+
+          {/* Buy/Rent Buttons */}
+          {(dress.isSellable || dress.isRentable) && (
+            <View className="mb-6">
+              <Text className="text-lg font-bold text-gray-800 mb-3">
+                Mua hoặc Thuê
+              </Text>
+              <View className="flex-row gap-x-3">
+                {dress.isSellable && (
+                  <TouchableOpacity className="flex-1 bg-primary-500 rounded-2xl py-4 items-center shadow-lg">
+                    <Ionicons name="shirt-outline" size={20} color="#FFFFFF" />
+                    <Text className="text-white font-bold text-lg mt-2">
+                      Mua ngay
+                    </Text>
+                  </TouchableOpacity>
+                )}
+                {dress.isRentable && (
+                  <TouchableOpacity className="flex-1 bg-green-500 rounded-2xl py-4 items-center shadow-lg">
+                    <Ionicons name="repeat-outline" size={20} color="#FFFFFF" />
+                    <Text className="text-white font-bold text-lg mt-2">
+                      Thuê ngay
+                    </Text>
+                  </TouchableOpacity>
+                )}
               </View>
-              <Ionicons name="chevron-forward" size={20} color="#E05C78" />
+            </View>
+          )}
+
+          {/* Action Buttons - Chat and Custom Order */}
+          <View className="mb-6">
+            <Text className="text-lg font-bold text-gray-800 mb-3">
+              Tương tác với shop
+            </Text>
+            <View className="flex-row gap-x-3">
+              <TouchableOpacity
+                className="flex-1 bg-primary-500 rounded-2xl py-4 items-center shadow-lg"
+                onPress={handleChatPress}
+                activeOpacity={0.8}
+                disabled={chatLoading}
+              >
+                {chatLoading ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <>
+                    <Ionicons
+                      name="chatbubble-ellipses-outline"
+                      size={20}
+                      color="#FFFFFF"
+                    />
+                    <Text className="text-white font-bold text-lg mt-2">
+                      Nhắn tin
+                    </Text>
+                    <Text className="text-primary-100 text-sm mt-1">
+                      Tư vấn trực tiếp
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                className="flex-1 bg-orange-500 rounded-2xl py-4 items-center shadow-lg"
+                onPress={() =>
+                  router.push("/account/custom-requests/create" as any)
+                }
+                activeOpacity={0.8}
+              >
+                <Ionicons name="cut-outline" size={20} color="#FFFFFF" />
+                <Text className="text-white font-bold text-lg mt-2">
+                  Đặt may
+                </Text>
+                <Text className="text-orange-100 text-sm mt-1">
+                  Thiết kế riêng
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Shop Info */}
+          {shop && (
+            <TouchableOpacity
+              className="bg-white rounded-2xl p-4 mb-6 border border-gray-200 shadow-sm"
+              onPress={handleShopPress}
+            >
+              <View className="flex-row items-center">
+                <Image
+                  source={{
+                    uri:
+                      shop.logoUrl ||
+                      "https://via.placeholder.com/60x60?text=Logo",
+                  }}
+                  className="w-12 h-12 rounded-full bg-gray-100 mr-3"
+                />
+                <View className="flex-1">
+                  <Text className="text-lg font-bold text-gray-800 mb-1">
+                    {shop.name}
+                  </Text>
+                  <Text className="text-sm text-gray-600 mb-2">
+                    {shop.address}
+                  </Text>
+                  <View className="flex-row items-center">
+                    <Ionicons name="star" size={14} color="#F59E0B" />
+                    <Text className="text-sm text-gray-600 ml-2 font-medium">
+                      Đánh giá: {shop.reputation || 0}
+                    </Text>
+                  </View>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color="#E05C78" />
+              </View>
             </TouchableOpacity>
           )}
 
-          <TouchableOpacity style={styles.chatButton}>
-            <Ionicons
-              name="chatbubble-ellipses-outline"
-              size={20}
-              color="#FFFFFF"
-            />
-            <Text style={styles.chatButtonText}>Nhắn tin với shop</Text>
-          </TouchableOpacity>
+          {/* Feedbacks Section */}
+          {dress.feedbacks && dress.feedbacks.length > 0 && (
+            <View className="mb-6">
+              <View className="flex-row items-center justify-between mb-4">
+                <Text className="text-lg font-bold text-gray-800">
+                  Đánh giá từ khách hàng
+                </Text>
+                <Text className="text-sm text-gray-500">
+                  ({dress.feedbacks.length} đánh giá)
+                </Text>
+              </View>
+
+              {/* Rating Summary */}
+              <View className="bg-yellow-50 rounded-2xl p-4 mb-4 border border-yellow-200">
+                <View className="flex-row items-center justify-between mb-4">
+                  <View className="flex-row items-center">
+                    <Ionicons name="star" size={20} color="#F59E0B" />
+                    <Text className="text-2xl font-bold text-gray-800 ml-2">
+                      {dress.ratingAverage}
+                    </Text>
+                    <Text className="text-sm text-gray-600 ml-2">/ 5.0</Text>
+                  </View>
+                  <View className="items-end">
+                    <Text className="text-sm text-gray-600">Tổng cộng</Text>
+                    <Text className="text-lg font-bold text-gray-800">
+                      {dress.ratingCount} đánh giá
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Rating Distribution */}
+                <View className="space-y-2">
+                  {[5, 4, 3, 2, 1].map((rating) => {
+                    const count =
+                      dress.feedbacks?.filter(
+                        (f) => Math.floor(parseFloat(f.rating)) === rating
+                      ).length || 0;
+                    const percentage = dress.ratingCount
+                      ? Math.round((count / dress.ratingCount) * 100)
+                      : 0;
+                    return (
+                      <View key={rating} className="flex-row items-center">
+                        <Text className="text-xs text-gray-600 w-4">
+                          {rating}⭐
+                        </Text>
+                        <View className="flex-1 bg-gray-200 rounded-full h-2 mx-2">
+                          <View
+                            className="bg-yellow-400 h-2 rounded-full"
+                            style={{ width: `${percentage}%` }}
+                          />
+                        </View>
+                        <Text className="text-xs text-gray-600 w-8 text-right">
+                          {count}
+                        </Text>
+                      </View>
+                    );
+                  })}
+                </View>
+              </View>
+
+              {/* Feedbacks List */}
+              <View className="space-y-3">
+                {dress.feedbacks
+                  ?.slice(
+                    currentFeedbackPage * feedbacksPerPage,
+                    (currentFeedbackPage + 1) * feedbacksPerPage
+                  )
+                  .map((feedback, index) => (
+                    <View
+                      key={feedback.id}
+                      className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm"
+                    >
+                      <View className="flex-row items-center justify-between mb-3">
+                        <View className="flex-row items-center">
+                          <View className="w-8 h-8 bg-primary-100 rounded-full items-center justify-center mr-3">
+                            <Text className="text-xs font-bold text-primary-600">
+                              {feedback.customer.username
+                                .charAt(0)
+                                .toUpperCase()}
+                            </Text>
+                          </View>
+                          <View>
+                            <Text className="text-sm font-semibold text-gray-700">
+                              {feedback.customer.username}
+                            </Text>
+                            <Text className="text-xs text-gray-500">
+                              Đánh giá #
+                              {currentFeedbackPage * feedbacksPerPage +
+                                index +
+                                1}
+                            </Text>
+                          </View>
+                        </View>
+                        <View className="flex-row items-center bg-yellow-50 px-2 py-1 rounded-full">
+                          <Ionicons name="star" size={12} color="#F59E0B" />
+                          <Text className="text-xs text-gray-700 ml-1 font-medium">
+                            {feedback.rating}
+                          </Text>
+                        </View>
+                      </View>
+                      <Text className="text-sm text-gray-600 leading-5">
+                        {feedback.content}
+                      </Text>
+                    </View>
+                  ))}
+              </View>
+
+              {/* Pagination Controls */}
+              {dress.feedbacks && dress.feedbacks.length > feedbacksPerPage && (
+                <View className="mt-4 flex-row items-center justify-between">
+                  <TouchableOpacity
+                    className={`px-4 py-2 rounded-lg ${
+                      currentFeedbackPage === 0
+                        ? "bg-gray-200"
+                        : "bg-primary-500"
+                    }`}
+                    onPress={() =>
+                      setCurrentFeedbackPage(
+                        Math.max(0, currentFeedbackPage - 1)
+                      )
+                    }
+                    disabled={currentFeedbackPage === 0}
+                  >
+                    <Text
+                      className={`font-semibold ${
+                        currentFeedbackPage === 0
+                          ? "text-gray-500"
+                          : "text-white"
+                      }`}
+                    >
+                      Trước
+                    </Text>
+                  </TouchableOpacity>
+
+                  <Text className="text-sm text-gray-600">
+                    Trang {currentFeedbackPage + 1} /{" "}
+                    {Math.ceil(
+                      (dress.feedbacks?.length || 0) / feedbacksPerPage
+                    )}
+                  </Text>
+
+                  <TouchableOpacity
+                    className={`px-4 py-2 rounded-lg ${
+                      currentFeedbackPage >=
+                      Math.ceil(
+                        (dress.feedbacks?.length || 0) / feedbacksPerPage
+                      ) -
+                        1
+                        ? "bg-gray-200"
+                        : "bg-primary-500"
+                    }`}
+                    onPress={() =>
+                      setCurrentFeedbackPage(
+                        Math.min(
+                          Math.ceil(
+                            (dress.feedbacks?.length || 0) / feedbacksPerPage
+                          ) - 1,
+                          currentFeedbackPage + 1
+                        )
+                      )
+                    }
+                    disabled={
+                      currentFeedbackPage >=
+                      Math.ceil(
+                        (dress.feedbacks?.length || 0) / feedbacksPerPage
+                      ) -
+                        1
+                    }
+                  >
+                    <Text
+                      className={`font-semibold ${
+                        currentFeedbackPage >=
+                        Math.ceil(
+                          (dress.feedbacks?.length || 0) / feedbacksPerPage
+                        ) -
+                          1
+                          ? "text-gray-500"
+                          : "text-white"
+                      }`}
+                    >
+                      Sau
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
+          )}
         </View>
       </ScrollView>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#FFFFFF" },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingTop: 50,
-    paddingBottom: 16,
-    paddingHorizontal: 16,
-    backgroundColor: "#FFFFFF",
-    borderBottomWidth: 1,
-    borderBottomColor: "#F3F4F6",
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "#FFE4E9",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: "#E05C78",
-    flex: 1,
-    textAlign: "center",
-    marginHorizontal: 16,
-  },
-  favoriteButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "#FFE4E9",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  scrollView: { flex: 1 },
-  imageContainer: {
-    width: "100%",
-    aspectRatio: 2 / 3,
-    backgroundColor: "#F9F9F9",
-  },
-  dressImage: { width: "100%", height: "100%" },
-  infoContainer: { padding: 20 },
-  dressName: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: "#333333",
-    marginBottom: 12,
-  },
-  priceRow: { flexDirection: "row", gap: 16, marginBottom: 8 },
-  sellPrice: { fontSize: 16, fontWeight: "700", color: "#E05C78" },
-  rentPrice: { fontSize: 16, fontWeight: "700", color: "#10B981" },
-  ratingRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginBottom: 12,
-  },
-  ratingText: { fontSize: 14, color: "#666666", marginLeft: 4 },
-  statusText: {
-    fontSize: 14,
-    color: "#E05C78",
-    marginLeft: 12,
-    fontWeight: "600",
-  },
-  shopCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#F8F9FA",
-    borderRadius: 16,
-    padding: 12,
-    marginTop: 8,
-    marginBottom: 12,
-    shadowColor: "#E05C78",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  shopLogo: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    marginRight: 12,
-    backgroundColor: "#FFF",
-  },
-  shopName: { fontSize: 16, fontWeight: "700", color: "#333333" },
-  shopAddress: { fontSize: 12, color: "#666666" },
-  chatButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#E05C78",
-    borderRadius: 25,
-    paddingVertical: 12,
-    marginTop: 12,
-    shadowColor: "#E05C78",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
-  },
-  chatButtonText: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "600",
-    marginLeft: 8,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 20,
-  },
-  loadingText: { marginTop: 12, fontSize: 16, color: "#666666" },
-  errorContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 20,
-  },
-  errorText: { fontSize: 16, color: "#666666" },
-});

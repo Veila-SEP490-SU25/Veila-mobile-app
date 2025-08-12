@@ -1,35 +1,82 @@
 #!/usr/bin/env node
 
 const { execSync } = require("child_process");
-const fs = require("fs");
 const path = require("path");
 
 console.log("🚀 Deploying Firestore indexes...");
 
 try {
-  // Check if firebase CLI is installed
+  // Check if project is set, if not try to detect it
+  let currentProject = "";
   try {
-    execSync("firebase --version", { stdio: "ignore" });
+    currentProject = execSync("firebase use", {
+      stdio: "pipe",
+      encoding: "utf8",
+      cwd: path.join(__dirname, ".."),
+    }).trim();
+    console.log(`✅ Using Firebase project: ${currentProject}`);
   } catch (error) {
-    console.error("❌ Firebase CLI is not installed. Please install it first:");
-    console.error("npm install -g firebase-tools");
-    process.exit(1);
+    console.log("🔧 No project set, trying to detect available projects...");
+
+    // List available projects
+    const projectsOutput = execSync("firebase projects:list", {
+      encoding: "utf8",
+      cwd: path.join(__dirname, ".."),
+    });
+
+    console.log("📋 Available projects:");
+    console.log(projectsOutput);
+
+    // Try to find a suitable project
+    if (projectsOutput.includes("veilastudio")) {
+      console.log("🎯 Found veilastudio project, setting it as active...");
+      execSync("firebase use veilastudio", {
+        stdio: "inherit",
+        cwd: path.join(__dirname, ".."),
+      });
+      currentProject = "veilastudio";
+    } else if (projectsOutput.includes("veila")) {
+      console.log("🎯 Found veila project, setting it as active...");
+      const veilaProject = projectsOutput
+        .split("\n")
+        .find((line) => line.includes("veila"));
+      if (veilaProject) {
+        const projectId = veilaProject.split(/\s+/)[0];
+        execSync(`firebase use ${projectId}`, {
+          stdio: "inherit",
+          cwd: path.join(__dirname, ".."),
+        });
+        currentProject = projectId;
+      }
+    } else {
+      console.log(
+        "⚠️  No suitable project found. Please set project manually:"
+      );
+      console.log("firebase use <PROJECT_ID>");
+      process.exit(1);
+    }
   }
 
-  // Check if firebase project is initialized
-  if (!fs.existsSync("firebase.json")) {
-    console.error("❌ Firebase project is not initialized. Please run:");
-    console.error("firebase init firestore");
-    process.exit(1);
-  }
-
-  // Deploy indexes
-  console.log("📦 Deploying indexes to Firebase...");
-  execSync("firebase deploy --only firestore:indexes", { stdio: "inherit" });
+  // Deploy only Firestore indexes
+  console.log(`🚀 Deploying indexes to project: ${currentProject}`);
+  execSync("firebase deploy --only firestore:indexes", {
+    stdio: "inherit",
+    cwd: path.join(__dirname, ".."),
+  });
 
   console.log("✅ Firestore indexes deployed successfully!");
-  console.log("⏳ Please wait a few minutes for indexes to be built...");
+  console.log(
+    "📝 Note: It may take a few minutes for indexes to be fully active."
+  );
 } catch (error) {
-  console.error("❌ Error deploying Firestore indexes:", error.message);
+  console.error("❌ Failed to deploy Firestore indexes:", error.message);
+  console.log("\n🔧 Manual steps:");
+  console.log("1. Check available projects: firebase projects:list");
+  console.log("2. Set project: firebase use <PROJECT_ID>");
+  console.log("3. Deploy indexes: firebase deploy --only firestore:indexes");
+  console.log(
+    "4. Or open Firebase Console: https://console.firebase.google.com"
+  );
+  console.log("5. Select your project and go to Firestore Database > Indexes");
   process.exit(1);
 }

@@ -26,13 +26,8 @@ export interface CustomRequest {
   color: string;
   specialElement: string;
   coverage: string;
-  status:
-    | "DRAFT"
-    | "PENDING"
-    | "APPROVED"
-    | "REJECTED"
-    | "IN_PROGRESS"
-    | "COMPLETED";
+  status: "DRAFT" | "SUBMIT";
+
   isPrivate: boolean;
 }
 
@@ -61,6 +56,7 @@ export interface CustomRequestCreate {
   specialElement: string;
   coverage: string;
   isPrivate?: boolean;
+  status?: "DRAFT" | "SUBMIT";
 }
 
 export interface CustomRequestUpdate extends Partial<CustomRequestCreate> {}

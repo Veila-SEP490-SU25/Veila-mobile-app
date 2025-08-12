@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import { router } from "expo-router";
 import React from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
@@ -18,7 +19,7 @@ const categories: Category[] = [
     subtitle: "Bộ sưu tập đa dạng",
     icon: "sparkles",
     color: "#E05C78",
-    onPress: () => console.log("Explore pressed"),
+    onPress: () => router.push("/_tab/shopping" as any),
   },
   // {
   //   id: "consultation",
@@ -34,7 +35,7 @@ const categories: Category[] = [
     subtitle: "Showroom gần bạn",
     icon: "storefront",
     color: "#06B6D4",
-    onPress: () => console.log("Stores pressed"),
+    onPress: () => router.push("/shop" as any),
   },
   // {
   //   id: "custom",
@@ -59,7 +60,7 @@ const categories: Category[] = [
     subtitle: "Chia sẻ kinh nghiệm",
     icon: "book",
     color: "#6366F1",
-    onPress: () => console.log("Blog pressed"),
+    onPress: () => router.push("/blog" as any),
   },
   {
     id: "chat",
@@ -67,7 +68,7 @@ const categories: Category[] = [
     subtitle: "Hỗ trợ trực tuyến",
     icon: "chatbubbles",
     color: "#8B5CF6",
-    onPress: () => console.log("Chat pressed"),
+    onPress: () => router.push("/_tab/chat" as any),
   },
 ];
 

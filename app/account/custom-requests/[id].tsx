@@ -16,6 +16,7 @@ import { CustomRequest } from "../../../services/types";
 
 const STATUS_COLORS = {
   DRAFT: "#6B7280",
+  SUBMIT: "#3B82F6",
   PENDING: "#F59E0B",
   APPROVED: "#10B981",
   REJECTED: "#EF4444",
@@ -25,6 +26,7 @@ const STATUS_COLORS = {
 
 const STATUS_LABELS = {
   DRAFT: "Bản nháp",
+  SUBMIT: "Đã đăng",
   PENDING: "Chờ duyệt",
   APPROVED: "Đã duyệt",
   REJECTED: "Từ chối",

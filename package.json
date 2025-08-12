@@ -9,7 +9,10 @@
     "ios": "expo run:ios",
     "web": "expo start --web",
     "lint": "expo lint",
-    "deploy-indexes": "node ./scripts/deploy-firestore-indexes.js"
+    "setup-firebase": "node ./scripts/setup-firebase.js",
+    "find-project": "node ./scripts/find-firebase-project.js",
+    "deploy-indexes": "node ./scripts/deploy-firestore-indexes.js",
+    "rebuild-indexes": "node ./scripts/rebuild-firestore-indexes.js"
   },
   "dependencies": {
     "@expo/vector-icons": "^14.1.0",

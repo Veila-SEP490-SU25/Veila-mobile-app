@@ -180,16 +180,19 @@ export class ChatService {
       const q = query(
         collection(db, "messages"),
         where("chatRoomId", "==", chatRoomId),
-        orderBy("timestamp", "desc"),
+        orderBy("timestamp", "asc"),
         limit(limitCount)
       );
 
       const querySnapshot = await getDocs(q);
-      return querySnapshot.docs.map((doc) => ({
+      const messages = querySnapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
         timestamp: doc.data().timestamp?.toDate(),
       })) as ChatMessage[];
+
+      // Reverse to show newest first (since we're using ascending order)
+      return messages.reverse();
     } catch (error: any) {
       // Fallback: if index doesn't exist, get without ordering
       if (error.code === "failed-precondition") {
@@ -227,7 +230,7 @@ export class ChatService {
     const q = query(
       collection(db, "messages"),
       where("chatRoomId", "==", chatRoomId),
-      orderBy("timestamp", "desc"),
+      orderBy("timestamp", "asc"),
       limit(100)
     );
 
@@ -237,7 +240,9 @@ export class ChatService {
         ...doc.data(),
         timestamp: doc.data().timestamp?.toDate(),
       })) as ChatMessage[];
-      callback(messages);
+
+      // Reverse to show newest first (since we're using ascending order)
+      callback(messages.reverse());
     });
   }
 

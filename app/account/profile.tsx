@@ -2,6 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   Image,
   KeyboardAvoidingView,
   Platform,
@@ -131,6 +132,11 @@ export default function ProfileScreen() {
       if (imageType === "avatar") {
         uploadResult = await uploadAvatar(uri);
         setProfileForm((prev) => ({ ...prev, avatarUrl: uploadResult.url }));
+
+        // Cập nhật user state ngay lập tức để hiển thị avatar mới
+        if (refreshUser) {
+          refreshUser();
+        }
       } else {
         uploadResult = await uploadCover(uri);
         setProfileForm((prev) => ({ ...prev, coverUrl: uploadResult.url }));
@@ -141,11 +147,12 @@ export default function ProfileScreen() {
         text1: "Thành công",
         text2: `Tải lên ${imageType === "avatar" ? "ảnh đại diện" : "ảnh bìa"} thành công`,
       });
-    } catch {
+    } catch (error) {
+      console.error("Upload error:", error);
       Toast.show({
         type: "error",
         text1: "Lỗi",
-        text2: "Tải lên ảnh thất bại",
+        text2: "Tải lên ảnh thất bại. Vui lòng thử lại.",
       });
     } finally {
       setIsUploading(false);
@@ -173,6 +180,7 @@ export default function ProfileScreen() {
 
   const handleAddressChange = (address: IAddress) => {
     setAddressForm(address);
+
     // Ghép chuỗi địa chỉ chi tiết và địa chỉ từ picker
     const addressParts = [
       addressForm.streetAddress, // Địa chỉ chi tiết hiện tại
@@ -198,6 +206,24 @@ export default function ProfileScreen() {
 
     const addressString = addressParts.join(", ");
     setProfileForm((prev) => ({ ...prev, address: addressString }));
+  };
+
+  // Hàm để hiển thị địa chỉ đầy đủ
+  const getFullAddress = () => {
+    if (profileForm.address) {
+      return profileForm.address;
+    }
+
+    const addressParts = [
+      addressForm.streetAddress,
+      addressForm.ward?.name,
+      addressForm.district?.name,
+      addressForm.province?.name,
+    ].filter(Boolean);
+
+    return addressParts.length > 0
+      ? addressParts.join(", ")
+      : "Chưa có địa chỉ";
   };
 
   const handleBirthDateChange = (date: string) => {
@@ -312,7 +338,7 @@ export default function ProfileScreen() {
             disabled={isUploading}
           >
             {isUploading ? (
-              <Ionicons name="cloud-upload" size={14} color="#FFFFFF" />
+              <ActivityIndicator size="small" color="#FFFFFF" />
             ) : (
               <Ionicons name="camera" size={14} color="#FFFFFF" />
             )}
@@ -368,6 +394,14 @@ export default function ProfileScreen() {
           onChange={handleAddressChange}
           label="Địa chỉ *"
         />
+
+        {/* Hiển thị địa chỉ đầy đủ */}
+        <View style={styles.inputGroup}>
+          <Text style={styles.inputLabel}>Địa chỉ đầy đủ</Text>
+          <View style={styles.addressDisplay}>
+            <Text style={styles.addressText}>{getFullAddress()}</Text>
+          </View>
+        </View>
 
         <View style={styles.inputGroup}>
           <Text style={styles.inputLabel}>Địa chỉ chi tiết</Text>
@@ -674,7 +708,8 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   uploadingButton: {
-    backgroundColor: "#CCCCCC",
+    backgroundColor: "#6B7280",
+    shadowOpacity: 0.1,
   },
   avatarLabel: {
     fontSize: 14,
@@ -727,5 +762,17 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     color: "#FFFFFF",
+  },
+  addressDisplay: {
+    backgroundColor: "#F9F9F9",
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+  },
+  addressText: {
+    fontSize: 14,
+    color: "#333333",
+    lineHeight: 20,
   },
 });

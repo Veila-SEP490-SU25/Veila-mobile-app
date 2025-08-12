@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -8,6 +8,7 @@ import {
   RefreshControl,
   StatusBar,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -17,21 +18,16 @@ import { CustomRequest } from "../../services/types";
 
 const STATUS_COLORS = {
   DRAFT: "#6B7280",
-  PENDING: "#F59E0B",
-  APPROVED: "#10B981",
-  REJECTED: "#EF4444",
-  IN_PROGRESS: "#3B82F6",
-  COMPLETED: "#8B5CF6",
+  SUBMIT: "#3B82F6",
 };
 
 const STATUS_LABELS = {
   DRAFT: "Bản nháp",
-  PENDING: "Chờ duyệt",
-  APPROVED: "Đã duyệt",
-  REJECTED: "Từ chối",
-  IN_PROGRESS: "Đang thực hiện",
-  COMPLETED: "Hoàn thành",
+  SUBMIT: "Đã đăng",
 };
+
+type FilterType = "ALL" | "PRIVATE" | "PUBLIC";
+type StatusFilterType = "ALL" | "DRAFT" | "SUBMIT";
 
 export default function CustomRequestsScreen() {
   const [requests, setRequests] = useState<CustomRequest[]>([]);
@@ -40,35 +36,118 @@ export default function CustomRequestsScreen() {
   const [page, setPage] = useState(0);
   const [hasNextPage, setHasNextPage] = useState(false);
 
-  const loadRequests = async (refresh = false) => {
-    try {
-      if (refresh) {
-        setPage(0);
-      }
+  // Search and filter states
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
+  const [selectedFilter, setSelectedFilter] = useState<FilterType>("ALL");
+  const [selectedStatus, setSelectedStatus] = useState<StatusFilterType>("ALL");
 
-      const currentPage = refresh ? 0 : page;
-      const response = await customRequestApi.getMyRequests(currentPage, 10);
+  // Debounce search query
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+      setPage(0); // Reset to first page when searching
+    }, 500);
 
-      if (response.statusCode === 200) {
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  const loadRequests = useCallback(
+    async (refresh = false) => {
+      try {
         if (refresh) {
-          setRequests(response.items);
-        } else {
-          setRequests((prev) => [...prev, ...response.items]);
+          setPage(0);
         }
-        setHasNextPage(response.hasNextPage);
+
+        const currentPage = refresh ? 0 : page;
+
+        // Build filter string
+        let filterString = "";
+        const filters = [];
+
+        if (debouncedSearchQuery.trim()) {
+          filters.push(`title:like:${debouncedSearchQuery.trim()}`);
+        }
+
+        // Temporarily comment out privacy filter to test
+        // if (selectedFilter === "PRIVATE") {
+        //   filters.push("isPrivate:eq:true");
+        // } else if (selectedFilter === "PUBLIC") {
+        //   filters.push("isPrivate:eq:false");
+        // }
+
+        if (selectedStatus !== "ALL") {
+          filters.push(`status:eq:${selectedStatus}`);
+        }
+
+        if (filters.length > 0) {
+          filterString = filters.join(",");
+        }
+
+        // Debug logs
+        console.log("Filter Debug:", {
+          selectedFilter,
+          selectedStatus,
+          filters,
+          filterString,
+          currentPage,
+          "isPrivate filter":
+            selectedFilter === "PRIVATE"
+              ? "isPrivate:eq:true"
+              : selectedFilter === "PUBLIC"
+                ? "isPrivate:eq:false"
+                : "none",
+        });
+
+        const response = await customRequestApi.getMyRequests(
+          currentPage,
+          10,
+          filterString,
+          "createdAt:desc"
+        );
+        console.log("API Response:", response);
+
+        if (response.statusCode === 200) {
+          let filteredItems = response.items;
+
+          // Client-side filtering for privacy if API doesn't support it
+          if (selectedFilter === "PRIVATE") {
+            filteredItems = response.items.filter(
+              (item) => item.isPrivate === true
+            );
+          } else if (selectedFilter === "PUBLIC") {
+            filteredItems = response.items.filter(
+              (item) => item.isPrivate === false
+            );
+          }
+
+          console.log("Filtered items:", {
+            total: response.items.length,
+            filtered: filteredItems.length,
+            privacyFilter: selectedFilter,
+          });
+
+          if (refresh) {
+            setRequests(filteredItems);
+          } else {
+            setRequests((prev) => [...prev, ...filteredItems]);
+          }
+          setHasNextPage(response.hasNextPage && filteredItems.length > 0);
+        }
+      } catch (error) {
+        console.error("Error loading requests:", error);
+        Alert.alert("Lỗi", "Không thể tải danh sách yêu cầu");
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
       }
-    } catch (error) {
-      console.error("Error loading requests:", error);
-      Alert.alert("Lỗi", "Không thể tải danh sách yêu cầu");
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  };
+    },
+    [page, debouncedSearchQuery, selectedFilter, selectedStatus]
+  );
 
   useEffect(() => {
     loadRequests(true);
-  }, []);
+  }, [debouncedSearchQuery, selectedFilter, selectedStatus, loadRequests]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -93,13 +172,85 @@ export default function CustomRequestsScreen() {
             await customRequestApi.deleteRequest(id);
             setRequests((prev) => prev.filter((req) => req.id !== id));
             Alert.alert("Thành công", "Đã xóa yêu cầu");
-          } catch (error) {
+          } catch {
             Alert.alert("Lỗi", "Không thể xóa yêu cầu");
           }
         },
       },
     ]);
   };
+
+  const renderFilterTabs = () => (
+    <View className="bg-white rounded-2xl mx-4 mb-4 shadow-soft">
+      <View className="flex-row p-1">
+        {[
+          { key: "ALL", label: "Tất cả", icon: "grid-outline" },
+          { key: "PRIVATE", label: "Riêng tư", icon: "lock-closed-outline" },
+          { key: "PUBLIC", label: "Công khai", icon: "globe-outline" },
+        ].map((filter) => (
+          <TouchableOpacity
+            key={filter.key}
+            className={`flex-1 flex-row items-center justify-center py-3 px-2 rounded-xl ${
+              selectedFilter === filter.key
+                ? "bg-primary-500"
+                : "bg-transparent"
+            }`}
+            onPress={() => setSelectedFilter(filter.key as FilterType)}
+          >
+            <Ionicons
+              name={filter.icon as any}
+              size={16}
+              color={selectedFilter === filter.key ? "#FFFFFF" : "#6B7280"}
+            />
+            <Text
+              className={`ml-2 text-sm font-medium ${
+                selectedFilter === filter.key ? "text-white" : "text-gray-600"
+              }`}
+            >
+              {filter.label}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+    </View>
+  );
+
+  const renderStatusFilter = () => (
+    <View className="bg-white rounded-2xl mx-4 mb-4 shadow-soft">
+      <View className="p-4">
+        <Text className="text-base font-semibold text-gray-800 mb-3">
+          Trạng thái
+        </Text>
+        <View className="flex-row flex-wrap gap-2">
+          {[
+            { key: "ALL", label: "Tất cả" },
+            { key: "DRAFT", label: "Bản nháp" },
+            { key: "SUBMIT", label: "Đã đăng" },
+          ].map((status) => (
+            <TouchableOpacity
+              key={status.key}
+              className={`px-3 py-2 rounded-full border ${
+                selectedStatus === status.key
+                  ? "border-primary-500 bg-primary-50"
+                  : "border-gray-200 bg-gray-50"
+              }`}
+              onPress={() => setSelectedStatus(status.key as StatusFilterType)}
+            >
+              <Text
+                className={`text-sm font-medium ${
+                  selectedStatus === status.key
+                    ? "text-primary-600"
+                    : "text-gray-600"
+                }`}
+              >
+                {status.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+    </View>
+  );
 
   const renderRequest = ({ item }: { item: CustomRequest }) => (
     <TouchableOpacity
@@ -141,7 +292,11 @@ export default function CustomRequestsScreen() {
           </View>
 
           <View className="flex-row items-center">
-            <Ionicons name="eye-outline" size={16} color="#6B7280" />
+            <Ionicons
+              name={item.isPrivate ? "lock-closed" : "globe"}
+              size={16}
+              color={item.isPrivate ? "#EF4444" : "#10B981"}
+            />
             <Text className="text-sm text-gray-500 ml-1">
               {item.isPrivate ? "Riêng tư" : "Công khai"}
             </Text>
@@ -173,17 +328,23 @@ export default function CustomRequestsScreen() {
     <View className="flex-1 justify-center items-center py-20">
       <Ionicons name="document-text-outline" size={80} color="#D1D5DB" />
       <Text className="text-xl font-semibold text-gray-400 mt-4 text-center">
-        Chưa có yêu cầu nào
+        {searchQuery || selectedFilter !== "ALL" || selectedStatus !== "ALL"
+          ? "Không tìm thấy yêu cầu phù hợp"
+          : "Chưa có yêu cầu nào"}
       </Text>
       <Text className="text-gray-400 text-center mt-2">
-        Tạo yêu cầu đầu tiên để bắt đầu thiết kế váy cưới
+        {searchQuery || selectedFilter !== "ALL" || selectedStatus !== "ALL"
+          ? `Bộ lọc hiện tại: ${selectedFilter !== "ALL" ? `${selectedFilter === "PRIVATE" ? "Riêng tư" : "Công khai"}` : ""}${selectedStatus !== "ALL" ? ` ${selectedStatus === "DRAFT" ? "Bản nháp" : "Đã đăng"}` : ""}${searchQuery ? ` "${searchQuery}"` : ""}`
+          : "Tạo yêu cầu đầu tiên để bắt đầu thiết kế váy cưới"}
       </Text>
-      <TouchableOpacity
-        className="bg-primary-500 rounded-xl py-3 px-6 mt-6"
-        onPress={() => router.push("/account/custom-requests/create" as any)}
-      >
-        <Text className="text-white font-semibold">Tạo yêu cầu mới</Text>
-      </TouchableOpacity>
+      {!searchQuery && selectedFilter === "ALL" && selectedStatus === "ALL" && (
+        <TouchableOpacity
+          className="bg-primary-500 rounded-xl py-3 px-6 mt-6"
+          onPress={() => router.push("/account/custom-requests/create" as any)}
+        >
+          <Text className="text-white font-semibold">Tạo yêu cầu mới</Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 
@@ -227,6 +388,31 @@ export default function CustomRequestsScreen() {
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* Search Bar */}
+      <View className="bg-white px-4 py-3 border-b border-gray-100">
+        <View className="flex-row items-center bg-gray-100 rounded-xl px-4 py-2">
+          <Ionicons name="search-outline" size={20} color="#6B7280" />
+          <TextInput
+            className="flex-1 ml-3 text-gray-800"
+            placeholder="Tìm kiếm yêu cầu..."
+            placeholderTextColor="#9CA3AF"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity onPress={() => setSearchQuery("")}>
+              <Ionicons name="close-circle" size={20} color="#6B7280" />
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
+
+      {/* Filter Tabs */}
+      {renderFilterTabs()}
+
+      {/* Status Filter */}
+      {renderStatusFilter()}
 
       {requests.length === 0 ? (
         renderEmpty()
