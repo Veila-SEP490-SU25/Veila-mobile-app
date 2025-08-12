@@ -123,27 +123,27 @@ export default function BlogList({ onBlogPress }: BlogListProps) {
   // Render từng blog item
   const renderBlog = useCallback(
     ({ item }: { item: BlogPost }) => (
-      <TouchableOpacity
+    <TouchableOpacity
         style={styles.blogCard}
-        onPress={() => onBlogPress(item)}
-        activeOpacity={0.85}
-      >
+      onPress={() => onBlogPress(item)}
+      activeOpacity={0.85}
+    >
         <View style={styles.imageContainer}>
-          <Image
-            source={{
-              uri:
-                item.images && item.images.length > 0
-                  ? item.images[0]
-                  : "https://placehold.co/600x300?text=Blog",
-            }}
+        <Image
+          source={{
+            uri:
+              item.images && item.images.length > 0
+                ? item.images[0]
+                : "https://placehold.co/600x300?text=Blog",
+          }}
             style={styles.blogImage}
-            resizeMode="cover"
-          />
-        </View>
+          resizeMode="cover"
+        />
+      </View>
         <View style={styles.blogContent}>
           <Text style={styles.blogTitle} numberOfLines={2}>
-            {item.title}
-          </Text>
+          {item.title}
+        </Text>
 
           {/* Shop Info */}
           <TouchableOpacity
@@ -175,11 +175,11 @@ export default function BlogList({ onBlogPress }: BlogListProps) {
           </TouchableOpacity>
 
           {/* Summary */}
-          {item.summary ? (
+        {item.summary ? (
             <Text style={styles.blogSummary} numberOfLines={2}>
-              {item.summary}
-            </Text>
-          ) : null}
+            {item.summary}
+          </Text>
+        ) : null}
 
           {/* Meta Info */}
           <View style={styles.metaInfo}>
@@ -290,22 +290,22 @@ export default function BlogList({ onBlogPress }: BlogListProps) {
 
   return (
     <View style={styles.mainContainer}>
-      <FlatList
-        data={blogs}
-        renderItem={renderBlog}
-        keyExtractor={(item) => item.id}
+    <FlatList
+      data={blogs}
+      renderItem={renderBlog}
+      keyExtractor={(item) => item.id}
         contentContainerStyle={{ paddingBottom: 32 }}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-        onEndReached={loadMore}
-        onEndReachedThreshold={0.1}
+      showsVerticalScrollIndicator={false}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+      }
+      onEndReached={loadMore}
+      onEndReachedThreshold={0.1}
         ListHeaderComponent={renderHeader}
-        ListFooterComponent={
-          data?.hasNextPage ? (
+      ListFooterComponent={
+        data?.hasNextPage ? (
             <View style={styles.loadingMore}>
-              <ActivityIndicator size="small" color="#E05C78" />
+            <ActivityIndicator size="small" color="#E05C78" />
               <Text style={styles.loadingMoreText}>Đang tải thêm...</Text>
             </View>
           ) : blogs.length > 0 ? (
@@ -313,25 +313,25 @@ export default function BlogList({ onBlogPress }: BlogListProps) {
               <Text style={styles.resultsSummaryText}>
                 Hiển thị {blogs.length} / {data?.totalItems || 0} bài viết
               </Text>
-            </View>
-          ) : null
-        }
-        ListEmptyComponent={
-          !isLoading ? (
+          </View>
+        ) : null
+      }
+      ListEmptyComponent={
+        !isLoading ? (
             <View style={styles.emptyContainer}>
-              <Ionicons name="document-text-outline" size={64} color="#CCCCCC" />
+            <Ionicons name="document-text-outline" size={64} color="#CCCCCC" />
               <Text style={styles.emptyTitle}>
-                Không có bài viết nào
-              </Text>
+              Không có bài viết nào
+            </Text>
               <Text style={styles.emptyMessage}>
                 {debouncedSearchQuery
                   ? "Không tìm thấy bài viết phù hợp với từ khóa tìm kiếm"
                   : "Hãy quay lại sau để xem bài viết mới"}
-              </Text>
-            </View>
-          ) : null
-        }
-      />
+            </Text>
+          </View>
+        ) : null
+      }
+    />
 
       {/* Filter Modal */}
       <Modal

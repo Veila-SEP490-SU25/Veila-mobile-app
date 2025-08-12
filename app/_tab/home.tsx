@@ -46,10 +46,10 @@ export default function Home() {
         useNativeDriver: true,
       }),
     ]);
-    
+
     // Start animation
     animation.start();
-    
+
     // Cleanup function to prevent memory leaks
     return () => {
       animation.stop();
@@ -75,7 +75,7 @@ export default function Home() {
   const handleNavigate = useCallback((route: string) => {
     // Close menu first
     setShowMenu(false);
-    
+
     // Simple navigation without complex timing
     setTimeout(() => {
       if (
@@ -121,7 +121,7 @@ export default function Home() {
       subtitle: "Sở hữu váy cưới yêu thích",
       icon: "cart-outline",
       color: "#06B6D4",
-      onPress: () => console.log("Buy dress pressed"),
+      onPress: () => router.push("/_tab/shopping"),
     },
     {
       id: "rent-dress",
@@ -137,7 +137,7 @@ export default function Home() {
       subtitle: "Yêu cầu thiết kế cá nhân",
       icon: "document-text-outline",
       color: "#F59E0B",
-      onPress: () => console.log("Custom request pressed"),
+      onPress: () => router.push("/account/custom-requests" as any),
     },
   ];
 
@@ -167,7 +167,7 @@ export default function Home() {
           <Text style={styles.quickActionSubtitle}>{action.subtitle}</Text>
         </View>
         <Ionicons name="chevron-forward" size={16} color="#CCCCCC" />
-        </TouchableOpacity>
+      </TouchableOpacity>
     </Animated.View>
   );
 
@@ -184,10 +184,7 @@ export default function Home() {
       )}
 
       {showMenu && (
-        <SideMenu
-          onClose={handleMenuClose}
-          navigate={handleNavigate}
-        />
+        <SideMenu onClose={handleMenuClose} navigate={handleNavigate} />
       )}
 
       <HomeHeader onMenuPress={handleMenuPress} />

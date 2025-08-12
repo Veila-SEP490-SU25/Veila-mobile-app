@@ -2,16 +2,16 @@ import { Ionicons } from "@expo/vector-icons";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Image,
+  Modal,
   RefreshControl,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
-  Modal,
-  Alert,
 } from "react-native";
 import { shopApi } from "../../services/apis/shop.api";
 import { Shop } from "../../services/types";
@@ -32,7 +32,7 @@ export default function ShopList({ onShopPress }: ShopListProps) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [hasMore, setHasMore] = useState(true);
-  
+
   // Search and filter state
   const [searchQuery, setSearchQuery] = useState("");
   const [showFilters, setShowFilters] = useState(false);
@@ -57,7 +57,7 @@ export default function ShopList({ onShopPress }: ShopListProps) {
         currentFilters.name,
         currentFilters.sort
       );
-      
+
       const newShops = response.items;
 
       if (refresh) {
@@ -84,7 +84,7 @@ export default function ShopList({ onShopPress }: ShopListProps) {
     // Debounce search
     const timeoutId = setTimeout(() => {
       if (searchQuery !== filterOptions.name) {
-        setFilterOptions(prev => ({ ...prev, name: searchQuery }));
+        setFilterOptions((prev) => ({ ...prev, name: searchQuery }));
         loadShops(0, true);
       }
     }, 500);
@@ -104,22 +104,22 @@ export default function ShopList({ onShopPress }: ShopListProps) {
   };
 
   const handleSortChange = (sortOption: string) => {
-    setFilterOptions(prev => ({ ...prev, sort: sortOption, page: 0 }));
+    setFilterOptions((prev) => ({ ...prev, sort: sortOption, page: 0 }));
     setShowFilters(false);
   };
 
   const handleSizeChange = (size: number) => {
-    setFilterOptions(prev => ({ ...prev, size, page: 0 }));
+    setFilterOptions((prev) => ({ ...prev, size, page: 0 }));
     setShowFilters(false);
   };
 
   const renderShop = ({ item }: { item: Shop }) => (
     <TouchableOpacity
-      style={styles.shopCard}
+      className="bg-white rounded-2xl mb-4 shadow-card overflow-hidden"
       onPress={() => onShopPress(item)}
       activeOpacity={0.8}
     >
-      <View style={styles.imageContainer}>
+      <View className="relative">
         <Image
           source={{
             uri:
@@ -127,64 +127,86 @@ export default function ShopList({ onShopPress }: ShopListProps) {
               item.logoUrl ||
               "https://via.placeholder.com/300x200?text=Cửa+hàng",
           }}
-          style={styles.shopImage}
+          className="w-full h-48"
           resizeMode="cover"
         />
-        <View style={styles.overlay}>
-          <View style={styles.logoContainer}>
+        <View className="absolute inset-0 bg-black/20" />
+        <View className="absolute top-4 right-4">
+          <View className="w-16 h-16 bg-white rounded-full p-1 shadow-lg">
             <Image
               source={{
                 uri:
                   item.logoUrl || "https://via.placeholder.com/60x60?text=Logo",
               }}
-              style={styles.logo}
+              className="w-full h-full rounded-full"
               resizeMode="cover"
             />
           </View>
         </View>
-        <View style={styles.ratingContainer}>
-          <View style={styles.rating}>
-            <Ionicons name="star" size={12} color="#FFD700" />
-            <Text style={styles.ratingText}>4.5</Text>
+        <View className="absolute top-4 left-4">
+          <View className="bg-white/90 backdrop-blur-sm rounded-full px-3 py-1 flex-row items-center">
+            <Ionicons name="star" size={14} color="#FFD700" />
+            <Text className="text-sm font-semibold text-gray-700 ml-1">
+              4.5
+            </Text>
           </View>
         </View>
       </View>
 
-      <View style={styles.shopInfo}>
-        <Text style={styles.shopName} numberOfLines={1}>
+      <View className="p-4">
+        <Text
+          className="text-lg font-bold text-gray-800 mb-3"
+          numberOfLines={1}
+        >
           {item.name}
         </Text>
 
-        <View style={styles.contactInfo}>
-          <View style={styles.contactItem}>
-            <Ionicons name="call-outline" size={14} color="#666666" />
-            <Text style={styles.contactText} numberOfLines={1}>
+        <View className="space-y-2 mb-4">
+          <View className="flex-row items-center">
+            <Ionicons name="call-outline" size={16} color="#666666" />
+            <Text
+              className="text-sm text-gray-600 ml-2 flex-1"
+              numberOfLines={1}
+            >
               {item.phone}
             </Text>
           </View>
 
-          <View style={styles.contactItem}>
-            <Ionicons name="mail-outline" size={14} color="#666666" />
-            <Text style={styles.contactText} numberOfLines={1}>
+          <View className="flex-row items-center">
+            <Ionicons name="mail-outline" size={16} color="#666666" />
+            <Text
+              className="text-sm text-gray-600 ml-2 flex-1"
+              numberOfLines={1}
+            >
               {item.email}
             </Text>
           </View>
 
-          <View style={styles.contactItem}>
-            <Ionicons name="location-outline" size={14} color="#666666" />
-            <Text style={styles.contactText} numberOfLines={2}>
+          <View className="flex-row items-start">
+            <Ionicons
+              name="location-outline"
+              size={16}
+              color="#666666"
+              className="mt-0.5"
+            />
+            <Text
+              className="text-sm text-gray-600 ml-2 flex-1"
+              numberOfLines={2}
+            >
               {item.address}
             </Text>
           </View>
         </View>
 
-        <View style={styles.actionContainer}>
+        <View className="border-t border-gray-100 pt-3">
           <TouchableOpacity
-            style={styles.viewButton}
+            className="bg-primary-500 rounded-xl py-3 px-4 flex-row items-center justify-center"
             onPress={() => onShopPress(item)}
           >
-            <Text style={styles.viewButtonText}>Xem chi tiết</Text>
-            <Ionicons name="chevron-forward" size={16} color="#E05C78" />
+            <Text className="text-white font-semibold text-base mr-2">
+              Ghé cửa hàng
+            </Text>
+            <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
           </TouchableOpacity>
         </View>
       </View>
@@ -193,58 +215,67 @@ export default function ShopList({ onShopPress }: ShopListProps) {
 
   if (loading && shops.length === 0) {
     return (
-      <View style={styles.loadingContainer}>
+      <View className="flex-1 justify-center items-center p-8">
         <ActivityIndicator size="large" color="#E05C78" />
-        <Text style={styles.loadingText}>Đang tải cửa hàng...</Text>
+        <Text className="text-lg text-gray-600 mt-4 font-medium">
+          Đang tải cửa hàng...
+        </Text>
       </View>
     );
   }
 
   return (
-    <View style={styles.mainContainer}>
+    <View className="flex-1">
       {/* Search and Filter Header */}
-      <View style={styles.headerContainer}>
-        <View style={styles.searchContainer}>
-          <Ionicons name="search" size={20} color="#666666" style={styles.searchIcon} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Tìm kiếm cửa hàng..."
-            placeholderTextColor="#999999"
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
-          {searchQuery.length > 0 && (
-            <TouchableOpacity
-              style={styles.clearButton}
-              onPress={() => setSearchQuery("")}
-            >
-              <Ionicons name="close-circle" size={20} color="#999999" />
-            </TouchableOpacity>
-          )}
-        </View>
-        
-        <TouchableOpacity
-          style={styles.filterButton}
-          onPress={() => setShowFilters(true)}
-        >
-          <Ionicons name="filter" size={20} color="#E05C78" />
-          <Text style={styles.filterButtonText}>Bộ lọc</Text>
-        </TouchableOpacity>
-      </View>
+      <View className="bg-white rounded-2xl p-4 mb-4 shadow-soft">
+        <View className="flex-row items-center justify-between mb-4">
+          <View className="flex-1 flex-row items-center bg-gray-100 rounded-2xl px-4 py-3 mr-3">
+            <Ionicons
+              name="search"
+              size={20}
+              color="#666666"
+              className="mr-3"
+            />
+            <TextInput
+              className="flex-1 text-base text-gray-800"
+              placeholder="Tìm kiếm cửa hàng..."
+              placeholderTextColor="#999999"
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity
+                className="p-1"
+                onPress={() => setSearchQuery("")}
+              >
+                <Ionicons name="close-circle" size={20} color="#999999" />
+              </TouchableOpacity>
+            )}
+          </View>
 
-      {/* Results Info */}
-      <View style={styles.resultsInfo}>
-        <Text style={styles.resultsText}>
-          {shops.length} cửa hàng
-          {searchQuery && ` cho "${searchQuery}"`}
-        </Text>
+          <TouchableOpacity
+            className="bg-white border border-primary-500 rounded-2xl px-4 py-3 flex-row items-center"
+            onPress={() => setShowFilters(true)}
+          >
+            <Ionicons name="filter" size={20} color="#E05C78" />
+            <Text className="text-primary-500 font-semibold ml-2">Bộ lọc</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Results Info */}
+        <View className="border-t border-gray-100 pt-3">
+          <Text className="text-center text-gray-600">
+            {shops.length} cửa hàng
+            {searchQuery && ` cho "${searchQuery}"`}
+          </Text>
+        </View>
       </View>
 
       <FlatList
         data={shops}
         renderItem={renderShop}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.container}
+        className="px-4"
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
@@ -253,22 +284,23 @@ export default function ShopList({ onShopPress }: ShopListProps) {
         onEndReachedThreshold={0.1}
         ListFooterComponent={
           hasMore ? (
-            <View style={styles.loadingMore}>
+            <View className="py-6 items-center">
               <ActivityIndicator size="small" color="#E05C78" />
-              <Text style={styles.loadingMoreText}>Đang tải thêm...</Text>
+              <Text className="text-gray-600 mt-2">Đang tải thêm...</Text>
             </View>
           ) : null
         }
         ListEmptyComponent={
           !loading ? (
-            <View style={styles.emptyContainer}>
-              <Ionicons name="storefront-outline" size={64} color="#CCCCCC" />
-              <Text style={styles.emptyText}>Không tìm thấy cửa hàng nào</Text>
-              <Text style={styles.emptySubtext}>
-                {searchQuery 
+            <View className="flex-1 justify-center items-center p-12">
+              <Ionicons name="storefront-outline" size={80} color="#CCCCCC" />
+              <Text className="text-xl font-semibold text-gray-400 mt-4 text-center">
+                Không tìm thấy cửa hàng nào
+              </Text>
+              <Text className="text-base text-gray-400 mt-2 text-center">
+                {searchQuery
                   ? `Không có cửa hàng nào phù hợp với "${searchQuery}"`
-                  : "Hãy thử tìm kiếm với từ khóa khác"
-                }
+                  : "Hãy thử tìm kiếm với từ khóa khác"}
               </Text>
             </View>
           ) : null
@@ -282,12 +314,12 @@ export default function ShopList({ onShopPress }: ShopListProps) {
         animationType="slide"
         onRequestClose={() => setShowFilters(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Bộ lọc</Text>
+        <View className="flex-1 justify-center items-center bg-black/50">
+          <View className="bg-white rounded-3xl p-6 w-11/12 max-w-sm">
+            <View className="flex-row justify-between items-center mb-6">
+              <Text className="text-2xl font-bold text-gray-800">Bộ lọc</Text>
               <TouchableOpacity
-                style={styles.closeButton}
+                className="p-2"
                 onPress={() => setShowFilters(false)}
               >
                 <Ionicons name="close" size={24} color="#666666" />
@@ -295,35 +327,45 @@ export default function ShopList({ onShopPress }: ShopListProps) {
             </View>
 
             {/* Sort Options */}
-            <View style={styles.filterSection}>
-              <Text style={styles.filterSectionTitle}>Sắp xếp theo</Text>
-              <View style={styles.sortOptions}>
+            <View className="mb-6">
+              <Text className="text-lg font-semibold text-gray-800 mb-3">
+                Sắp xếp theo
+              </Text>
+              <View className="flex-row justify-around bg-gray-100 rounded-2xl p-2">
                 <TouchableOpacity
-                  style={[
-                    styles.sortOption,
-                    filterOptions.sort === "name:asc" && styles.activeSortOption
-                  ]}
+                  className={`py-3 px-6 rounded-xl ${
+                    filterOptions.sort === "name:asc"
+                      ? "bg-primary-500 border border-primary-500"
+                      : ""
+                  }`}
                   onPress={() => handleSortChange("name:asc")}
                 >
-                  <Text style={[
-                    styles.sortOptionText,
-                    filterOptions.sort === "name:asc" && styles.activeSortOptionText
-                  ]}>
+                  <Text
+                    className={`font-semibold ${
+                      filterOptions.sort === "name:asc"
+                        ? "text-white"
+                        : "text-gray-700"
+                    }`}
+                  >
                     Tên A-Z
                   </Text>
                 </TouchableOpacity>
-                
+
                 <TouchableOpacity
-                  style={[
-                    styles.sortOption,
-                    filterOptions.sort === "name:desc" && styles.activeSortOption
-                  ]}
+                  className={`py-3 px-6 rounded-xl ${
+                    filterOptions.sort === "name:desc"
+                      ? "bg-primary-500 border border-primary-500"
+                      : ""
+                  }`}
                   onPress={() => handleSortChange("name:desc")}
                 >
-                  <Text style={[
-                    styles.sortOptionText,
-                    filterOptions.sort === "name:desc" && styles.activeSortOptionText
-                  ]}>
+                  <Text
+                    className={`font-semibold ${
+                      filterOptions.sort === "name:desc"
+                        ? "text-white"
+                        : "text-gray-700"
+                    }`}
+                  >
                     Tên Z-A
                   </Text>
                 </TouchableOpacity>
@@ -331,22 +373,28 @@ export default function ShopList({ onShopPress }: ShopListProps) {
             </View>
 
             {/* Size Options */}
-            <View style={styles.filterSection}>
-              <Text style={styles.filterSectionTitle}>Số lượng mỗi trang</Text>
-              <View style={styles.sizeOptions}>
+            <View className="mb-6">
+              <Text className="text-lg font-semibold text-gray-800 mb-3">
+                Số lượng mỗi trang
+              </Text>
+              <View className="flex-row justify-around bg-gray-100 rounded-2xl p-2">
                 {[5, 10, 15, 20].map((size) => (
                   <TouchableOpacity
                     key={size}
-                    style={[
-                      styles.sizeOption,
-                      filterOptions.size === size && styles.activeSizeOption
-                    ]}
+                    className={`py-3 px-6 rounded-xl ${
+                      filterOptions.size === size
+                        ? "bg-primary-500 border border-primary-500"
+                        : ""
+                    }`}
                     onPress={() => handleSizeChange(size)}
                   >
-                    <Text style={[
-                      styles.sizeOptionText,
-                      filterOptions.size === size && styles.activeSizeOptionText
-                    ]}>
+                    <Text
+                      className={`font-semibold ${
+                        filterOptions.size === size
+                          ? "text-white"
+                          : "text-gray-700"
+                      }`}
+                    >
                       {size}
                     </Text>
                   </TouchableOpacity>
@@ -356,10 +404,12 @@ export default function ShopList({ onShopPress }: ShopListProps) {
 
             {/* Apply Button */}
             <TouchableOpacity
-              style={styles.applyButton}
+              className="bg-primary-500 rounded-2xl py-4 px-6 w-full"
               onPress={() => setShowFilters(false)}
             >
-              <Text style={styles.applyButtonText}>Áp dụng</Text>
+              <Text className="text-white font-bold text-lg text-center">
+                Áp dụng
+              </Text>
             </TouchableOpacity>
           </View>
         </View>

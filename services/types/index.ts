@@ -7,6 +7,7 @@ export type {
 } from "./blog.type";
 export * from "./chat.type";
 export * from "./contract.type";
+export * from "./custom-request.type";
 export type { Dress, DressListResponse, DressStatus } from "./dress.type";
 export * from "./location.type";
 export * from "./notification.type";
@@ -24,3 +25,4 @@ export type {
 } from "./shop.type";
 export * from "./slide";
 export * from "./user.type";
+export * from "./wallet.type";

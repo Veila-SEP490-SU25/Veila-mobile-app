@@ -2,16 +2,16 @@ import { Ionicons } from "@expo/vector-icons";
 import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Image,
+  Modal,
   RefreshControl,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
-  Modal,
-  Alert,
 } from "react-native";
 import { dressApi } from "../../services/apis/dress.api";
 import { shopApi } from "../../services/apis/shop.api";
@@ -40,7 +40,7 @@ export default function DressGrid({ shopId, onDressPress }: DressGridProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState("name:asc");
-  
+
   // Filter state
   const [showFilters, setShowFilters] = useState(false);
   const [filterOptions, setFilterOptions] = useState<FilterOptions>({
@@ -54,7 +54,7 @@ export default function DressGrid({ shopId, onDressPress }: DressGridProps) {
   useEffect(() => {
     const t = setTimeout(() => {
       setDebouncedSearchQuery(searchQuery);
-      setFilterOptions(prev => ({ ...prev, page: 0 }));
+      setFilterOptions((prev) => ({ ...prev, page: 0 }));
     }, 400);
     return () => clearTimeout(t);
   }, [searchQuery]);
@@ -65,7 +65,11 @@ export default function DressGrid({ shopId, onDressPress }: DressGridProps) {
         setLoading(pageNum === 0 && !refresh ? true : loading);
         let newResponse;
         if (shopId) {
-          newResponse = await shopApi.getShopDresses(shopId, pageNum, filterOptions.size);
+          newResponse = await shopApi.getShopDresses(
+            shopId,
+            pageNum,
+            filterOptions.size
+          );
         } else {
           newResponse = await dressApi.getDresses({
             page: pageNum,
@@ -89,7 +93,7 @@ export default function DressGrid({ shopId, onDressPress }: DressGridProps) {
         }
 
         setHasMore(newResponse.hasNextPage);
-        setFilterOptions(prev => ({ ...prev, page: pageNum }));
+        setFilterOptions((prev) => ({ ...prev, page: pageNum }));
       } catch (error) {
         console.error("Error loading dresses:", error);
         Alert.alert("Lỗi", "Không thể tải danh sách váy cưới");
@@ -98,7 +102,13 @@ export default function DressGrid({ shopId, onDressPress }: DressGridProps) {
         setRefreshing(false);
       }
     },
-    [debouncedSearchQuery, filterOptions.sort, filterOptions.size, shopId, loading]
+    [
+      debouncedSearchQuery,
+      filterOptions.sort,
+      filterOptions.size,
+      shopId,
+      loading,
+    ]
   );
 
   useEffect(() => {
@@ -107,13 +117,13 @@ export default function DressGrid({ shopId, onDressPress }: DressGridProps) {
 
   // Reset page on sort/mode change
   useEffect(() => {
-    setFilterOptions(prev => ({ ...prev, page: 0 }));
+    setFilterOptions((prev) => ({ ...prev, page: 0 }));
     loadDresses(0, true);
   }, [filterOptions.sort, loadDresses]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    setFilterOptions(prev => ({ ...prev, page: 0 }));
+    setFilterOptions((prev) => ({ ...prev, page: 0 }));
     loadDresses(0, true);
   }, [loadDresses]);
 
@@ -124,12 +134,12 @@ export default function DressGrid({ shopId, onDressPress }: DressGridProps) {
   }, [hasMore, loading, loadDresses, filterOptions.page]);
 
   const handleSortChange = (sortOption: string) => {
-    setFilterOptions(prev => ({ ...prev, sort: sortOption, page: 0 }));
+    setFilterOptions((prev) => ({ ...prev, sort: sortOption, page: 0 }));
     setShowFilters(false);
   };
 
   const handleSizeChange = (size: number) => {
-    setFilterOptions(prev => ({ ...prev, size, page: 0 }));
+    setFilterOptions((prev) => ({ ...prev, size, page: 0 }));
     setShowFilters(false);
   };
 
@@ -234,7 +244,12 @@ export default function DressGrid({ shopId, onDressPress }: DressGridProps) {
       {/* Search and Filter Header */}
       <View style={styles.searchFilterHeader}>
         <View style={styles.searchContainer}>
-          <Ionicons name="search" size={20} color="#666666" style={styles.searchIcon} />
+          <Ionicons
+            name="search"
+            size={20}
+            color="#666666"
+            style={styles.searchIcon}
+          />
           <TextInput
             style={styles.searchInput}
             placeholder="Tìm kiếm váy cưới..."
@@ -251,7 +266,7 @@ export default function DressGrid({ shopId, onDressPress }: DressGridProps) {
             </TouchableOpacity>
           )}
         </View>
-        
+
         <TouchableOpacity
           style={styles.filterButton}
           onPress={() => setShowFilters(true)}
@@ -341,29 +356,37 @@ export default function DressGrid({ shopId, onDressPress }: DressGridProps) {
                 <TouchableOpacity
                   style={[
                     styles.sortOption,
-                    filterOptions.sort === "name:asc" && styles.activeSortOption
+                    filterOptions.sort === "name:asc" &&
+                      styles.activeSortOption,
                   ]}
                   onPress={() => handleSortChange("name:asc")}
                 >
-                  <Text style={[
-                    styles.sortOptionText,
-                    filterOptions.sort === "name:asc" && styles.activeSortOptionText
-                  ]}>
+                  <Text
+                    style={[
+                      styles.sortOptionText,
+                      filterOptions.sort === "name:asc" &&
+                        styles.activeSortOptionText,
+                    ]}
+                  >
                     Tên A-Z
                   </Text>
                 </TouchableOpacity>
-                
+
                 <TouchableOpacity
                   style={[
                     styles.sortOption,
-                    filterOptions.sort === "name:desc" && styles.activeSortOption
+                    filterOptions.sort === "name:desc" &&
+                      styles.activeSortOption,
                   ]}
                   onPress={() => handleSortChange("name:desc")}
                 >
-                  <Text style={[
-                    styles.sortOptionText,
-                    filterOptions.sort === "name:desc" && styles.activeSortOptionText
-                  ]}>
+                  <Text
+                    style={[
+                      styles.sortOptionText,
+                      filterOptions.sort === "name:desc" &&
+                        styles.activeSortOptionText,
+                    ]}
+                  >
                     Tên Z-A
                   </Text>
                 </TouchableOpacity>
@@ -379,14 +402,17 @@ export default function DressGrid({ shopId, onDressPress }: DressGridProps) {
                     key={size}
                     style={[
                       styles.sizeOption,
-                      filterOptions.size === size && styles.activeSizeOption
+                      filterOptions.size === size && styles.activeSizeOption,
                     ]}
                     onPress={() => handleSizeChange(size)}
                   >
-                    <Text style={[
-                      styles.sizeOptionText,
-                      filterOptions.size === size && styles.activeSizeOptionText
-                    ]}>
+                    <Text
+                      style={[
+                        styles.sizeOptionText,
+                        filterOptions.size === size &&
+                          styles.activeSizeOptionText,
+                      ]}
+                    >
                       {size}
                     </Text>
                   </TouchableOpacity>

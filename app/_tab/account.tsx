@@ -74,7 +74,7 @@ export default function AccountScreen() {
       title: "Ví điện tử",
       subtitle: "Quản lý tài khoản và thanh toán",
       icon: "wallet-outline",
-      onPress: () => console.log("Wallet pressed"),
+      onPress: () => router.push("/account/wallet"),
       showArrow: true,
       iconColor: "#10B981",
     },
@@ -104,6 +104,15 @@ export default function AccountScreen() {
       onPress: () => console.log("Address pressed"),
       showArrow: true,
       iconColor: "#06B6D4",
+    },
+    {
+      id: "custom-request",
+      title: "Gửi yêu cầu đặt may",
+      subtitle: "Yêu cầu thiết kế cá nhân",
+      icon: "document-text-outline",
+      onPress: () => router.push("/account/custom-requests" as any),
+      showArrow: true,
+      iconColor: "#F59E0B",
     },
   ];
 

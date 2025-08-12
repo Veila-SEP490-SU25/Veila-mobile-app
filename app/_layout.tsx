@@ -35,7 +35,7 @@ export default function RootLayout() {
   return (
     <ReduxProvider store={store}>
       <SessionProvider>
-        <AuthProvider>
+      <AuthProvider>
           <Stack screenOptions={{ headerShown: false }}>
             <Stack.Screen name="not-found" options={{ headerShown: false }} />
             <Stack.Screen name="index" options={{ headerShown: false }} />
@@ -48,7 +48,7 @@ export default function RootLayout() {
             autoHide={true}
           />
         </AuthProvider>
-      </SessionProvider>
+        </SessionProvider>
     </ReduxProvider>
   );
 }
