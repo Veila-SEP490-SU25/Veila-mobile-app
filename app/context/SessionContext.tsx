@@ -55,14 +55,14 @@ export default function SessionProvider({
       try {
         const token = await getAccessToken();
         if (!token || isTokenExpired(token)) {
-          console.log("Token không hợp lệ hoặc hết hạn trong SessionContext");
+          console.log("Token không hợp lệ hoặc hết hạn");
           setSessionExpired(true);
         } else {
-          console.log("Token hợp lệ trong SessionContext");
+          console.log("Token hợp lệ ");
           setSessionExpired(false);
         }
       } catch (error) {
-        console.log("Lỗi kiểm tra token trong SessionContext:", error);
+        console.log("Lỗi kiểm tra token", error);
         setSessionExpired(true);
       }
     };

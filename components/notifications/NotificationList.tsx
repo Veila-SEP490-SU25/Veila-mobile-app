@@ -11,7 +11,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { NotificationService } from "../../services/notification.service";
+import NotificationService from "../../services/notification.service";
 import { Notification } from "../../services/types";
 
 interface NotificationListProps {
@@ -38,7 +38,7 @@ export default function NotificationList({ userId }: NotificationListProps) {
   const handleNotificationPress = async (notification: Notification) => {
     // Mark as read
     if (!notification.isRead) {
-      await NotificationService.markNotificationAsRead(notification.id);
+      await NotificationService.markAsRead(notification.id);
     }
 
     // Navigate based on notification type
@@ -100,42 +100,24 @@ export default function NotificationList({ userId }: NotificationListProps) {
           >
             <Ionicons name={iconName as any} size={20} color={iconColor} />
           </View>
-          {!item.isRead && <View style={styles.unreadDot} />}
         </View>
 
-        <View style={styles.contentContainer}>
-          <View style={styles.headerRow}>
-            <Text
-              style={[styles.title, !item.isRead && styles.unreadTitle]}
-              numberOfLines={2}
-            >
-              {item.title}
-            </Text>
-            <Text style={styles.time}>
-              {formatDistanceToNow(item.timestamp, {
-                addSuffix: true,
-                locale: vi,
-              })}
-            </Text>
-          </View>
-
-          <Text style={styles.body} numberOfLines={3}>
+        <View style={styles.content}>
+          <Text style={styles.title} numberOfLines={2}>
+            {item.title}
+          </Text>
+          <Text style={styles.body} numberOfLines={2}>
             {item.body}
           </Text>
-
-          {item.data && Object.keys(item.data).length > 0 && (
-            <View style={styles.dataContainer}>
-              {item.data.chatRoomId && (
-                <Text style={styles.dataText}>
-                  Chat Room: {item.data.chatRoomId}
-                </Text>
-              )}
-              {item.data.orderId && (
-                <Text style={styles.dataText}>Order: {item.data.orderId}</Text>
-              )}
-            </View>
-          )}
+          <Text style={styles.timestamp}>
+            {formatDistanceToNow(item.timestamp, {
+              addSuffix: true,
+              locale: vi,
+            })}
+          </Text>
         </View>
+
+        {!item.isRead && <View style={styles.unreadDot} />}
       </TouchableOpacity>
     );
   };
@@ -144,6 +126,7 @@ export default function NotificationList({ userId }: NotificationListProps) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#007AFF" />
+        <Text style={styles.loadingText}>Đang tải thông báo...</Text>
       </View>
     );
   }
@@ -151,10 +134,11 @@ export default function NotificationList({ userId }: NotificationListProps) {
   if (notifications.length === 0) {
     return (
       <View style={styles.emptyContainer}>
-        <Ionicons name="notifications-off-outline" size={64} color="#CCCCCC" />
-        <Text style={styles.emptyText}>Không có thông báo nào</Text>
-        <Text style={styles.emptySubtext}>
-          Bạn sẽ nhận được thông báo khi có tin nhắn mới hoặc cập nhật đơn hàng
+        <Ionicons name="notifications-off-outline" size={64} color="#8E8E93" />
+        <Text style={styles.emptyTitle}>Không có thông báo</Text>
+        <Text style={styles.emptyText}>
+          Bạn sẽ nhận được thông báo khi có tin nhắn mới, đơn hàng hoặc cập nhật
+          quan trọng.
         </Text>
       </View>
     );
@@ -166,6 +150,7 @@ export default function NotificationList({ userId }: NotificationListProps) {
       renderItem={renderNotification}
       keyExtractor={(item) => item.id}
       style={styles.container}
+      contentContainerStyle={styles.contentContainer}
       showsVerticalScrollIndicator={false}
     />
   );
@@ -174,46 +159,60 @@ export default function NotificationList({ userId }: NotificationListProps) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#F2F2F7",
+  },
+  contentContainer: {
+    padding: 16,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+    backgroundColor: "#F2F2F7",
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: "#8E8E93",
   },
   emptyContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    paddingHorizontal: 20,
+    backgroundColor: "#F2F2F7",
+    paddingHorizontal: 32,
   },
-  emptyText: {
-    fontSize: 18,
+  emptyTitle: {
+    fontSize: 20,
     fontWeight: "600",
-    color: "#333333",
+    color: "#1C1C1E",
     marginTop: 16,
     marginBottom: 8,
   },
-  emptySubtext: {
-    fontSize: 14,
-    color: "#666666",
+  emptyText: {
+    fontSize: 16,
+    color: "#8E8E93",
     textAlign: "center",
-    lineHeight: 20,
+    lineHeight: 22,
   },
   notificationItem: {
     flexDirection: "row",
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F0F0F0",
     backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   unreadNotification: {
-    backgroundColor: "#F8F9FA",
+    borderLeftWidth: 4,
+    borderLeftColor: "#007AFF",
   },
   iconContainer: {
-    position: "relative",
-    marginRight: 12,
-    alignSelf: "flex-start",
+    marginRight: 16,
   },
   iconBackground: {
     width: 40,
@@ -222,51 +221,30 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  unreadDot: {
-    position: "absolute",
-    top: -2,
-    right: -2,
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: "#FF3B30",
-  },
-  contentContainer: {
+  content: {
     flex: 1,
-  },
-  headerRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginBottom: 4,
   },
   title: {
     fontSize: 16,
-    fontWeight: "500",
-    color: "#333333",
-    flex: 1,
-    marginRight: 8,
-  },
-  unreadTitle: {
     fontWeight: "600",
-  },
-  time: {
-    fontSize: 12,
-    color: "#666666",
+    color: "#1C1C1E",
+    marginBottom: 4,
   },
   body: {
     fontSize: 14,
-    color: "#666666",
-    lineHeight: 18,
+    color: "#8E8E93",
     marginBottom: 8,
+    lineHeight: 20,
   },
-  dataContainer: {
-    backgroundColor: "#F8F9FA",
-    padding: 8,
-    borderRadius: 6,
-  },
-  dataText: {
+  timestamp: {
     fontSize: 12,
-    color: "#666666",
+    color: "#8E8E93",
+  },
+  unreadDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#007AFF",
+    alignSelf: "center",
   },
 });

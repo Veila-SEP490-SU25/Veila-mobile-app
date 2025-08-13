@@ -1,9 +1,9 @@
 export enum UserRole {
-  Customer = "customer",
-  Supplier = "supplier",
-  SystemOperator = "system_operator",
-  Admin = "admin",
-  SuperAdmin = "super_admin",
+  Customer = "CUSTOMER",
+  Supplier = "SUPPLIER",
+  SystemOperator = "SYSTEM_OPERATOR",
+  Admin = "ADMIN",
+  SuperAdmin = "SUPER_ADMIN",
 }
 
 export enum UserStatus {
@@ -14,23 +14,35 @@ export enum UserStatus {
   Banned = "BANNED",
 }
 
+export enum PhoneVerificationStatus {
+  NotVerified = "NOT_VERIFIED",
+  Pending = "PENDING",
+  Verified = "VERIFIED",
+  Failed = "FAILED",
+}
+
 export interface IUser {
   id: string;
+  username: string;
   email: string;
   firstName: string;
   middleName?: string;
   lastName: string;
+  phone?: string;
   avatarUrl?: string;
   coverUrl?: string;
   address?: string;
   birthDate?: string;
   images?: string;
-  phoneNumber?: string;
-  isVerified: boolean;
-  isIdentified: boolean;
-  reputation: number;
   role: UserRole;
   status: UserStatus;
+  reputation?: number; // Optional, only for suppliers/admins
+  isVerified: boolean;
+  isIdentified: boolean;
   createdAt: string;
   updatedAt: string;
+  deletedAt?: string;
+
+  // Computed fields for phone verification status
+  phoneVerificationStatus?: PhoneVerificationStatus;
 }

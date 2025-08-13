@@ -5,6 +5,8 @@ import {
   IGoogleLogin,
   IItemResponse,
   ILogin,
+  IPhoneVerification,
+  IPhoneVerificationResponse,
   IRegister,
   IRequestOtp,
   IRequestResetPassword,
@@ -12,6 +14,7 @@ import {
   IToken,
   IUpdateProfile,
   IUser,
+  IUserResponse,
   IVerifyOtp,
 } from "../../services/types";
 
@@ -42,7 +45,7 @@ export const authApi = createApi({
       }),
     }),
 
-    getMe: builder.query<IItemResponse<IUser>, void>({
+    getMe: builder.query<IUserResponse, void>({
       query: () => ({
         url: "auth/me",
         method: "GET",
@@ -118,6 +121,18 @@ export const authApi = createApi({
         body,
       }),
     }),
+
+    // Verify phone with Firebase Phone Auth
+    verifyPhone: builder.mutation<
+      IPhoneVerificationResponse,
+      IPhoneVerification
+    >({
+      query: (body) => ({
+        url: "users/identify",
+        method: "PUT",
+        body,
+      }),
+    }),
   }),
 });
 
@@ -134,4 +149,5 @@ export const {
   useVerifyOtpMutation,
   useRequestResetPasswordMutation,
   useResetPasswordMutation,
+  useVerifyPhoneMutation,
 } = authApi;

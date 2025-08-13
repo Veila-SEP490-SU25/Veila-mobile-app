@@ -1,9 +1,7 @@
 import {
   addDoc,
   collection,
-  deleteDoc,
   doc,
-  getDoc,
   getDocs,
   limit,
   onSnapshot,
@@ -14,254 +12,237 @@ import {
   where,
 } from "firebase/firestore";
 import { db } from "./firebase";
-import { Notification, NotificationSettings } from "./types";
+import { Notification } from "./types";
 
 export class NotificationService {
-  // Notifications
-  static async createNotification(
-    notification: Omit<Notification, "id" | "timestamp">
-  ): Promise<string> {
-    const notificationRef = await addDoc(collection(db, "notifications"), {
-      ...notification,
-      timestamp: serverTimestamp(),
-    });
-    return notificationRef.id;
+  private static instance: NotificationService;
+  private unsubscribeFn: (() => void) | null = null;
+
+  static getInstance(): NotificationService {
+    if (!NotificationService.instance) {
+      NotificationService.instance = new NotificationService();
+    }
+    return NotificationService.instance;
   }
 
-  static async getNotifications(
+  private isDevelopmentMode(): boolean {
+    return __DEV__ || !db;
+  }
+
+  // Mock data for development
+  private mockNotifications: Notification[] = [
+    {
+      id: "1",
+      userId: "user123",
+      title: "Chào mừng đến với Veila",
+      body: "Cảm ơn bạn đã đăng ký tài khoản!",
+      type: "system",
+      isRead: false,
+      timestamp: new Date(),
+      data: {},
+    },
+    {
+      id: "2",
+      userId: "user123",
+      title: "Đơn hàng mới",
+      body: "Đơn hàng #12345 đã được xác nhận",
+      type: "order",
+      isRead: false,
+      timestamp: new Date(),
+      data: { orderId: "12345" },
+    },
+  ];
+
+  async getUnreadCount(userId: string): Promise<number> {
+    if (this.isDevelopmentMode()) {
+      if (__DEV__) {
+      }
+      return this.mockNotifications.filter((n) => !n.isRead).length;
+    }
+
+    if (!db) {
+      throw new Error("Firestore not available");
+    }
+
+    try {
+      const q = query(
+        collection(db, "notifications"),
+        where("userId", "==", userId),
+        where("isRead", "==", false)
+      );
+      const snapshot = await getDocs(q);
+      return snapshot.size;
+    } catch (error) {
+      if (__DEV__) {
+        console.error("Error getting unread count:", error);
+      }
+      return 0;
+    }
+  }
+
+  subscribeToNotifications(
     userId: string,
-    limitCount: number = 50
-  ): Promise<Notification[]> {
+    callback: (notifications: Notification[]) => void
+  ): () => void {
+    if (this.isDevelopmentMode()) {
+      if (__DEV__) {
+      }
+      // Return mock data immediately
+      callback(this.mockNotifications);
+
+      // Return no-op unsubscribe function
+      return () => {};
+    }
+
+    if (!db) {
+      throw new Error("Firestore not available");
+    }
+
     try {
       const q = query(
         collection(db, "notifications"),
         where("userId", "==", userId),
         orderBy("timestamp", "desc"),
-        limit(limitCount)
+        limit(50)
       );
 
-      const querySnapshot = await getDocs(q);
-      return querySnapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-        timestamp: doc.data().timestamp?.toDate(),
-      })) as Notification[];
-    } catch (error: any) {
-      // Fallback: if index doesn't exist, get without ordering
-      if (error.code === "failed-precondition") {
-        console.warn(
-          "Firestore index not ready, using fallback query for notifications"
-        );
-        const q = query(
-          collection(db, "notifications"),
-          where("userId", "==", userId),
-          limit(limitCount)
-        );
+      this.unsubscribeFn = onSnapshot(
+        q,
+        (snapshot) => {
+          try {
+            const notifications: Notification[] = [];
+            snapshot.forEach((doc) => {
+              const data = doc.data();
+              notifications.push({
+                id: doc.id,
+                userId: data.userId,
+                title: data.title,
+                body: data.body,
+                type: data.type,
+                isRead: data.isRead,
+                timestamp: data.timestamp?.toDate() || new Date(),
+                data: data.data || {},
+              });
+            });
+            callback(notifications);
+          } catch (error) {
+            if (__DEV__) {
+              console.error("Error processing notifications:", error);
+            }
+            callback([]);
+          }
+        },
+        (error) => {
+          if (__DEV__) {
+            console.error("Error in notifications subscription:", error);
+          }
+          callback([]);
+        }
+      );
 
-        const querySnapshot = await getDocs(q);
-        const notifications = querySnapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-          timestamp: doc.data().timestamp?.toDate(),
-        })) as Notification[];
+      return () => {
+        if (this.unsubscribeFn) {
+          this.unsubscribeFn();
+          this.unsubscribeFn = null;
+        }
+      };
+    } catch (error) {
+      if (__DEV__) {
+        console.error("Error setting up notifications subscription:", error);
+      }
+      callback([]);
+      return () => {};
+    }
+  }
 
-        // Sort manually
-        return notifications.sort((a, b) => {
-          const dateA = a.timestamp || new Date(0);
-          const dateB = b.timestamp || new Date(0);
-          return dateB.getTime() - dateA.getTime();
-        });
+  async markAsRead(notificationId: string): Promise<void> {
+    if (this.isDevelopmentMode()) {
+      return;
+    }
+
+    if (!db) {
+      throw new Error("Firestore not available");
+    }
+
+    try {
+      const notificationRef = doc(db, "notifications", notificationId);
+      await updateDoc(notificationRef, {
+        isRead: true,
+        updatedAt: serverTimestamp(),
+      });
+    } catch (error) {
+      if (__DEV__) {
+        console.error("Error marking notification as read:", error);
       }
       throw error;
     }
   }
 
-  static subscribeToNotifications(
-    userId: string,
-    callback: (notifications: Notification[]) => void
-  ) {
-    const q = query(
-      collection(db, "notifications"),
-      where("userId", "==", userId),
-      orderBy("timestamp", "desc"),
-      limit(100)
-    );
+  async markAllAsRead(userId: string): Promise<void> {
+    if (this.isDevelopmentMode()) {
+      return;
+    }
 
-    return onSnapshot(
-      q,
-      (querySnapshot) => {
-        const notifications = querySnapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-          timestamp: doc.data().timestamp?.toDate(),
-        })) as Notification[];
-        callback(notifications);
-      },
-      (error: any) => {
-        // Fallback: if index doesn't exist, use simple query
-        if (error.code === "failed-precondition") {
-          console.warn(
-            "Firestore index not ready, using fallback subscription for notifications"
-          );
-          const fallbackQ = query(
-            collection(db, "notifications"),
-            where("userId", "==", userId),
-            limit(100)
-          );
+    if (!db) {
+      throw new Error("Firestore not available");
+    }
 
-          return onSnapshot(fallbackQ, (querySnapshot) => {
-            const notifications = querySnapshot.docs.map((doc) => ({
-              id: doc.id,
-              ...doc.data(),
-              timestamp: doc.data().timestamp?.toDate(),
-            })) as Notification[];
+    try {
+      const q = query(
+        collection(db, "notifications"),
+        where("userId", "==", userId),
+        where("isRead", "==", false)
+      );
+      const snapshot = await getDocs(q);
 
-            // Sort manually
-            const sortedNotifications = notifications.sort((a, b) => {
-              const dateA = a.timestamp || new Date(0);
-              const dateB = b.timestamp || new Date(0);
-              return dateB.getTime() - dateA.getTime();
-            });
+      const updatePromises = snapshot.docs.map((doc) =>
+        updateDoc(doc.ref, {
+          isRead: true,
+          updatedAt: serverTimestamp(),
+        })
+      );
 
-            callback(sortedNotifications);
-          });
-        }
-        console.error("Notifications subscription error:", error);
+      await Promise.all(updatePromises);
+    } catch (error) {
+      if (__DEV__) {
+        console.error("Error marking all notifications as read:", error);
       }
-    );
-  }
-
-  static async markNotificationAsRead(notificationId: string): Promise<void> {
-    const notificationRef = doc(db, "notifications", notificationId);
-    await updateDoc(notificationRef, { isRead: true });
-  }
-
-  static async markAllNotificationsAsRead(userId: string): Promise<void> {
-    const q = query(
-      collection(db, "notifications"),
-      where("userId", "==", userId),
-      where("isRead", "==", false)
-    );
-
-    const querySnapshot = await getDocs(q);
-    const updatePromises = querySnapshot.docs.map((doc) =>
-      updateDoc(doc.ref, { isRead: true })
-    );
-
-    await Promise.all(updatePromises);
-  }
-
-  static async deleteNotification(notificationId: string): Promise<void> {
-    await deleteDoc(doc(db, "notifications", notificationId));
-  }
-
-  static async getUnreadCount(userId: string): Promise<number> {
-    const q = query(
-      collection(db, "notifications"),
-      where("userId", "==", userId),
-      where("isRead", "==", false)
-    );
-
-    const querySnapshot = await getDocs(q);
-    return querySnapshot.size;
-  }
-
-  // Notification Settings
-  static async getNotificationSettings(
-    userId: string
-  ): Promise<NotificationSettings | null> {
-    const docRef = doc(db, "notificationSettings", userId);
-    const docSnap = await getDoc(docRef);
-
-    if (docSnap.exists()) {
-      return docSnap.data() as NotificationSettings;
+      throw error;
     }
-    return null;
   }
 
-  static async createNotificationSettings(
-    settings: NotificationSettings
-  ): Promise<void> {
-    await addDoc(collection(db, "notificationSettings"), settings);
-  }
-
-  static async updateNotificationSettings(
-    userId: string,
-    updates: Partial<NotificationSettings>
-  ): Promise<void> {
-    const settingsRef = doc(db, "notificationSettings", userId);
-    await updateDoc(settingsRef, updates);
-  }
-
-  // Push Notifications (for future implementation with FCM)
-  static async sendPushNotification(
-    userId: string,
-    notification: {
-      title: string;
-      body: string;
-      data?: any;
+  async createNotification(
+    notification: Omit<Notification, "id" | "timestamp" | "data">
+  ): Promise<string> {
+    if (this.isDevelopmentMode()) {
+      return "mock-id";
     }
-  ): Promise<void> {
-    // This would integrate with Firebase Cloud Messaging (FCM)
-    // For now, we'll just create a local notification
-    await this.createNotification({
-      userId,
-      title: notification.title,
-      body: notification.body,
-      type: "system",
-      data: notification.data,
-      isRead: false,
-    });
+
+    if (!db) {
+      throw new Error("Firestore not available");
+    }
+
+    try {
+      const docRef = await addDoc(collection(db, "notifications"), {
+        ...notification,
+        timestamp: serverTimestamp(),
+        data: {},
+      });
+      return docRef.id;
+    } catch (error) {
+      if (__DEV__) {
+        console.error("Error creating notification:", error);
+      }
+      throw error;
+    }
   }
 
-  // Chat-specific notifications
-  static async createChatNotification(
-    userId: string,
-    chatRoomId: string,
-    senderName: string,
-    message: string
-  ): Promise<string> {
-    return await this.createNotification({
-      userId,
-      title: `Tin nhắn mới từ ${senderName}`,
-      body: message,
-      type: "chat",
-      data: { chatRoomId },
-      isRead: false,
-    });
-  }
-
-  // Order-specific notifications
-  static async createOrderNotification(
-    userId: string,
-    orderId: string,
-    title: string,
-    body: string
-  ): Promise<string> {
-    return await this.createNotification({
-      userId,
-      title,
-      body,
-      type: "order",
-      data: { orderId },
-      isRead: false,
-    });
-  }
-
-  // Promotion notifications
-  static async createPromotionNotification(
-    userId: string,
-    title: string,
-    body: string,
-    data?: any
-  ): Promise<string> {
-    return await this.createNotification({
-      userId,
-      title,
-      body,
-      type: "promotion",
-      data,
-      isRead: false,
-    });
+  unsubscribe(): void {
+    if (this.unsubscribeFn) {
+      this.unsubscribeFn();
+      this.unsubscribeFn = null;
+    }
   }
 }
+
+export default NotificationService.getInstance();

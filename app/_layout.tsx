@@ -12,6 +12,9 @@ import { store } from "services/store";
 import "../styles/global.css";
 import SessionProvider from "./context/SessionContext";
 
+// Configure Reanimated to reduce warnings
+import "../utils/reanimated.config";
+
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
     Inter: require("../assets/fonts/Inter-Regular.ttf"),
@@ -35,10 +38,13 @@ export default function RootLayout() {
   return (
     <ReduxProvider store={store}>
       <SessionProvider>
-      <AuthProvider>
+        <AuthProvider>
           <Stack screenOptions={{ headerShown: false }}>
             <Stack.Screen name="not-found" options={{ headerShown: false }} />
             <Stack.Screen name="index" options={{ headerShown: false }} />
+            <Stack.Screen name="_tab" options={{ headerShown: false }} />
+            <Stack.Screen name="_auth" options={{ headerShown: false }} />
+            <Stack.Screen name="_onboarding" options={{ headerShown: false }} />
           </Stack>
           <Toast
             config={toastConfig}
@@ -48,7 +54,7 @@ export default function RootLayout() {
             autoHide={true}
           />
         </AuthProvider>
-        </SessionProvider>
+      </SessionProvider>
     </ReduxProvider>
   );
 }

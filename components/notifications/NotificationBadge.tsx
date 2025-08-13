@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
-import { NotificationService } from "../../services/notification.service";
+import NotificationService from "../../services/notification.service";
 
 interface NotificationBadgeProps {
   userId: string;

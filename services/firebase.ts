@@ -1,9 +1,9 @@
 import Constants from "expo-constants";
-import { getApp, getApps, initializeApp } from "firebase/app";
-import { initializeAuth } from "firebase/auth";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { getFirestore } from "firebase/firestore";
-import { getStorage } from "firebase/storage";
+import firebase from "firebase/compat/app";
+import "firebase/compat/auth";
+import "firebase/compat/firestore";
+import "firebase/compat/storage";
+import { suppressFirebaseErrors } from "../utils/error-suppression";
 
 const extra = Constants.expoConfig?.extra || {};
 
@@ -17,14 +17,62 @@ const firebaseConfig = {
   measurementId: extra.FIREBASE_MEASUREMENT_ID,
 };
 
-const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+// Initialize Firebase with compat
+if (!firebase.apps.length) {
+  firebase.initializeApp(firebaseConfig);
+}
 
-const getReactNativePersistence = (require("firebase/auth") as any)
-  .getReactNativePersistence;
+const auth = firebase.auth();
+const db = __DEV__ ? null : firebase.firestore();
+const storage = firebase.storage();
 
-export const auth = initializeAuth(app, {
-  persistence: getReactNativePersistence(AsyncStorage),
-});
+export { auth, db, firebase, firebaseConfig, storage };
 
-export const db = getFirestore(app);
-export const storage = getStorage(app);
+if (__DEV__) {
+  suppressFirebaseErrors();
+}
+
+// Export functions for other services
+export const enableFirestoreNetwork = () => {
+  if (__DEV__ || !db) {
+    return;
+  }
+  try {
+    db.enableNetwork();
+  } catch (error) {
+    console.warn("Error enabling Firestore network:", error);
+  }
+};
+
+export const disableFirestoreNetwork = () => {
+  if (__DEV__ || !db) {
+    return;
+  }
+  try {
+    db.disableNetwork();
+  } catch (error) {
+    console.warn("Error disabling Firestore network:", error);
+  }
+};
+
+export const checkFirestoreConnection = async () => {
+  if (__DEV__ || !db) {
+    return false;
+  }
+  try {
+    await db.enableNetwork();
+    return true;
+  } catch (error) {
+    console.warn("Firestore connection check failed:", error);
+  }
+  return false;
+};
+
+export const checkFirebaseAuthStatus = () => {
+  return {
+    isInitialized: !!auth,
+    hasConfig: !!firebaseConfig.apiKey,
+    projectId: firebaseConfig.projectId,
+    authDomain: firebaseConfig.authDomain,
+  };
+};

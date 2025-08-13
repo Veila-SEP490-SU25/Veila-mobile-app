@@ -28,7 +28,13 @@ import {
   useRequestOtpMutation,
   useVerifyOtpMutation,
 } from "../services/apis";
-import { IGoogleLogin, ILogin, IUser, IVerifyOtp } from "../services/types";
+import {
+  IGoogleLogin,
+  ILogin,
+  IUser,
+  IVerifyOtp,
+  PhoneVerificationStatus,
+} from "../services/types";
 
 type AuthContextType = {
   login: (body: ILogin) => Promise<void>;
@@ -74,6 +80,45 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     await setRefreshToken(refreshToken);
   };
 
+  // Helper function to convert API response to IUser
+  const convertApiResponseToUser = (apiUser: any): IUser => {
+    // Determine phone verification status based on phone and isIdentified
+    let phoneVerificationStatus: PhoneVerificationStatus =
+      PhoneVerificationStatus.NotVerified;
+
+    if (apiUser.phone) {
+      if (apiUser.isIdentified) {
+        phoneVerificationStatus = PhoneVerificationStatus.Verified;
+      } else {
+        phoneVerificationStatus = PhoneVerificationStatus.Pending;
+      }
+    }
+
+    return {
+      id: apiUser.id,
+      username: apiUser.username,
+      email: apiUser.email,
+      firstName: apiUser.firstName,
+      middleName: apiUser.middleName,
+      lastName: apiUser.lastName,
+      phone: apiUser.phone,
+      avatarUrl: apiUser.avatarUrl,
+      coverUrl: apiUser.coverUrl,
+      address: apiUser.address,
+      birthDate: apiUser.birthDate,
+      images: apiUser.images,
+      role: apiUser.role as any, // Cast to UserRole enum
+      status: apiUser.status as any, // Cast to UserStatus enum
+      reputation: apiUser.reputation,
+      isVerified: apiUser.isVerified,
+      isIdentified: apiUser.isIdentified,
+      createdAt: apiUser.createdAt,
+      updatedAt: apiUser.updatedAt,
+      deletedAt: apiUser.deletedAt,
+      phoneVerificationStatus,
+    };
+  };
+
   const handleLogout = useCallback(async () => {
     try {
       // Thử gọi API logout nếu có token
@@ -82,7 +127,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         await logoutMutation().unwrap();
       }
     } catch (error) {
-      console.log("Lỗi logout API:", error);
+      if (__DEV__) {
+        console.log("Lỗi logout API:", error);
+      }
     } finally {
       // Luôn clear local state và tokens
       setUser(null);
@@ -100,13 +147,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const fetchUser = useCallback(async () => {
     try {
-      const { item } = await getMe().unwrap();
-      setUser(item);
-      setIsAuthenticated(true);
-      await setToLocalStorage("user", item);
-      resetSession();
+      const response = await getMe().unwrap();
+
+      if (response.statusCode === 200 && response.item) {
+        const userData = convertApiResponseToUser(response.item);
+        setUser(userData);
+        setIsAuthenticated(true);
+        await setToLocalStorage("user", userData);
+        resetSession();
+      } else {
+        throw new Error(response.message || "Failed to fetch user data");
+      }
     } catch (error) {
-      console.log("Lỗi fetch user:", error?.toString());
+      if (__DEV__) {
+        console.log("Lỗi fetch user:", error?.toString());
+      }
 
       setUser(null);
       setIsAuthenticated(false);
@@ -117,11 +172,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const refreshUser = useCallback(async () => {
     try {
-      const { item } = await getMe().unwrap();
-      setUser(item);
-      await setToLocalStorage("user", item);
+      const response = await getMe().unwrap();
+
+      if (response.statusCode === 200 && response.item) {
+        const userData = convertApiResponseToUser(response.item);
+        setUser(userData);
+        await setToLocalStorage("user", userData);
+      } else {
+        throw new Error(response.message || "Failed to refresh user data");
+      }
     } catch (error) {
-      console.log("Lỗi refresh user:", error?.toString());
+      if (__DEV__) {
+        console.log("Lỗi refresh user:", error?.toString());
+      }
     }
   }, [getMe]);
 
@@ -242,7 +305,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         if (access && !isTokenExpired(access)) {
           await fetchUser();
         } else if (access && isTokenExpired(access) && !hasRefreshed.current) {
-          console.log("Token hết hạn trong AuthProvider, đang thử refresh...");
+          if (__DEV__) {
+            console.log(
+              "Token hết hạn trong AuthProvider, đang thử refresh..."
+            );
+          }
           hasRefreshed.current = true;
           try {
             // Thử refresh token
@@ -252,36 +319,51 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                 refreshToken,
               }).unwrap();
               if (refreshResult.statusCode === 200 && refreshResult.item) {
-                console.log("Refresh token thành công trong AuthProvider");
+                if (__DEV__) {
+                  console.log("Refresh token thành công trong AuthProvider");
+                }
                 await saveTokens(
                   refreshResult.item.accessToken,
                   refreshResult.item.refreshToken
                 );
                 await fetchUser();
               } else {
-                console.log("Refresh token thất bại trong AuthProvider");
+                if (__DEV__) {
+                  console.log("Refresh token thất bại trong AuthProvider");
+                }
                 await delTokens();
                 // Không redirect ngay, để SessionContext xử lý
               }
             } else {
-              console.log("Không có refresh token trong AuthProvider");
+              if (__DEV__) {
+                console.log("Không có refresh token trong AuthProvider");
+              }
               await delTokens();
               // Không redirect ngay, để SessionContext xử lý
             }
           } catch (refreshError) {
-            console.log("Lỗi refresh token trong AuthProvider:", refreshError);
+            if (__DEV__) {
+              console.log(
+                "Lỗi refresh token trong AuthProvider:",
+                refreshError
+              );
+            }
             await delTokens();
             // Không redirect ngay, để SessionContext xử lý
           }
         } else if (!access) {
-          console.log("Không có token trong AuthProvider");
+          if (__DEV__) {
+            console.log("Không có token trong AuthProvider");
+          }
           // Không redirect ngay, để SessionContext xử lý
         }
       } catch (error) {
-        console.log(
-          "Lỗi kiểm tra token trong AuthProvider:",
-          error?.toString()
-        );
+        if (__DEV__) {
+          console.log(
+            "Lỗi kiểm tra token trong AuthProvider:",
+            error?.toString()
+          );
+        }
         await delTokens();
         // Không redirect ngay, để SessionContext xử lý
       } finally {

@@ -57,3 +57,56 @@ export interface IChangePassword {
   newPassword: string;
   confirmPassword: string;
 }
+
+// Firebase Phone Auth interfaces
+export interface IPhoneVerification {
+  phone: string;
+  verificationId?: string;
+  code?: string;
+}
+
+export interface IPhoneVerificationResponse {
+  message: string;
+  statusCode: number;
+  item: null;
+}
+
+export interface IFirebasePhoneAuth {
+  phone: string;
+  verificationId: string;
+  code: string;
+}
+
+// API Response types
+export interface IApiResponse<T> {
+  message: string;
+  statusCode: number;
+  item: T;
+}
+
+export interface IUserResponse {
+  message: string;
+  statusCode: number;
+  item: {
+    id: string;
+    images?: string;
+    createdAt: string;
+    updatedAt: string;
+    deletedAt?: string;
+    username: string;
+    email: string;
+    firstName: string;
+    middleName?: string;
+    lastName: string;
+    phone?: string;
+    address?: string;
+    birthDate?: string;
+    avatarUrl?: string;
+    coverUrl?: string;
+    role: string;
+    status: string;
+    reputation?: number;
+    isVerified: boolean;
+    isIdentified: boolean;
+  };
+}

@@ -12,7 +12,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { UserStatus } from "services/types";
+import { PhoneVerificationStatus, UserStatus } from "services/types";
 import { useAuth } from "../../providers/auth.provider";
 
 interface ProfileMenuItem {
@@ -38,6 +38,71 @@ export default function AccountScreen() {
       useNativeDriver: true,
     }).start();
   }, [fadeAnim]);
+
+  // Helper functions - moved before usage
+  const getPhoneVerificationSubtitle = () => {
+    if (!user?.phone) {
+      return "Chưa có số điện thoại";
+    }
+
+    switch (user.phoneVerificationStatus) {
+      case PhoneVerificationStatus.Verified:
+        return "Đã xác thực";
+      case PhoneVerificationStatus.Pending:
+        return "Đang chờ xác thực";
+      case PhoneVerificationStatus.Failed:
+        return "Xác thực thất bại";
+      default:
+        return "Chưa xác thực";
+    }
+  };
+
+  const getPhoneVerificationColor = () => {
+    if (!user?.phone) {
+      return "#9CA3AF"; // Gray
+    }
+
+    switch (user.phoneVerificationStatus) {
+      case PhoneVerificationStatus.Verified:
+        return "#10B981"; // Green
+      case PhoneVerificationStatus.Pending:
+        return "#F59E0B"; // Yellow
+      case PhoneVerificationStatus.Failed:
+        return "#EF4444"; // Red
+      default:
+        return "#6B7280"; // Gray
+    }
+  };
+
+  const getPhoneVerificationIcon = () => {
+    if (!user?.phone) {
+      return "call-outline";
+    }
+
+    switch (user.phoneVerificationStatus) {
+      case PhoneVerificationStatus.Verified:
+        return "checkmark-circle";
+      case PhoneVerificationStatus.Pending:
+        return "time-outline";
+      case PhoneVerificationStatus.Failed:
+        return "close-circle";
+      default:
+        return "call-outline";
+    }
+  };
+
+  const getFullName = () => {
+    const parts = [user?.firstName, user?.middleName, user?.lastName].filter(
+      Boolean
+    );
+    return parts.join(" ") || "Người dùng";
+  };
+
+  const getInitials = () => {
+    const firstName = user?.firstName || "";
+    const lastName = user?.lastName || "";
+    return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
+  };
 
   const profileMenuItems: ProfileMenuItem[] = [
     {
@@ -68,6 +133,15 @@ export default function AccountScreen() {
       badge: 5,
       showArrow: true,
       iconColor: "#F59E0B",
+    },
+    {
+      id: "phone-verification",
+      title: "Xác thực số điện thoại",
+      subtitle: getPhoneVerificationSubtitle(),
+      icon: "call-outline",
+      onPress: () => router.push("/_auth/phone-verification"),
+      showArrow: true,
+      iconColor: getPhoneVerificationColor(),
     },
     {
       id: "wallet",
@@ -101,7 +175,7 @@ export default function AccountScreen() {
       title: "Địa chỉ giao hàng",
       subtitle: "Quản lý địa chỉ giao hàng",
       icon: "location-outline",
-      onPress: () => console.log("Address pressed"),
+      onPress: () => router.push("/account/address"),
       showArrow: true,
       iconColor: "#06B6D4",
     },
@@ -131,24 +205,11 @@ export default function AccountScreen() {
       title: "Về Veila",
       subtitle: "Thông tin về ứng dụng",
       icon: "information-circle-outline",
-      onPress: () => console.log("About pressed"),
+      onPress: () => router.push("/_auth/about"),
       showArrow: true,
       iconColor: "#8B5CF6",
     },
   ];
-
-  const getFullName = () => {
-    const parts = [user?.firstName, user?.middleName, user?.lastName].filter(
-      Boolean
-    );
-    return parts.join(" ") || "Người dùng";
-  };
-
-  const getInitials = () => {
-    const firstName = user?.firstName || "";
-    const lastName = user?.lastName || "";
-    return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
-  };
 
   const renderMenuItem = (item: ProfileMenuItem) => (
     <Animated.View key={item.id} style={{ opacity: fadeAnim }}>
@@ -198,9 +259,6 @@ export default function AccountScreen() {
         <Animated.View style={[styles.profileSection, { opacity: fadeAnim }]}>
           <View style={styles.profileHeader}>
             <Text style={styles.profileTitle}>Hồ sơ cá nhân</Text>
-            <TouchableOpacity style={styles.editButton}>
-              <Ionicons name="pencil" size={16} color="#E05C78" />
-            </TouchableOpacity>
           </View>
 
           <View style={styles.profileInfo}>
@@ -228,8 +286,22 @@ export default function AccountScreen() {
 
               <View style={styles.userStats}>
                 <View style={styles.statItem}>
-                  <Text style={styles.statValue}>{user?.reputation || 0}</Text>
-                  <Text style={styles.statLabel}>Điểm uy tín</Text>
+                  <View style={styles.phoneVerificationContainer}>
+                    <Ionicons
+                      name={getPhoneVerificationIcon()}
+                      size={16}
+                      color={getPhoneVerificationColor()}
+                    />
+                    <Text
+                      style={[
+                        styles.phoneVerificationText,
+                        { color: getPhoneVerificationColor() },
+                      ]}
+                    >
+                      {user?.phone ? user.phone : "Chưa có số điện thoại"}
+                    </Text>
+                  </View>
+                  <Text style={styles.statLabel}>Số điện thoại</Text>
                 </View>
                 <View style={styles.statDivider} />
                 <View style={styles.statItem}>
@@ -312,14 +384,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#333333",
   },
-  editButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: "#FFE4E9",
-    justifyContent: "center",
-    alignItems: "center",
-  },
+
   profileInfo: {
     flexDirection: "row",
     alignItems: "center",
@@ -402,10 +467,15 @@ const styles = StyleSheet.create({
   statItem: {
     alignItems: "center",
   },
-  statValue: {
-    fontSize: 16,
+  phoneVerificationContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 2,
+  },
+  phoneVerificationText: {
+    fontSize: 14,
     fontWeight: "600",
-    color: "#333333",
+    marginLeft: 4,
   },
   statusBadge: {
     borderRadius: 12,

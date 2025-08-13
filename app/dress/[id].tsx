@@ -10,6 +10,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { useAuth } from "../../providers/auth.provider";
 import { dressApi } from "../../services/apis/dress.api";
 import { ChatService } from "../../services/chat.service";
 import { Dress } from "../../services/types/dress.type";
@@ -30,6 +31,7 @@ interface DressDetail extends Dress {
 
 export default function DressDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const { user } = useAuth(); // Get user from AuthProvider
   const [dress, setDress] = useState<DressDetail | null>(null);
   const [shop, setShop] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
@@ -91,8 +93,8 @@ export default function DressDetailScreen() {
       const chatRoomId = await ChatService.createChatRoom({
         shopId: shop.id,
         shopName: shop.name,
-        customerId: "current-user-id", // TODO: Get from auth context
-        customerName: "Khách hàng", // TODO: Get from user profile
+        customerId: user?.id || "current-user-id", // Use user.id from AuthProvider
+        customerName: user?.firstName || "Khách hàng", // Use user.firstName from AuthProvider
         unreadCount: 0,
         isActive: true,
       });
@@ -109,7 +111,7 @@ export default function DressDetailScreen() {
     } finally {
       setChatLoading(false);
     }
-  }, [shop, dress]);
+  }, [shop, dress, user]);
 
   const handleFavoritePress = useCallback(() => {
     setIsFavorite(!isFavorite);
