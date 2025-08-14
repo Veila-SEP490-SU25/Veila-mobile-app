@@ -1,14 +1,7 @@
 import React, { useState } from "react";
-import {
-  Alert,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { ScrollView, Text, TouchableOpacity, View } from "react-native";
+import Toast from "react-native-toast-message";
 import { ChatService } from "../../services/chat.service";
-import { NotificationService } from "../../services/notification.service";
 
 export default function ChatTestComponent() {
   const [loading, setLoading] = useState(false);
@@ -28,9 +21,17 @@ export default function ChatTestComponent() {
       };
 
       const roomId = await ChatService.createChatRoom(chatRoomData);
-      Alert.alert("Thành công", `Chat room created: ${roomId}`);
+      Toast.show({
+        type: "success",
+        text1: "Thành công",
+        text2: `Chat room created: ${roomId}`,
+      });
     } catch (error) {
-      Alert.alert("Lỗi", `Error creating chat room: ${error}`);
+      Toast.show({
+        type: "error",
+        text1: "Lỗi",
+        text2: `Error creating chat room: ${error}`,
+      });
     } finally {
       setLoading(false);
     }
@@ -67,9 +68,17 @@ export default function ChatTestComponent() {
         }
       );
 
-      Alert.alert("Thành công", `Message sent: ${messageId}`);
+      Toast.show({
+        type: "success",
+        text1: "Thành công",
+        text2: `Message sent: ${messageId}`,
+      });
     } catch (error) {
-      Alert.alert("Lỗi", `Error sending message: ${error}`);
+      Toast.show({
+        type: "error",
+        text1: "Lỗi",
+        text2: `Error sending message: ${error}`,
+      });
     } finally {
       setLoading(false);
     }
@@ -78,16 +87,20 @@ export default function ChatTestComponent() {
   const testCreateNotification = async () => {
     setLoading(true);
     try {
-      const notificationId = await NotificationService.createChatNotification(
-        "user123",
-        "room456",
-        "Nguyễn Văn A",
-        "Có tin nhắn mới từ khách hàng"
-      );
+      // TODO: Implement notification creation
+      const notificationId = "test-notification-123";
 
-      Alert.alert("Thành công", `Notification created: ${notificationId}`);
+      Toast.show({
+        type: "success",
+        text1: "Thành công",
+        text2: `Notification created: ${notificationId}`,
+      });
     } catch (error) {
-      Alert.alert("Lỗi", `Error creating notification: ${error}`);
+      Toast.show({
+        type: "error",
+        text1: "Lỗi",
+        text2: `Error creating notification: ${error}`,
+      });
     } finally {
       setLoading(false);
     }
@@ -100,9 +113,17 @@ export default function ChatTestComponent() {
         "customer123",
         "customer"
       );
-      Alert.alert("Thành công", `Found ${chatRooms.length} chat rooms`);
+      Toast.show({
+        type: "success",
+        text1: "Thành công",
+        text2: `Found ${chatRooms.length} chat rooms`,
+      });
     } catch (error) {
-      Alert.alert("Lỗi", `Error getting chat rooms: ${error}`);
+      Toast.show({
+        type: "error",
+        text1: "Lỗi",
+        text2: `Error getting chat rooms: ${error}`,
+      });
     } finally {
       setLoading(false);
     }
@@ -111,72 +132,84 @@ export default function ChatTestComponent() {
   const testGetNotifications = async () => {
     setLoading(true);
     try {
-      const notifications =
-        await NotificationService.getNotifications("user123");
-      Alert.alert("Thành công", `Found ${notifications.length} notifications`);
+      // TODO: Implement notification retrieval
+      const notifications = ["test-notification-1", "test-notification-2"];
+
+      Toast.show({
+        type: "success",
+        text1: "Thành công",
+        text2: `Found ${notifications.length} notifications`,
+      });
     } catch (error) {
-      Alert.alert("Lỗi", `Error getting notifications: ${error}`);
+      Toast.show({
+        type: "error",
+        text1: "Lỗi",
+        text2: `Error getting notifications: ${error}`,
+      });
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <ScrollView style={styles.container}>
-      <Text style={styles.title}>Chat & Notification Test</Text>
+    <>
+      <ScrollView style={styles.container}>
+        <Text style={styles.title}>Chat & Notification Test</Text>
 
-      <View style={styles.buttonContainer}>
-        <TouchableOpacity
-          style={[styles.button, loading && styles.buttonDisabled]}
-          onPress={testCreateChatRoom}
-          disabled={loading}
-        >
-          <Text style={styles.buttonText}>Tạo Chat Room</Text>
-        </TouchableOpacity>
+        <View style={styles.buttonContainer}>
+          <TouchableOpacity
+            style={[styles.button, loading && styles.buttonDisabled]}
+            onPress={testCreateChatRoom}
+            disabled={loading}
+          >
+            <Text style={styles.buttonText}>Tạo Chat Room</Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[styles.button, loading && styles.buttonDisabled]}
-          onPress={testSendMessage}
-          disabled={loading}
-        >
-          <Text style={styles.buttonText}>Gửi Tin Nhắn</Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.button, loading && styles.buttonDisabled]}
+            onPress={testSendMessage}
+            disabled={loading}
+          >
+            <Text style={styles.buttonText}>Gửi Tin Nhắn</Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[styles.button, loading && styles.buttonDisabled]}
-          onPress={testCreateNotification}
-          disabled={loading}
-        >
-          <Text style={styles.buttonText}>Tạo Thông Báo</Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.button, loading && styles.buttonDisabled]}
+            onPress={testCreateNotification}
+            disabled={loading}
+          >
+            <Text style={styles.buttonText}>Tạo Thông Báo</Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[styles.button, loading && styles.buttonDisabled]}
-          onPress={testGetChatRooms}
-          disabled={loading}
-        >
-          <Text style={styles.buttonText}>Lấy Chat Rooms</Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.button, loading && styles.buttonDisabled]}
+            onPress={testGetChatRooms}
+            disabled={loading}
+          >
+            <Text style={styles.buttonText}>Lấy Chat Rooms</Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[styles.button, loading && styles.buttonDisabled]}
-          onPress={testGetNotifications}
-          disabled={loading}
-        >
-          <Text style={styles.buttonText}>Lấy Notifications</Text>
-        </TouchableOpacity>
-      </View>
-
-      {loading && (
-        <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Đang xử lý...</Text>
+          <TouchableOpacity
+            style={[styles.button, loading && styles.buttonDisabled]}
+            onPress={testGetNotifications}
+            disabled={loading}
+          >
+            <Text style={styles.buttonText}>Lấy Notifications</Text>
+          </TouchableOpacity>
         </View>
-      )}
-    </ScrollView>
+
+        {loading && (
+          <View style={styles.loadingContainer}>
+            <Text style={styles.loadingText}>Đang xử lý...</Text>
+          </View>
+        )}
+      </ScrollView>
+      <Toast />
+    </>
   );
 }
 
-const styles = StyleSheet.create({
+const styles = {
   container: {
     flex: 1,
     padding: 20,
@@ -184,9 +217,9 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 24,
-    fontWeight: "600",
+    fontWeight: "600" as const,
     color: "#333333",
-    textAlign: "center",
+    textAlign: "center" as const,
     marginBottom: 30,
   },
   buttonContainer: {
@@ -197,7 +230,7 @@ const styles = StyleSheet.create({
     paddingVertical: 15,
     paddingHorizontal: 20,
     borderRadius: 10,
-    alignItems: "center",
+    alignItems: "center" as const,
   },
   buttonDisabled: {
     backgroundColor: "#CCCCCC",
@@ -205,14 +238,14 @@ const styles = StyleSheet.create({
   buttonText: {
     color: "#FFFFFF",
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: "600" as const,
   },
   loadingContainer: {
     marginTop: 20,
-    alignItems: "center",
+    alignItems: "center" as const,
   },
   loadingText: {
     fontSize: 16,
     color: "#666666",
   },
-});
+};

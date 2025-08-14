@@ -5,7 +5,6 @@ import { router } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   Image,
   Text,
@@ -13,6 +12,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import Toast from "react-native-toast-message";
 import { useNetworkStatus } from "../../hooks/useNetworkStatus";
 import { ChatService } from "../../services/chat.service";
 import { ChatRoom } from "../../services/types";
@@ -34,10 +34,15 @@ export default function ChatList({ userType }: ChatListProps) {
   const handleChatPress = useCallback((chatRoom: ChatRoom) => {
     try {
       router.push(`/chat/${chatRoom.id}`);
-    } catch (routerError) {
-      console.error("Navigation error:", routerError);
-      // Fallback to direct navigation
-      Alert.alert("Lỗi", "Không thể mở chat. Vui lòng thử lại.");
+    } catch (error) {
+      if (__DEV__) {
+        console.error("Error opening chat:", error);
+      }
+      Toast.show({
+        type: "error",
+        text1: "Lỗi",
+        text2: "Không thể mở chat. Vui lòng thử lại.",
+      });
     }
   }, []);
 
@@ -365,6 +370,7 @@ export default function ChatList({ userType }: ChatListProps) {
         maxToRenderPerBatch={10}
         windowSize={10}
       />
+      <Toast />
     </SafeAreaView>
   );
 }

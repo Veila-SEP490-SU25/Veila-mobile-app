@@ -23,12 +23,14 @@ const makeRequest = async (endpoint: string, options: RequestInit = {}) => {
   // Parse response first
   const responseData = await response.json();
 
-  // Log response for debugging
-  console.log(`API ${options.method || "GET"} ${endpoint}:`, {
-    status: response.status,
-    ok: response.ok,
-    data: responseData,
-  });
+  // Log response for debugging (only in development)
+  if (__DEV__) {
+    console.log(`API ${options.method || "GET"} ${endpoint}:`, {
+      status: response.status,
+      ok: response.ok,
+      data: responseData,
+    });
+  }
 
   // Consider 2xx status codes as successful (including 201 Created)
   if (response.status >= 200 && response.status < 300) {

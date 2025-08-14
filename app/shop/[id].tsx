@@ -4,7 +4,6 @@ import { StatusBar } from "expo-status-bar";
 import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   Image,
   StyleSheet,
@@ -125,7 +124,11 @@ export default function ShopDetailScreen() {
   }, []);
 
   const handleAccessoryPress = useCallback((accessory: Accessory) => {
-    Alert.alert("Phụ kiện", `Bạn đã chọn: ${accessory.name}`);
+    Toast.show({
+      type: "info",
+      text1: "Phụ kiện",
+      text2: `Bạn đã chọn: ${accessory.name}`,
+    });
     // TODO: Navigate to accessory detail
   }, []);
 
@@ -135,15 +138,21 @@ export default function ShopDetailScreen() {
 
   const handleContact = useCallback(() => {
     if (shop) {
-      Alert.alert(
-        "Liên hệ",
-        `Điện thoại: ${shop.phone}\nEmail: ${shop.email}\nĐịa chỉ: ${shop.address}`,
-        [
-          { text: "Gọi điện", onPress: () => console.log("Call pressed") },
-          { text: "Nhắn tin", onPress: () => console.log("Message pressed") },
-          { text: "Đóng", style: "cancel" },
-        ]
-      );
+      Toast.show({
+        type: "info",
+        text1: "Thông tin liên hệ",
+        text2: `Điện thoại: ${shop.phone}\nEmail: ${shop.email}\nĐịa chỉ: ${shop.address}`,
+        onPress: () => {
+          Toast.show({
+            type: "info",
+            text1: "Tùy chọn",
+            text2: "Chọn hành động liên hệ",
+            onPress: () => {
+              // TODO: Implement call and message functionality
+            },
+          });
+        },
+      });
     }
   }, [shop]);
 

@@ -75,7 +75,9 @@ export default function EditCustomRequestScreen() {
         });
       }
     } catch (error) {
-      console.error("Error loading request:", error);
+      if (__DEV__) {
+        console.error("Error loading request:", error);
+      }
       Toast.show({
         type: "error",
         text1: "Lỗi",
@@ -124,7 +126,9 @@ export default function EditCustomRequestScreen() {
         router.back();
       }
     } catch (error) {
-      console.error("Error updating request:", error);
+      if (__DEV__) {
+        console.error("Error updating request:", error);
+      }
       Toast.show({
         type: "error",
         text1: "Lỗi",

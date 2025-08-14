@@ -3,7 +3,6 @@ import { router } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   RefreshControl,
   StatusBar,
@@ -90,7 +89,6 @@ export default function CustomRequestsScreen() {
           filterString,
           "createdAt:desc"
         );
-        console.log("API Response:", response);
 
         if (response.statusCode === 200 || response.statusCode === 201) {
           let filteredItems = response.items;
@@ -106,12 +104,6 @@ export default function CustomRequestsScreen() {
             );
           }
 
-          console.log("Filtered items:", {
-            total: response.items.length,
-            filtered: filteredItems.length,
-            privacyFilter: selectedFilter,
-          });
-
           if (refresh) {
             setRequests(filteredItems);
           } else {
@@ -121,7 +113,11 @@ export default function CustomRequestsScreen() {
         }
       } catch (error) {
         console.error("Error loading requests:", error);
-        Alert.alert("Lỗi", "Không thể tải danh sách yêu cầu");
+        Toast.show({
+          type: "error",
+          text1: "Lỗi",
+          text2: "Không thể tải danh sách yêu cầu",
+        });
       } finally {
         setLoading(false);
         setRefreshing(false);
@@ -173,7 +169,9 @@ export default function CustomRequestsScreen() {
         text2: "Đã xóa yêu cầu",
       });
     } catch (error) {
-      console.error("Error deleting request:", error);
+      if (__DEV__) {
+        console.error("Error deleting request:", error);
+      }
       Toast.show({
         type: "error",
         text1: "Lỗi",

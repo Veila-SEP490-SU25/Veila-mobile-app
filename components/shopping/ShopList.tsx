@@ -2,7 +2,6 @@ import { Ionicons } from "@expo/vector-icons";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   Image,
   Modal,
@@ -13,6 +12,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import Toast from "react-native-toast-message";
 import { shopApi } from "../../services/apis/shop.api";
 import { Shop } from "../../services/types";
 
@@ -68,8 +68,14 @@ export default function ShopList({ onShopPress }: ShopListProps) {
 
       setHasMore(response.hasNextPage);
     } catch (error) {
-      console.error("Error loading shops:", error);
-      Alert.alert("Lỗi", "Không thể tải danh sách cửa hàng");
+      if (__DEV__) {
+        console.error("Error loading shops:", error);
+      }
+      Toast.show({
+        type: "error",
+        text1: "Lỗi",
+        text2: "Không thể tải danh sách cửa hàng",
+      });
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -414,6 +420,7 @@ export default function ShopList({ onShopPress }: ShopListProps) {
           </View>
         </View>
       </Modal>
+      <Toast />
     </View>
   );
 }

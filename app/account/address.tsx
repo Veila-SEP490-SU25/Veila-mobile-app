@@ -3,7 +3,6 @@ import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   ScrollView,
   Text,
   TextInput,
@@ -359,21 +358,28 @@ const AddressScreen = () => {
   };
 
   const handleDeleteAddress = (addressId: string) => {
-    Alert.alert("Xác nhận xóa", "Bạn có chắc chắn muốn xóa địa chỉ này?", [
-      { text: "Hủy", style: "cancel" },
-      {
-        text: "Xóa",
-        style: "destructive",
-        onPress: () => {
-          setAddresses((prev) => prev.filter((addr) => addr.id !== addressId));
-          Toast.show({
-            type: "success",
-            text1: "Thành công",
-            text2: "Địa chỉ đã được xóa",
-          });
-        },
+    Toast.show({
+      type: "info",
+      text1: "Xác nhận xóa",
+      text2: "Bạn có chắc chắn muốn xóa địa chỉ này?",
+      onPress: () => {
+        Toast.show({
+          type: "info",
+          text1: "Xác nhận",
+          text2: "Nhấn lại để xác nhận xóa",
+          onPress: () => {
+            setAddresses((prev) =>
+              prev.filter((addr) => addr.id !== addressId)
+            );
+            Toast.show({
+              type: "success",
+              text1: "Thành công",
+              text2: "Địa chỉ đã được xóa",
+            });
+          },
+        });
       },
-    ]);
+    });
   };
 
   const renderAddressCard = (address: Address) => (

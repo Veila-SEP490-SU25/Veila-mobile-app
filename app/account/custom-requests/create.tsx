@@ -61,7 +61,10 @@ export default function CreateCustomRequestScreen() {
     try {
       const response = await customRequestApi.createRequest(formData);
 
-      console.log("API Response:", response); // Debug log
+      // Log response for debugging (only in development)
+      if (__DEV__) {
+        console.log("API Response:", response);
+      }
 
       // Check for successful status codes (200 OK or 201 Created)
       if (

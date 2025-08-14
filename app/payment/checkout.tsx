@@ -3,7 +3,6 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   SafeAreaView,
   StatusBar,
   Text,
@@ -157,24 +156,26 @@ export default function PaymentCheckoutScreen() {
   };
 
   const handleBackToWallet = () => {
-    Alert.alert("Hủy thanh toán", "Bạn có chắc muốn hủy thanh toán này?", [
-      {
-        text: "Tiếp tục thanh toán",
-        style: "cancel",
+    Toast.show({
+      type: "info",
+      text1: "Xác nhận hủy",
+      text2: "Bạn có chắc muốn hủy thanh toán này?",
+      onPress: () => {
+        Toast.show({
+          type: "info",
+          text1: "Xác nhận",
+          text2: "Nhấn lại để xác nhận hủy",
+          onPress: () => {
+            Toast.show({
+              type: "info",
+              text1: "Đã hủy thanh toán",
+              text2: "Chuyển về trang ví",
+            });
+            router.replace("/account/wallet");
+          },
+        });
       },
-      {
-        text: "Hủy và về ví",
-        style: "destructive",
-        onPress: () => {
-          Toast.show({
-            type: "info",
-            text1: "Đã hủy thanh toán",
-            text2: "Chuyển về trang ví",
-          });
-          router.replace("/account/wallet");
-        },
-      },
-    ]);
+    });
   };
 
   const handleRefresh = () => {

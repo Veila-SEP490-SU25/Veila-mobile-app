@@ -3,13 +3,13 @@ import { router, useLocalSearchParams } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Image,
   ScrollView,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
+import Toast from "react-native-toast-message";
 import { useAuth } from "../../providers/auth.provider";
 import { dressApi } from "../../services/apis/dress.api";
 import { ChatService } from "../../services/chat.service";
@@ -79,13 +79,21 @@ export default function DressDetailScreen() {
       setChatLoading(true);
 
       if (!shop?.id || !dress?.id) {
-        Alert.alert("Lỗi", "Không thể tìm thấy thông tin shop hoặc váy cưới");
+        Toast.show({
+          type: "error",
+          text1: "Lỗi",
+          text2: "Không thể tìm thấy thông tin shop hoặc váy cưới",
+        });
         return;
       }
 
       const { accessToken } = await getTokens();
       if (!accessToken) {
-        Alert.alert("Lỗi", "Vui lòng đăng nhập để nhắn tin");
+        Toast.show({
+          type: "error",
+          text1: "Lỗi",
+          text2: "Vui lòng đăng nhập để nhắn tin",
+        });
         return;
       }
 
@@ -103,11 +111,21 @@ export default function DressDetailScreen() {
         // Navigate đến chat room
         router.push(`/chat/${chatRoomId}` as any);
       } else {
-        Alert.alert("Lỗi", "Không thể tạo phòng chat. Vui lòng thử lại.");
+        Toast.show({
+          type: "error",
+          text1: "Lỗi",
+          text2: "Không thể tạo phòng chat. Vui lòng thử lại.",
+        });
       }
     } catch (error) {
-      console.error("Error creating chat room:", error);
-      Alert.alert("Lỗi", "Không thể kết nối chat. Vui lòng thử lại.");
+      if (__DEV__) {
+        console.error("Error creating chat room:", error);
+      }
+      Toast.show({
+        type: "error",
+        text1: "Lỗi",
+        text2: "Không thể kết nối chat. Vui lòng thử lại.",
+      });
     } finally {
       setChatLoading(false);
     }
@@ -116,7 +134,9 @@ export default function DressDetailScreen() {
   const handleFavoritePress = useCallback(() => {
     setIsFavorite(!isFavorite);
     // TODO: Implement actual favorite logic with API
-    console.log("Toggle favorite:", !isFavorite);
+    if (__DEV__) {
+      console.log("Toggle favorite:", !isFavorite);
+    }
   }, [isFavorite]);
 
   if (loading) {
@@ -578,6 +598,7 @@ export default function DressDetailScreen() {
           )}
         </View>
       </ScrollView>
+      <Toast />
     </View>
   );
 }

@@ -4,7 +4,6 @@ import { StatusBar } from "expo-status-bar";
 import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Image,
   ScrollView,
   StyleSheet,
@@ -30,8 +29,14 @@ export default function AccessoryDetailScreen() {
       const accessoryData = await shopApi.getAccessoryById(id);
       setAccessory(accessoryData);
     } catch (error) {
-      console.error("Error loading accessory detail:", error);
-      Alert.alert("Lỗi", "Không thể tải thông tin phụ kiện");
+      if (__DEV__) {
+        console.error("Error loading accessory detail:", error);
+      }
+      Toast.show({
+        type: "error",
+        text1: "Lỗi",
+        text2: "Không thể tải thông tin phụ kiện",
+      });
     } finally {
       setLoading(false);
     }
@@ -50,11 +55,21 @@ export default function AccessoryDetailScreen() {
   }, [isFavorite]);
 
   const handleContact = useCallback(() => {
-    Alert.alert("Liên hệ", "Bạn muốn liên hệ để mua hoặc thuê phụ kiện này?", [
-      { text: "Gọi điện", onPress: () => console.log("Call pressed") },
-      { text: "Nhắn tin", onPress: () => console.log("Message pressed") },
-      { text: "Đóng", style: "cancel" },
-    ]);
+    Toast.show({
+      type: "info",
+      text1: "Liên hệ",
+      text2: "Bạn muốn liên hệ để mua hoặc thuê phụ kiện này?",
+      onPress: () => {
+        Toast.show({
+          type: "info",
+          text1: "Tùy chọn",
+          text2: "Chọn hành động liên hệ",
+          onPress: () => {
+            // TODO: Implement call and message functionality
+          },
+        });
+      },
+    });
   }, []);
 
   if (loading) {
@@ -179,6 +194,7 @@ export default function AccessoryDetailScreen() {
           </View>
         </View>
       </ScrollView>
+      <Toast />
     </View>
   );
 }

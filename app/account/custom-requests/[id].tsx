@@ -37,7 +37,9 @@ export default function CustomRequestDetailScreen() {
         setRequest(response.item);
       }
     } catch (error) {
-      console.error("Error loading request:", error);
+      if (__DEV__) {
+        console.error("Error loading request:", error);
+      }
       Toast.show({
         type: "error",
         text1: "Lỗi",
@@ -81,7 +83,9 @@ export default function CustomRequestDetailScreen() {
       });
       router.back();
     } catch (error) {
-      console.error("Error deleting request:", error);
+      if (__DEV__) {
+        console.error("Error deleting request:", error);
+      }
       Toast.show({
         type: "error",
         text1: "Lỗi",

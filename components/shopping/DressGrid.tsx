@@ -2,7 +2,6 @@ import { Ionicons } from "@expo/vector-icons";
 import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   Image,
   Modal,
@@ -12,6 +11,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import Toast from "react-native-toast-message";
 import { dressApi } from "../../services/apis/dress.api";
 import { shopApi } from "../../services/apis/shop.api";
 import { Dress } from "../../services/types/dress.type";
@@ -102,8 +102,14 @@ export default function DressGrid({
         setHasMore(newResponse.hasNextPage);
         setFilterOptions((prev) => ({ ...prev, page: pageNum }));
       } catch (error) {
-        console.error("Error loading dresses:", error);
-        Alert.alert("Lỗi", "Không thể tải danh sách váy cưới");
+        if (__DEV__) {
+          console.error("Error loading dresses:", error);
+        }
+        Toast.show({
+          type: "error",
+          text1: "Lỗi",
+          text2: "Không thể tải danh sách váy cưới",
+        });
       } finally {
         setLoading(false);
         setRefreshing(false);
