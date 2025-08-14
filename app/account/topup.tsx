@@ -2,7 +2,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React, { useState } from "react";
 import {
-  Alert,
+  KeyboardAvoidingView,
+  Platform,
   ScrollView,
   StatusBar,
   Text,
@@ -11,271 +12,178 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import Toast from "react-native-toast-message";
+import { useAuth } from "../../providers/auth.provider";
+import { walletApi } from "../../services/apis/wallet.api";
 
-const TOPUP_AMOUNTS = [
-  { amount: 50000, label: "50.000đ" },
-  { amount: 100000, label: "100.000đ" },
-  { amount: 200000, label: "200.000đ" },
-  { amount: 500000, label: "500.000đ" },
-  { amount: 1000000, label: "1.000.000đ" },
-  { amount: 2000000, label: "2.000.000đ" },
-];
+export default function TopupScreen() {
+  const [amount, setAmount] = useState<string>("");
+  const [note, setNote] = useState<string>("Nạp tiền vào ví");
+  const [isLoading, setIsLoading] = useState(false);
+  const { user } = useAuth();
 
-export default function TopUpScreen() {
-  const [selectedAmount, setSelectedAmount] = useState<number | null>(null);
-  const [customAmount, setCustomAmount] = useState("");
-  const [selectedMethod, setSelectedMethod] = useState<string>("");
+  const formatAmountInput = (value: string) => value.replace(/[^0-9]/g, "");
 
-  const handleTopUp = () => {
-    const amount = selectedAmount || parseFloat(customAmount);
-    if (!amount || amount <= 0) {
-      Alert.alert("Lỗi", "Vui lòng chọn hoặc nhập số tiền hợp lệ");
-      return;
-    }
-    if (!selectedMethod) {
-      Alert.alert("Lỗi", "Vui lòng chọn phương thức thanh toán");
+  const handleTopup = async () => {
+    // Check phone verification first
+    if (!user?.isIdentified) {
+      Toast.show({
+        type: "warning",
+        text1: "Cần xác thực số điện thoại",
+        text2: "Vui lòng xác thực số điện thoại trước khi nạp tiền",
+      });
       return;
     }
 
-    Alert.alert(
-      "Xác nhận nạp tiền",
-      `Bạn có chắc chắn muốn nạp ${amount.toLocaleString("vi-VN")}đ vào ví?`,
-      [
-        { text: "Hủy", style: "cancel" },
-        {
-          text: "Xác nhận",
-          onPress: () => {
-            console.log("Top up:", amount, "Method:", selectedMethod);
-            Alert.alert("Thành công", "Đã gửi yêu cầu nạp tiền. Vui lòng chờ xử lý.");
-            router.back();
-          },
-        },
-      ]
-    );
-  };
+    const num = parseInt(amount || "0", 10);
+    if (!num || num <= 0) {
+      Toast.show({ type: "warning", text1: "Số tiền không hợp lệ" });
+      return;
+    }
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("vi-VN", {
-      style: "currency",
-      currency: "VND",
-    }).format(amount);
+    try {
+      setIsLoading(true);
+      const res = await walletApi.deposit({
+        amount: num,
+        note: note || undefined,
+        returnUrl: "/payment/success",
+        cancelUrl: "/payment/failure",
+      });
+
+      if (res.statusCode === 200 && res.item?.checkoutUrl) {
+        Toast.show({ type: "info", text1: "Chuyển đến cổng thanh toán" });
+        router.push({
+          pathname: "/payment/checkout",
+          params: { url: res.item.checkoutUrl },
+        } as any);
+      } else {
+        Toast.show({ type: "error", text1: "Không tạo được link thanh toán" });
+      }
+    } catch (e: any) {
+      Toast.show({ type: "error", text1: "Lỗi nạp tiền", text2: e?.message });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50">
-      <StatusBar barStyle="dark-content" backgroundColor="#F9FAFB" />
-      
-      {/* Header */}
-      <View className="bg-white px-6 py-4 border-b border-gray-100">
-        <View className="flex-row items-center justify-between">
-          <TouchableOpacity
-            className="w-10 h-10 rounded-full bg-gray-100 items-center justify-center"
-            onPress={() => router.back()}
-          >
-            <Ionicons name="arrow-back" size={20} color="#374151" />
-          </TouchableOpacity>
-          <Text className="text-lg font-semibold text-gray-800">Nạp tiền</Text>
-          <View className="w-10" />
-        </View>
-      </View>
-
-      <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
-        {/* Amount Selection */}
-        <View className="mx-4 mt-6">
-          <Text className="text-lg font-semibold text-gray-800 mb-4">Chọn số tiền</Text>
-          
-          {/* Quick Amount Selection */}
-          <View className="bg-white rounded-2xl p-4 shadow-soft mb-6">
-            <View className="flex-row flex-wrap justify-between">
-              {TOPUP_AMOUNTS.map((item) => (
-                <TouchableOpacity
-                  key={item.amount}
-                  className={`w-[48%] py-4 px-3 rounded-xl mb-3 border-2 ${
-                    selectedAmount === item.amount
-                      ? "border-primary-500 bg-primary-50"
-                      : "border-gray-200 bg-gray-50"
-                  }`}
-                  onPress={() => {
-                    setSelectedAmount(item.amount);
-                    setCustomAmount("");
-                  }}
-                >
-                  <Text
-                    className={`text-center font-semibold ${
-                      selectedAmount === item.amount
-                        ? "text-primary-600"
-                        : "text-gray-600"
-                    }`}
-                  >
-                    {item.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-
-          {/* Custom Amount */}
-          <View className="bg-white rounded-2xl p-4 shadow-soft mb-6">
-            <Text className="text-base font-medium text-gray-700 mb-3">Hoặc nhập số tiền khác</Text>
-            <View className="flex-row items-center border border-gray-200 rounded-xl px-4 py-3">
-              <Text className="text-lg text-gray-800 mr-2">₫</Text>
-              <TextInput
-                className="flex-1 text-lg text-gray-800"
-                placeholder="Nhập số tiền"
-                placeholderTextColor="#9CA3AF"
-                value={customAmount}
-                onChangeText={(text) => {
-                  setCustomAmount(text.replace(/[^0-9]/g, ""));
-                  setSelectedAmount(null);
-                }}
-                keyboardType="numeric"
-              />
-            </View>
-            {customAmount && (
-              <Text className="text-sm text-gray-500 mt-2">
-                Số tiền: {formatCurrency(parseFloat(customAmount) || 0)}
+    <SafeAreaView className="flex-1 bg-white">
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        className="flex-1"
+      >
+        <ScrollView
+          className="flex-1"
+          contentContainerStyle={{ paddingBottom: 24 }}
+        >
+          {/* Header */}
+          <View className="px-6 py-4 border-b border-gray-100 bg-white">
+            <View className="flex-row items-center justify-between">
+              <TouchableOpacity
+                className="w-10 h-10 rounded-full bg-gray-100 items-center justify-center"
+                onPress={() => router.back()}
+              >
+                <Ionicons name="arrow-back" size={20} color="#374151" />
+              </TouchableOpacity>
+              <Text className="text-lg font-semibold text-gray-800">
+                Nạp tiền vào ví
               </Text>
-            )}
+              <View className="w-10" />
+            </View>
           </View>
-        </View>
 
-        {/* Payment Method */}
-        <View className="mx-4 mt-4">
-          <Text className="text-lg font-semibold text-gray-800 mb-4">Phương thức thanh toán</Text>
-          
-          <View className="bg-white rounded-2xl shadow-soft">
-            <TouchableOpacity
-              className={`flex-row items-center p-4 border-b border-gray-100 ${
-                selectedMethod === "momo" ? "bg-primary-50" : ""
-              }`}
-              onPress={() => setSelectedMethod("momo")}
-            >
-              <View className="w-12 h-12 bg-pink-500 rounded-xl items-center justify-center mr-4">
-                <Text className="text-white font-bold text-lg">M</Text>
-              </View>
-              <View className="flex-1">
-                <Text className="text-base font-medium text-gray-800">Ví MoMo</Text>
-                <Text className="text-sm text-gray-500">Thanh toán qua ví MoMo</Text>
-              </View>
-              <View className={`w-6 h-6 rounded-full border-2 ${
-                selectedMethod === "momo" 
-                  ? "border-primary-500 bg-primary-500" 
-                  : "border-gray-300"
-              }`}>
-                {selectedMethod === "momo" && (
-                  <View className="w-2 h-2 bg-white rounded-full m-auto" />
-                )}
-              </View>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              className={`flex-row items-center p-4 border-b border-gray-100 ${
-                selectedMethod === "zalo" ? "bg-primary-50" : ""
-              }`}
-              onPress={() => setSelectedMethod("zalo")}
-            >
-              <View className="w-12 h-12 bg-blue-500 rounded-xl items-center justify-center mr-4">
-                <Text className="text-white font-bold text-lg">Z</Text>
-              </View>
-              <View className="flex-1">
-                <Text className="text-base font-medium text-gray-800">Ví ZaloPay</Text>
-                <Text className="text-sm text-gray-500">Thanh toán qua ví ZaloPay</Text>
-              </View>
-              <View className={`w-6 h-6 rounded-full border-2 ${
-                selectedMethod === "zalo" 
-                  ? "border-primary-500 bg-primary-500" 
-                  : "border-gray-300"
-              }`}>
-                {selectedMethod === "zalo" && (
-                  <View className="w-2 h-2 bg-white rounded-full m-auto" />
-                )}
-              </View>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              className={`flex-row items-center p-4 ${
-                selectedMethod === "bank" ? "bg-primary-50" : ""
-              }`}
-              onPress={() => setSelectedMethod("bank")}
-            >
-              <View className="w-12 h-12 bg-green-500 rounded-xl items-center justify-center mr-4">
-                <Ionicons name="card-outline" size={24} color="#FFFFFF" />
-              </View>
-              <View className="flex-1">
-                <Text className="text-base font-medium text-gray-800">Chuyển khoản ngân hàng</Text>
-                <Text className="text-sm text-gray-500">Chuyển khoản qua tài khoản ngân hàng</Text>
-              </View>
-              <View className={`w-6 h-6 rounded-full border-2 ${
-                selectedMethod === "bank" 
-                  ? "border-primary-500 bg-primary-500" 
-                  : "border-gray-300"
-              }`}>
-                {selectedMethod === "bank" && (
-                  <View className="w-2 h-2 bg-white rounded-full m-auto" />
-                )}
-              </View>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Summary */}
-        <View className="mx-4 mt-6 mb-8">
-          <View className="bg-white rounded-2xl p-4 shadow-soft">
-            <Text className="text-lg font-semibold text-gray-800 mb-3">Tóm tắt</Text>
-            <View className="space-y-2">
-              <View className="flex-row justify-between">
-                <Text className="text-gray-600">Số tiền nạp:</Text>
-                <Text className="font-semibold text-gray-800">
-                  {selectedAmount 
-                    ? formatCurrency(selectedAmount)
-                    : customAmount 
-                    ? formatCurrency(parseFloat(customAmount) || 0)
-                    : "0đ"
-                  }
-                </Text>
-              </View>
-              <View className="flex-row justify-between">
-                <Text className="text-gray-600">Phí giao dịch:</Text>
-                <Text className="font-semibold text-gray-800">0đ</Text>
-              </View>
-              <View className="border-t border-gray-100 pt-2">
-                <View className="flex-row justify-between">
-                  <Text className="text-lg font-semibold text-gray-800">Tổng cộng:</Text>
-                  <Text className="text-lg font-bold text-primary-600">
-                    {selectedAmount 
-                      ? formatCurrency(selectedAmount)
-                      : customAmount 
-                      ? formatCurrency(parseFloat(customAmount) || 0)
-                      : "0đ"
-                    }
+          {/* Phone Verification Notice */}
+          {!user?.isIdentified && (
+            <View className="mx-6 mt-4 bg-orange-50 border border-orange-200 rounded-xl p-4">
+              <View className="flex-row items-start">
+                <Ionicons
+                  name="alert-circle"
+                  size={20}
+                  color="#F97316"
+                  className="mt-0.5"
+                />
+                <View className="ml-3 flex-1">
+                  <Text className="text-orange-800 font-medium text-sm">
+                    Cần xác thực số điện thoại
                   </Text>
+                  <Text className="text-orange-700 text-xs mt-1">
+                    Bạn cần xác thực số điện thoại trước khi có thể nạp tiền vào
+                    ví.
+                  </Text>
+                  <TouchableOpacity
+                    className="mt-2 bg-orange-600 rounded-lg px-3 py-2 self-start"
+                    onPress={() => router.push("/_auth/phone-verification")}
+                  >
+                    <Text className="text-white text-xs font-medium">
+                      Xác thực ngay
+                    </Text>
+                  </TouchableOpacity>
                 </View>
               </View>
             </View>
-          </View>
-        </View>
-      </ScrollView>
+          )}
 
-      {/* Bottom Action Button */}
-      <View className="bg-white px-6 py-4 border-t border-gray-100">
-        <TouchableOpacity
-          className={`w-full py-4 rounded-xl ${
-            (selectedAmount || customAmount) && selectedMethod
-              ? "bg-primary-500"
-              : "bg-gray-300"
-          }`}
-          onPress={handleTopUp}
-          disabled={!((selectedAmount || customAmount) && selectedMethod)}
-        >
-          <Text className={`text-center font-semibold text-lg ${
-            (selectedAmount || customAmount) && selectedMethod
-              ? "text-white"
-              : "text-gray-500"
-          }`}>
-            Nạp tiền
-          </Text>
-        </TouchableOpacity>
-      </View>
+          {/* Form */}
+          <View className="px-6 pt-4">
+            <Text className="text-sm text-gray-700 font-medium mb-2">
+              Số tiền (VND)
+            </Text>
+            <TextInput
+              value={amount}
+              onChangeText={(t) => setAmount(formatAmountInput(t))}
+              placeholder="VD: 150000"
+              keyboardType="numeric"
+              className="border border-gray-300 rounded-xl px-3 py-3 text-gray-900 bg-white text-sm shadow-sm"
+              editable={!isLoading}
+            />
+
+            <Text className="text-sm text-gray-700 font-medium mt-4 mb-2">
+              Ghi chú
+            </Text>
+            <TextInput
+              value={note}
+              onChangeText={setNote}
+              placeholder="Ghi chú giao dịch"
+              className="border border-gray-300 rounded-xl px-3 py-3 text-gray-900 bg-white text-sm shadow-sm"
+              editable={!isLoading}
+            />
+
+            <TouchableOpacity
+              onPress={handleTopup}
+              disabled={isLoading || !amount || !user?.isIdentified}
+              className="rounded-xl py-3 px-4 mt-6"
+              style={{
+                elevation: 2,
+                shadowColor: "#000",
+                shadowOffset: { width: 0, height: 1 },
+                shadowOpacity: 0.1,
+                shadowRadius: 2,
+                backgroundColor:
+                  isLoading || !amount || !user?.isIdentified
+                    ? "#D1D5DB"
+                    : "#E05C78",
+                borderWidth: 1,
+                borderColor:
+                  isLoading || !amount || !user?.isIdentified
+                    ? "#D1D5DB"
+                    : "#C04060",
+              }}
+            >
+              <Text className="text-white font-semibold text-center text-sm">
+                {!user?.isIdentified ? "Cần xác thực SĐT" : "Tạo thanh toán"}
+              </Text>
+            </TouchableOpacity>
+
+            <View className="mt-3">
+              <Text className="text-xs text-gray-500">
+                Bạn sẽ được chuyển đến cổng thanh toán PayOS. Sau khi thanh toán
+                thành công, hệ thống sẽ tự động chuyển về ứng dụng.
+              </Text>
+            </View>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
-} 
+}

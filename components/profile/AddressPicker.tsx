@@ -2,7 +2,6 @@ import { Ionicons } from "@expo/vector-icons";
 import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   Modal,
   StyleSheet,
@@ -22,12 +21,16 @@ interface AddressPickerProps {
   value: IAddress;
   onChange: (address: IAddress) => void;
   label: string;
+  placeholder?: string;
+  required?: boolean;
 }
 
 export default function AddressPicker({
   value,
   onChange,
   label,
+  placeholder = "Chọn địa chỉ",
+  required = false,
 }: AddressPickerProps) {
   const [showModal, setShowModal] = useState(false);
   const [currentStep, setCurrentStep] = useState<
@@ -39,6 +42,7 @@ export default function AddressPicker({
   const [allWards, setAllWards] = useState<IWard[]>([]);
   const [isInitialized, setIsInitialized] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   const [getProvinces, { isLoading: isLoadingProvinces }] =
     useLazyGetProvincesQuery();
@@ -50,16 +54,23 @@ export default function AddressPicker({
     try {
       console.log("Loading provinces...");
       setError(null);
+      setIsLoading(true);
       const result = await getProvinces({ page: 0, size: 100 }).unwrap();
       console.log("Provinces loaded:", result);
-      setAllProvinces(result.data || []);
+      if (result.data && result.data.length > 0) {
+        setAllProvinces(result.data);
+      } else {
+        // No provinces found - show empty state instead of error
+        setAllProvinces([]);
+        setError(null);
+      }
     } catch (error) {
       console.error("Error loading provinces:", error);
-      setError("Không thể tải danh sách tỉnh/thành");
-      Alert.alert(
-        "Lỗi",
-        "Không thể tải danh sách tỉnh/thành. Vui lòng thử lại."
-      );
+      // Don't show error for empty data, just set empty array
+      setAllProvinces([]);
+      setError(null);
+    } finally {
+      setIsLoading(false);
     }
   }, [getProvinces]);
 
@@ -67,20 +78,27 @@ export default function AddressPicker({
     async (provinceId: string) => {
       try {
         setError(null);
+        setIsLoading(true);
         const result = await getDistricts({
           provinceId,
           page: 0,
           size: 100,
         }).unwrap();
         console.log("Districts loaded:", result);
-        setAllDistricts(result.data || []);
+        if (result.data && result.data.length > 0) {
+          setAllDistricts(result.data);
+        } else {
+          // No districts found - show empty state instead of error
+          setAllDistricts([]);
+          setError(null);
+        }
       } catch (error) {
         console.error("Error loading districts:", error);
-        setError("Không thể tải danh sách quận/huyện");
-        Alert.alert(
-          "Lỗi",
-          "Không thể tải danh sách quận/huyện. Vui lòng thử lại."
-        );
+        // Don't show error for empty data, just set empty array
+        setAllDistricts([]);
+        setError(null);
+      } finally {
+        setIsLoading(false);
       }
     },
     [getDistricts]
@@ -90,20 +108,26 @@ export default function AddressPicker({
     async (districtId: string) => {
       try {
         setError(null);
+        setIsLoading(true);
         const result = await getWards({
           districtId,
           page: 0,
           size: 100,
         }).unwrap();
         console.log("Wards loaded:", result);
-        setAllWards(result.data || []);
+        if (result.data && result.data.length > 0) {
+          setAllWards(result.data);
+        } else {
+          // No wards found - show empty state instead of error
+          setAllWards([]);
+          setError(null);
+        }
       } catch (error) {
         console.error("Error loading wards:", error);
-        setError("Không thể tải danh sách phường/xã");
-        Alert.alert(
-          "Lỗi",
-          "Không thể tải danh sách phường/xã. Vui lòng thử lại."
-        );
+        // Don't show error for empty data, just set empty array
+        setError(null);
+      } finally {
+        setIsLoading(false);
       }
     },
     [getWards]
@@ -170,7 +194,7 @@ export default function AddressPicker({
   };
 
   const getDisplayText = () => {
-    if (!value.province) return "Chọn địa chỉ";
+    if (!value.province) return placeholder;
 
     let text = value.province.name;
     if (value.district) {
@@ -187,9 +211,9 @@ export default function AddressPicker({
       case "province":
         return "Chọn Tỉnh/Thành";
       case "district":
-        return "Chọn Quận/Huyện";
+        return `Chọn Quận/Huyện - ${value.province?.name}`;
       case "ward":
-        return "Chọn Phường/Xã";
+        return `Chọn Phường/Xã - ${value.district?.name}`;
       default:
         return "";
     }
@@ -220,16 +244,9 @@ export default function AddressPicker({
   };
 
   const getIsLoading = () => {
-    switch (currentStep) {
-      case "province":
-        return isLoadingProvinces;
-      case "district":
-        return isLoadingDistricts;
-      case "ward":
-        return isLoadingWards;
-      default:
-        return false;
-    }
+    return (
+      isLoading || isLoadingProvinces || isLoadingDistricts || isLoadingWards
+    );
   };
 
   const renderItem = ({ item }: { item: IProvince | IDistrict | IWard }) => (
@@ -244,8 +261,12 @@ export default function AddressPicker({
           handleWardSelect(item as IWard);
         }
       }}
+      activeOpacity={0.7}
     >
-      <Text style={styles.itemText}>{item.name}</Text>
+      <View style={styles.itemContent}>
+        <Text style={styles.itemText}>{item.name}</Text>
+        <Text style={styles.itemType}>{item.typeText}</Text>
+      </View>
       <Ionicons name="chevron-forward" size={16} color="#CCCCCC" />
     </TouchableOpacity>
   );
@@ -345,12 +366,72 @@ export default function AddressPicker({
     </View>
   );
 
+  const renderEmptyState = () => {
+    if (getIsLoading()) {
+      return null; // Don't show empty state while loading
+    }
+
+    let message = "Không có dữ liệu để hiển thị";
+    let subMessage = "";
+
+    if (searchQuery) {
+      message = "Không tìm thấy kết quả phù hợp";
+      subMessage = "Vui lòng thử từ khóa khác";
+    } else {
+      switch (currentStep) {
+        case "province":
+          message = "Không có dữ liệu tỉnh/thành";
+          subMessage = "Vui lòng thử lại sau";
+          break;
+        case "district":
+          message = "Không có dữ liệu quận/huyện cho tỉnh này";
+          subMessage = "Vui lòng chọn tỉnh khác";
+          break;
+        case "ward":
+          message = "Không có dữ liệu phường/xã cho quận này";
+          subMessage = "Vui lòng chọn quận khác";
+          break;
+      }
+    }
+
+    return (
+      <View style={styles.emptyContainer}>
+        <Ionicons name="location-outline" size={48} color="#CCCCCC" />
+        <Text style={styles.emptyText}>{message}</Text>
+        {subMessage && <Text style={styles.emptySubText}>{subMessage}</Text>}
+        {searchQuery && (
+          <TouchableOpacity
+            style={styles.clearSearchButton}
+            onPress={() => setSearchQuery("")}
+          >
+            <Text style={styles.clearSearchButtonText}>Xóa tìm kiếm</Text>
+          </TouchableOpacity>
+        )}
+        {!searchQuery && currentStep === "province" && (
+          <TouchableOpacity
+            style={styles.retryButton}
+            onPress={loadAllProvinces}
+          >
+            <Text style={styles.retryButtonText}>Thử lại</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    );
+  };
+
   return (
     <>
       <View style={styles.container}>
-        <Text style={styles.label}>{label}</Text>
+        <View style={styles.labelContainer}>
+          <Text style={styles.label}>{label}</Text>
+          {required && <Text style={styles.required}>*</Text>}
+        </View>
         <TouchableOpacity
-          style={styles.picker}
+          style={[
+            styles.picker,
+            value.province && styles.pickerFilled,
+            !value.province && styles.pickerEmpty,
+          ]}
           onPress={() => setShowModal(true)}
           activeOpacity={0.7}
         >
@@ -362,8 +443,18 @@ export default function AddressPicker({
           >
             {getDisplayText()}
           </Text>
-          <Ionicons name="chevron-down" size={16} color="#999999" />
+          <Ionicons
+            name="chevron-down"
+            size={16}
+            color={value.province ? "#10B981" : "#999999"}
+          />
         </TouchableOpacity>
+        {value.province && (
+          <View style={styles.completionIndicator}>
+            <Ionicons name="checkmark-circle" size={16} color="#10B981" />
+            <Text style={styles.completionText}>Đã chọn địa chỉ</Text>
+          </View>
+        )}
       </View>
 
       <Modal
@@ -413,6 +504,8 @@ export default function AddressPicker({
                 value={searchQuery}
                 onChangeText={setSearchQuery}
                 placeholderTextColor="#999999"
+                autoCapitalize="none"
+                autoCorrect={false}
               />
               {searchQuery.length > 0 && (
                 <TouchableOpacity
@@ -425,9 +518,7 @@ export default function AddressPicker({
             </View>
           </View>
 
-          {error ? (
-            renderErrorState()
-          ) : getIsLoading() ? (
+          {getIsLoading() ? (
             <View style={styles.loadingContainer}>
               <ActivityIndicator size="large" color="#E05C78" />
               <Text style={styles.loadingText}>Đang tải dữ liệu...</Text>
@@ -439,16 +530,8 @@ export default function AddressPicker({
               keyExtractor={(item) => item.id}
               style={styles.list}
               showsVerticalScrollIndicator={false}
-              ListEmptyComponent={
-                <View style={styles.emptyContainer}>
-                  <Ionicons name="location-outline" size={48} color="#CCCCCC" />
-                  <Text style={styles.emptyText}>
-                    {searchQuery
-                      ? "Không tìm thấy kết quả"
-                      : "Không có dữ liệu"}
-                  </Text>
-                </View>
-              }
+              ListEmptyComponent={renderEmptyState()}
+              contentContainerStyle={styles.listContent}
             />
           )}
         </View>
@@ -461,22 +544,38 @@ const styles = StyleSheet.create({
   container: {
     marginBottom: 20,
   },
+  labelContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+  },
   label: {
     fontSize: 14,
     fontWeight: "500",
     color: "#333333",
-    marginBottom: 8,
+  },
+  required: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: "#EF4444",
+    marginLeft: 4,
   },
   picker: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     borderWidth: 1,
-    borderColor: "#E5E7EB",
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 14,
     backgroundColor: "#FFFFFF",
+  },
+  pickerEmpty: {
+    borderColor: "#E5E7EB",
+  },
+  pickerFilled: {
+    borderColor: "#10B981",
+    backgroundColor: "#F0FDF4",
   },
   pickerText: {
     fontSize: 16,
@@ -485,6 +584,16 @@ const styles = StyleSheet.create({
   },
   placeholderText: {
     color: "#999999",
+  },
+  completionIndicator: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 8,
+  },
+  completionText: {
+    fontSize: 12,
+    color: "#10B981",
+    marginLeft: 4,
   },
   modalContainer: {
     flex: 1,
@@ -512,6 +621,9 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "600",
     color: "#333333",
+    textAlign: "center",
+    flex: 1,
+    marginHorizontal: 16,
   },
   closeButton: {
     width: 40,
@@ -574,6 +686,9 @@ const styles = StyleSheet.create({
   list: {
     flex: 1,
   },
+  listContent: {
+    flexGrow: 1,
+  },
   item: {
     flexDirection: "row",
     alignItems: "center",
@@ -583,10 +698,18 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "#F9F9F9",
   },
+  itemContent: {
+    flex: 1,
+  },
   itemText: {
     fontSize: 16,
     color: "#333333",
-    flex: 1,
+    fontWeight: "500",
+    marginBottom: 2,
+  },
+  itemType: {
+    fontSize: 12,
+    color: "#666666",
   },
   loadingContainer: {
     flex: 1,
@@ -608,6 +731,25 @@ const styles = StyleSheet.create({
     marginTop: 12,
     fontSize: 14,
     color: "#999999",
+    textAlign: "center",
+    marginBottom: 16,
+  },
+  emptySubText: {
+    fontSize: 12,
+    color: "#999999",
+    textAlign: "center",
+    marginBottom: 16,
+  },
+  clearSearchButton: {
+    backgroundColor: "#E05C78",
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  clearSearchButtonText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "600",
   },
   errorContainer: {
     flex: 1,
@@ -621,6 +763,7 @@ const styles = StyleSheet.create({
     color: "#EF4444",
     textAlign: "center",
     marginBottom: 16,
+    paddingHorizontal: 20,
   },
   retryButton: {
     backgroundColor: "#E05C78",

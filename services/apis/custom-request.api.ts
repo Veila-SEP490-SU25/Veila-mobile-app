@@ -20,11 +20,25 @@ const makeRequest = async (endpoint: string, options: RequestInit = {}) => {
     },
   });
 
-  if (!response.ok) {
-    throw new Error(`HTTP error! status: ${response.status}`);
+  // Parse response first
+  const responseData = await response.json();
+
+  // Log response for debugging
+  console.log(`API ${options.method || "GET"} ${endpoint}:`, {
+    status: response.status,
+    ok: response.ok,
+    data: responseData,
+  });
+
+  // Consider 2xx status codes as successful (including 201 Created)
+  if (response.status >= 200 && response.status < 300) {
+    return responseData;
   }
 
-  return response.json();
+  // Throw error for non-success status codes
+  const errorMessage =
+    responseData?.message || `HTTP error! status: ${response.status}`;
+  throw new Error(errorMessage);
 };
 
 export const customRequestApi = {

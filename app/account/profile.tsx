@@ -4,8 +4,6 @@ import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Image,
-  KeyboardAvoidingView,
-  Platform,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -17,297 +15,142 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import Toast from "react-native-toast-message";
 import AddressPicker from "../../components/profile/AddressPicker";
-import DatePicker from "../../components/profile/DatePicker";
-import ImagePickerModal from "../../components/profile/ImagePickerModal";
-import ValidationPopup from "../../components/profile/ValidationPopup";
 import { useAuth } from "../../providers/auth.provider";
-import {
-  useChangePasswordMutation,
-  useUpdateProfileMutation,
-} from "../../services/apis";
-import {
-  pickImage,
-  takePhoto,
-  uploadAvatar,
-  uploadCover,
-  UploadResult,
-} from "../../services/firebase-upload";
-import {
-  IAddress,
-  IChangePassword,
-  IUpdateProfile,
-} from "../../services/types";
-
-interface ValidationError {
-  field: string;
-  message: string;
-}
+import { IAddress, IUpdateProfile } from "../../services/types";
+import { createProfileUpdateFromAddress } from "../../utils/address.util";
 
 export default function ProfileScreen() {
-  const { user, refreshUser } = useAuth();
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<"profile" | "password">("profile");
-  const [showImagePicker, setShowImagePicker] = useState(false);
-  const [imageType, setImageType] = useState<"avatar" | "cover">("avatar");
-  const [isUploading, setIsUploading] = useState(false);
-  const [showValidationPopup, setShowValidationPopup] = useState(false);
-  const [validationErrors, setValidationErrors] = useState<ValidationError[]>(
-    []
-  );
-
-  const [updateProfile, { isLoading: isUpdatingProfile }] =
-    useUpdateProfileMutation();
-  const [changePassword, { isLoading: isChangingPassword }] =
-    useChangePasswordMutation();
-
-  const [profileForm, setProfileForm] = useState<IUpdateProfile>({
-    firstName: user?.firstName || "",
-    middleName: user?.middleName || "",
-    lastName: user?.lastName || "",
-    address: user?.address || "",
-    birthDate: user?.birthDate || "",
-    avatarUrl: user?.avatarUrl || "",
-    coverUrl: user?.coverUrl || "",
-    images: user?.images || "",
-  });
-
-  const [addressForm, setAddressForm] = useState<IAddress>({
-    province: null,
-    district: null,
-    ward: null,
+  const { user, refreshUser, updateUser } = useAuth();
+  const [isEditing, setIsEditing] = useState(false);
+  const [loading, setLoading] = useState(false);
+  // Form state
+  const [formData, setFormData] = useState({
+    firstName: "",
+    middleName: "",
+    lastName: "",
+    phone: "",
     streetAddress: "",
-  });
-
-  const [passwordForm, setPasswordForm] = useState<IChangePassword>({
-    currentPassword: "",
-    newPassword: "",
-    confirmPassword: "",
+    address: {
+      province: null,
+      district: null,
+      ward: null,
+      streetAddress: "",
+    } as IAddress,
   });
 
   useEffect(() => {
     if (user) {
-      setProfileForm({
+      setFormData({
         firstName: user.firstName || "",
         middleName: user.middleName || "",
         lastName: user.lastName || "",
-        address: user.address || "",
-        birthDate: user.birthDate || "",
-        avatarUrl: user.avatarUrl || "",
-        coverUrl: user.coverUrl || "",
-        images: user.images || "",
+        phone: user.phone || "",
+        streetAddress: user.address || "",
+        address: {
+          province: null,
+          district: null,
+          ward: null,
+          streetAddress: user.address || "",
+        },
       });
     }
   }, [user]);
 
-  const validateProfile = (): ValidationError[] => {
-    const errors: ValidationError[] = [];
-
-    if (!profileForm.firstName.trim()) {
-      errors.push({ field: "firstName", message: "Họ không được để trống" });
-    }
-
-    if (!profileForm.lastName.trim()) {
-      errors.push({ field: "lastName", message: "Tên không được để trống" });
-    }
-
-    if (!profileForm.address?.trim()) {
-      errors.push({ field: "address", message: "Địa chỉ không được để trống" });
-    }
-
-    if (!profileForm.birthDate?.trim()) {
-      errors.push({
-        field: "birthDate",
-        message: "Ngày sinh không được để trống",
-      });
-    }
-
-    return errors;
-  };
-
-  const handleImageUpload = async (uri: string) => {
-    try {
-      setIsUploading(true);
-      let uploadResult: UploadResult;
-
-      if (imageType === "avatar") {
-        uploadResult = await uploadAvatar(uri);
-        setProfileForm((prev) => ({ ...prev, avatarUrl: uploadResult.url }));
-
-        // Cập nhật user state ngay lập tức để hiển thị avatar mới
-        if (refreshUser) {
-          refreshUser();
-        }
-      } else {
-        uploadResult = await uploadCover(uri);
-        setProfileForm((prev) => ({ ...prev, coverUrl: uploadResult.url }));
-      }
-
-      Toast.show({
-        type: "success",
-        text1: "Thành công",
-        text2: `Tải lên ${imageType === "avatar" ? "ảnh đại diện" : "ảnh bìa"} thành công`,
-      });
-    } catch (error) {
-      console.error("Upload error:", error);
+  const handleSave = async () => {
+    if (!formData.firstName.trim() || !formData.lastName.trim()) {
       Toast.show({
         type: "error",
         text1: "Lỗi",
-        text2: "Tải lên ảnh thất bại. Vui lòng thử lại.",
+        text2: "Vui lòng nhập họ và tên",
       });
-    } finally {
-      setIsUploading(false);
-    }
-  };
-
-  const handlePickFromGallery = async () => {
-    const uri = await pickImage();
-    if (uri) {
-      await handleImageUpload(uri);
-    }
-  };
-
-  const handleTakePhoto = async () => {
-    const uri = await takePhoto();
-    if (uri) {
-      await handleImageUpload(uri);
-    }
-  };
-
-  const handleAvatarPress = () => {
-    setImageType("avatar");
-    setShowImagePicker(true);
-  };
-
-  const handleAddressChange = (address: IAddress) => {
-    setAddressForm(address);
-
-    // Ghép chuỗi địa chỉ chi tiết và địa chỉ từ picker
-    const addressParts = [
-      addressForm.streetAddress, // Địa chỉ chi tiết hiện tại
-      address.ward?.name,
-      address.district?.name,
-      address.province?.name,
-    ].filter(Boolean);
-
-    const addressString = addressParts.join(", ");
-    setProfileForm((prev) => ({ ...prev, address: addressString }));
-  };
-
-  const handleStreetAddressChange = (streetAddress: string) => {
-    setAddressForm((prev) => ({ ...prev, streetAddress }));
-
-    // Cập nhật lại địa chỉ đầy đủ khi thay đổi địa chỉ chi tiết
-    const addressParts = [
-      streetAddress,
-      addressForm.ward?.name,
-      addressForm.district?.name,
-      addressForm.province?.name,
-    ].filter(Boolean);
-
-    const addressString = addressParts.join(", ");
-    setProfileForm((prev) => ({ ...prev, address: addressString }));
-  };
-
-  // Hàm để hiển thị địa chỉ đầy đủ
-  const getFullAddress = () => {
-    if (profileForm.address) {
-      return profileForm.address;
-    }
-
-    const addressParts = [
-      addressForm.streetAddress,
-      addressForm.ward?.name,
-      addressForm.district?.name,
-      addressForm.province?.name,
-    ].filter(Boolean);
-
-    return addressParts.length > 0
-      ? addressParts.join(", ")
-      : "Chưa có địa chỉ";
-  };
-
-  const handleBirthDateChange = (date: string) => {
-    setProfileForm((prev) => ({ ...prev, birthDate: date }));
-  };
-
-  const handleProfileUpdate = async () => {
-    const errors = validateProfile();
-
-    if (errors.length > 0) {
-      setValidationErrors(errors);
-      setShowValidationPopup(true);
       return;
     }
 
+    setLoading(true);
     try {
-      await updateProfile(profileForm).unwrap();
-      await refreshUser();
-      Toast.show({
-        type: "success",
-        text1: "Thành công",
-        text2: "Cập nhật thông tin thành công",
-      });
-    } catch (error: any) {
+      // Update profile information
+      const profileData: IUpdateProfile = {
+        firstName: formData.firstName.trim(),
+        middleName: formData.middleName.trim() || undefined,
+        lastName: formData.lastName.trim(),
+      };
+
+      const profileSuccess = await updateUser(profileData);
+
+      // Update address information if address is selected
+      let addressSuccess = true;
+      if (
+        formData.address.province &&
+        formData.address.district &&
+        formData.address.ward
+      ) {
+        // Create complete profile update with address
+        const addressUpdate = createProfileUpdateFromAddress(formData.address, {
+          firstName: formData.firstName.trim(),
+          lastName: formData.lastName.trim(),
+          middleName: formData.middleName.trim() || undefined,
+        });
+
+        addressSuccess = await updateUser(addressUpdate);
+      }
+
+      if (profileSuccess && addressSuccess) {
+        Toast.show({
+          type: "success",
+          text1: "Thành công",
+          text2: "Hồ sơ đã được cập nhật",
+        });
+
+        setIsEditing(false);
+        // Refresh user data to get the latest information
+        if (refreshUser) {
+          await refreshUser();
+        }
+      } else {
+        Toast.show({
+          type: "warning",
+          text1: "Cảnh báo",
+          text2: "Một số thông tin không thể cập nhật. Vui lòng thử lại.",
+        });
+      }
+    } catch (error) {
+      console.error("Error updating profile:", error);
       Toast.show({
         type: "error",
         text1: "Lỗi",
-        text2: error?.data?.message || "Cập nhật thất bại",
+        text2: "Không thể cập nhật hồ sơ. Vui lòng thử lại.",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCancel = () => {
+    setIsEditing(false);
+    // Reset form to original user data
+    if (user) {
+      setFormData({
+        firstName: user.firstName || "",
+        middleName: user.middleName || "",
+        lastName: user.lastName || "",
+        phone: user.phone || "",
+        streetAddress: user.address || "",
+        address: {
+          province: null,
+          district: null,
+          ward: null,
+          streetAddress: user.address || "",
+        },
       });
     }
   };
 
-  const handlePasswordChange = async () => {
-    try {
-      if (
-        !passwordForm.currentPassword ||
-        !passwordForm.newPassword ||
-        !passwordForm.confirmPassword
-      ) {
-        Toast.show({
-          type: "error",
-          text1: "Lỗi",
-          text2: "Vui lòng điền đầy đủ thông tin",
-        });
-        return;
-      }
-
-      if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-        Toast.show({
-          type: "error",
-          text1: "Lỗi",
-          text2: "Mật khẩu mới không khớp",
-        });
-        return;
-      }
-
-      if (passwordForm.newPassword.length < 6) {
-        Toast.show({
-          type: "error",
-          text1: "Lỗi",
-          text2: "Mật khẩu phải có ít nhất 6 ký tự",
-        });
-        return;
-      }
-
-      await changePassword(passwordForm).unwrap();
-      Toast.show({
-        type: "success",
-        text1: "Thành công",
-        text2: "Đổi mật khẩu thành công",
-      });
-
-      setPasswordForm({
-        currentPassword: "",
-        newPassword: "",
-        confirmPassword: "",
-      });
-    } catch (error: any) {
-      Toast.show({
-        type: "error",
-        text1: "Lỗi",
-        text2: error?.data?.message || "Đổi mật khẩu thất bại",
-      });
-    }
+  const getFullName = () => {
+    const parts = [user?.firstName, user?.middleName, user?.lastName].filter(
+      Boolean
+    );
+    return parts.join(" ") || "Người dùng";
   };
 
   const getInitials = () => {
@@ -316,270 +159,296 @@ export default function ProfileScreen() {
     return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
   };
 
-  const renderProfileTab = () => (
-    <View style={styles.tabContent}>
-      <View style={styles.avatarSection}>
-        <View style={styles.avatarContainer}>
-          {user?.avatarUrl ? (
-            <Image source={{ uri: user.avatarUrl }} style={styles.avatar} />
-          ) : (
-            <View style={styles.avatarPlaceholder}>
-              <Text style={styles.avatarText}>{getInitials()}</Text>
-            </View>
-          )}
-          {user?.isVerified && (
-            <View style={styles.verifiedBadge}>
-              <Ionicons name="checkmark-circle" size={18} color="#10B981" />
-            </View>
-          )}
-          <TouchableOpacity
-            style={[styles.cameraButton, isUploading && styles.uploadingButton]}
-            onPress={handleAvatarPress}
-            disabled={isUploading}
-          >
-            {isUploading ? (
-              <ActivityIndicator size="small" color="#FFFFFF" />
-            ) : (
-              <Ionicons name="camera" size={14} color="#FFFFFF" />
-            )}
-          </TouchableOpacity>
+  if (!user) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#E05C78" />
+          <Text style={styles.loadingText}>Đang tải thông tin...</Text>
         </View>
-        <Text style={styles.avatarLabel}>
-          {isUploading ? "Đang tải lên..." : "Thay đổi ảnh đại diện"}
-        </Text>
+      </SafeAreaView>
+    );
+  }
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={styles.backButton}
+        >
+          <Ionicons name="arrow-back" size={24} color="#374151" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Chỉnh sửa hồ sơ</Text>
+        <View style={styles.headerRight}>
+          {isEditing ? (
+            <View style={styles.headerActions}>
+              <TouchableOpacity
+                onPress={handleCancel}
+                style={styles.cancelButton}
+                disabled={loading}
+              >
+                <Text style={styles.cancelButtonText}>Hủy</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={handleSave}
+                style={styles.saveButton}
+                disabled={loading}
+              >
+                {loading ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.saveButtonText}>Lưu</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <TouchableOpacity
+              onPress={() => setIsEditing(true)}
+              style={styles.editButton}
+            >
+              <Ionicons name="pencil" size={20} color="#E05C78" />
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
-      <View style={styles.formSection}>
-        <View style={styles.inputGroup}>
-          <Text style={styles.inputLabel}>Họ *</Text>
-          <TextInput
-            style={styles.textInput}
-            value={profileForm.firstName}
-            onChangeText={(text) =>
-              setProfileForm((prev) => ({ ...prev, firstName: text }))
-            }
-            placeholder="Nhập họ"
-            placeholderTextColor="#999999"
-          />
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        {/* Profile Picture Section */}
+        <View style={styles.profilePictureSection}>
+          <View style={styles.profilePictureContainer}>
+            {user.avatarUrl ? (
+              <Image
+                source={{ uri: user.avatarUrl }}
+                style={styles.profilePicture}
+              />
+            ) : (
+              <View style={styles.profilePicturePlaceholder}>
+                <Text style={styles.profilePictureText}>{getInitials()}</Text>
+              </View>
+            )}
+            {user.isVerified && (
+              <View style={styles.verifiedBadge}>
+                <Ionicons name="checkmark-circle" size={20} color="#10B981" />
+              </View>
+            )}
+          </View>
+          <TouchableOpacity style={styles.changePictureButton}>
+            <Ionicons name="camera" size={16} color="#FFFFFF" />
+            <Text style={styles.changePictureText}>Thay đổi ảnh</Text>
+          </TouchableOpacity>
         </View>
 
-        <View style={styles.inputGroup}>
-          <Text style={styles.inputLabel}>Tên đệm</Text>
-          <TextInput
-            style={styles.textInput}
-            value={profileForm.middleName}
-            onChangeText={(text) =>
-              setProfileForm((prev) => ({ ...prev, middleName: text }))
-            }
-            placeholder="Nhập tên đệm"
-            placeholderTextColor="#999999"
-          />
-        </View>
+        {/* Form Fields */}
+        <View style={styles.formSection}>
+          <Text style={styles.sectionTitle}>Thông tin cá nhân</Text>
 
-        <View style={styles.inputGroup}>
-          <Text style={styles.inputLabel}>Tên *</Text>
-          <TextInput
-            style={styles.textInput}
-            value={profileForm.lastName}
-            onChangeText={(text) =>
-              setProfileForm((prev) => ({ ...prev, lastName: text }))
-            }
-            placeholder="Nhập tên"
-            placeholderTextColor="#999999"
-          />
-        </View>
+          <View style={styles.formRow}>
+            <View style={styles.formField}>
+              <Text style={styles.fieldLabel}>
+                Họ <Text style={styles.required}>*</Text>
+              </Text>
+              <TextInput
+                style={[styles.textInput, !isEditing && styles.disabledInput]}
+                value={formData.firstName}
+                onChangeText={(text) =>
+                  setFormData((prev) => ({ ...prev, firstName: text }))
+                }
+                placeholder="Nhập họ"
+                editable={isEditing}
+              />
+            </View>
+            <View style={styles.formField}>
+              <Text style={styles.fieldLabel}>Tên đệm</Text>
+              <TextInput
+                style={[styles.textInput, !isEditing && styles.disabledInput]}
+                value={formData.middleName}
+                onChangeText={(text) =>
+                  setFormData((prev) => ({ ...prev, middleName: text }))
+                }
+                placeholder="Nhập tên đệm"
+                editable={isEditing}
+              />
+            </View>
+          </View>
 
-        <AddressPicker
-          value={addressForm}
-          onChange={handleAddressChange}
-          label="Địa chỉ *"
-        />
+          <View style={styles.formField}>
+            <Text style={styles.fieldLabel}>
+              Tên <Text style={styles.required}>*</Text>
+            </Text>
+            <TextInput
+              style={[styles.textInput, !isEditing && styles.disabledInput]}
+              value={formData.lastName}
+              onChangeText={(text) =>
+                setFormData((prev) => ({ ...prev, lastName: text }))
+              }
+              placeholder="Nhập tên"
+              editable={isEditing}
+            />
+          </View>
 
-        {/* Hiển thị địa chỉ đầy đủ */}
-        <View style={styles.inputGroup}>
-          <Text style={styles.inputLabel}>Địa chỉ đầy đủ</Text>
-          <View style={styles.addressDisplay}>
-            <Text style={styles.addressText}>{getFullAddress()}</Text>
+          <View style={styles.formField}>
+            <Text style={styles.fieldLabel}>Email</Text>
+            <TextInput
+              style={[styles.textInput, styles.disabledInput]}
+              value={user.email}
+              placeholder="Email"
+              editable={false}
+            />
+            <Text style={styles.fieldNote}>Email không thể thay đổi</Text>
+          </View>
+
+          <View style={styles.formField}>
+            <Text style={styles.fieldLabel}>Số điện thoại</Text>
+            <TextInput
+              style={[styles.textInput, styles.disabledInput]}
+              value={formData.phone}
+              placeholder="Nhập số điện thoại"
+              editable={false}
+            />
+            <Text style={styles.fieldNote}>
+              Số điện thoại sẽ được cập nhật thông qua xác thực
+            </Text>
+          </View>
+
+          <View style={styles.formField}>
+            <Text style={styles.fieldLabel}>Địa chỉ</Text>
+            {isEditing ? (
+              <AddressPicker
+                value={formData.address}
+                onChange={(address) =>
+                  setFormData((prev) => ({ ...prev, address }))
+                }
+                label=""
+                placeholder="Chọn địa chỉ"
+              />
+            ) : (
+              <View style={styles.addressDisplay}>
+                <Text style={styles.addressText}>
+                  {user.address || "Chưa có địa chỉ"}
+                </Text>
+              </View>
+            )}
+          </View>
+
+          <View style={styles.formField}>
+            <Text style={styles.fieldLabel}>Địa chỉ chi tiết</Text>
+            {isEditing ? (
+              <TextInput
+                style={[styles.textInput, !isEditing && styles.disabledInput]}
+                value={formData.streetAddress}
+                onChangeText={(text) =>
+                  setFormData((prev) => ({ ...prev, streetAddress: text }))
+                }
+                placeholder="Nhập địa chỉ chi tiết (số nhà, tên đường)"
+                multiline
+                numberOfLines={2}
+              />
+            ) : (
+              <View style={styles.addressDisplay}>
+                <Text style={styles.addressText}>
+                  {user.address || "Chưa có địa chỉ chi tiết"}
+                </Text>
+              </View>
+            )}
+          </View>
+
+          <View style={styles.formField}>
+            <Text style={styles.fieldLabel}>Ngày sinh</Text>
+            <TextInput
+              style={[styles.textInput, styles.disabledInput]}
+              value={
+                user.birthDate
+                  ? new Date(user.birthDate).toLocaleDateString("vi-VN")
+                  : ""
+              }
+              placeholder="Chưa có ngày sinh"
+              editable={false}
+            />
+            <Text style={styles.fieldNote}>
+              Tính năng cập nhật ngày sinh đang phát triển
+            </Text>
           </View>
         </View>
 
-        <View style={styles.inputGroup}>
-          <Text style={styles.inputLabel}>Địa chỉ chi tiết</Text>
-          <TextInput
-            style={[styles.textInput, styles.textArea]}
-            value={addressForm.streetAddress}
-            onChangeText={handleStreetAddressChange}
-            placeholder="Nhập địa chỉ chi tiết (số nhà, đường, phố...)"
-            placeholderTextColor="#999999"
-            multiline
-            numberOfLines={3}
-          />
+        {/* Account Status Section */}
+        <View style={styles.statusSection}>
+          <Text style={styles.sectionTitle}>Trạng thái tài khoản</Text>
+
+          <View style={styles.statusItem}>
+            <View style={styles.statusIcon}>
+              <Ionicons
+                name={user.isVerified ? "checkmark-circle" : "close-circle"}
+                size={20}
+                color={user.isVerified ? "#10B981" : "#EF4444"}
+              />
+            </View>
+            <View style={styles.statusContent}>
+              <Text style={styles.statusLabel}>Xác thực tài khoản</Text>
+              <Text style={styles.statusValue}>
+                {user.isVerified ? "Đã xác thực" : "Chưa xác thực"}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.statusItem}>
+            <View style={styles.statusIcon}>
+              <Ionicons
+                name={user.isIdentified ? "checkmark-circle" : "close-circle"}
+                size={20}
+                color={user.isIdentified ? "#10B981" : "#EF4444"}
+              />
+            </View>
+            <View style={styles.statusContent}>
+              <Text style={styles.statusLabel}>Xác thực số điện thoại</Text>
+              <Text style={styles.statusValue}>
+                {user.isIdentified ? "Đã xác thực" : "Chưa xác thực"}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.statusItem}>
+            <View style={styles.statusIcon}>
+              <Ionicons name="star" size={20} color="#F59E0B" />
+            </View>
+            <View style={styles.statusContent}>
+              <Text style={styles.statusLabel}>Điểm uy tín</Text>
+              <Text style={styles.statusValue}>
+                {user.reputation || 0} điểm
+              </Text>
+            </View>
+          </View>
         </View>
 
-        <DatePicker
-          value={profileForm.birthDate || ""}
-          onChange={handleBirthDateChange}
-          label="Ngày sinh *"
-        />
-      </View>
-
-      <TouchableOpacity
-        style={[
-          styles.saveButton,
-          isUpdatingProfile && styles.saveButtonDisabled,
-        ]}
-        onPress={handleProfileUpdate}
-        disabled={isUpdatingProfile}
-        activeOpacity={0.8}
-      >
-        <Text style={styles.saveButtonText}>
-          {isUpdatingProfile ? "Đang cập nhật..." : "Cập nhật thông tin"}
-        </Text>
-      </TouchableOpacity>
-    </View>
-  );
-
-  const renderPasswordTab = () => (
-    <View style={styles.tabContent}>
-      <View style={styles.formSection}>
-        <View style={styles.inputGroup}>
-          <Text style={styles.inputLabel}>Mật khẩu hiện tại *</Text>
-          <TextInput
-            style={styles.textInput}
-            value={passwordForm.currentPassword}
-            onChangeText={(text) =>
-              setPasswordForm((prev) => ({ ...prev, currentPassword: text }))
-            }
-            placeholder="Nhập mật khẩu hiện tại"
-            placeholderTextColor="#999999"
-            secureTextEntry
-          />
-        </View>
-
-        <View style={styles.inputGroup}>
-          <Text style={styles.inputLabel}>Mật khẩu mới *</Text>
-          <TextInput
-            style={styles.textInput}
-            value={passwordForm.newPassword}
-            onChangeText={(text) =>
-              setPasswordForm((prev) => ({ ...prev, newPassword: text }))
-            }
-            placeholder="Nhập mật khẩu mới"
-            placeholderTextColor="#999999"
-            secureTextEntry
-          />
-        </View>
-
-        <View style={styles.inputGroup}>
-          <Text style={styles.inputLabel}>Xác nhận mật khẩu mới *</Text>
-          <TextInput
-            style={styles.textInput}
-            value={passwordForm.confirmPassword}
-            onChangeText={(text) =>
-              setPasswordForm((prev) => ({ ...prev, confirmPassword: text }))
-            }
-            placeholder="Nhập lại mật khẩu mới"
-            placeholderTextColor="#999999"
-            secureTextEntry
-          />
-        </View>
-      </View>
-
-      <TouchableOpacity
-        style={[
-          styles.saveButton,
-          isChangingPassword && styles.saveButtonDisabled,
-        ]}
-        onPress={handlePasswordChange}
-        disabled={isChangingPassword}
-        activeOpacity={0.8}
-      >
-        <Text style={styles.saveButtonText}>
-          {isChangingPassword ? "Đang đổi mật khẩu..." : "Đổi mật khẩu"}
-        </Text>
-      </TouchableOpacity>
-    </View>
-  );
-
-  return (
-    <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
-
-      <KeyboardAvoidingView
-        style={styles.keyboardAvoidingView}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-      >
-        <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => router.back()}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="arrow-back" size={24} color="#333333" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Chỉnh sửa hồ sơ</Text>
-          <View style={styles.headerSpacer} />
-        </View>
-
-        <View style={styles.tabContainer}>
-          <TouchableOpacity
-            style={[
-              styles.tabButton,
-              activeTab === "profile" && styles.activeTabButton,
-            ]}
-            onPress={() => setActiveTab("profile")}
-            activeOpacity={0.7}
-          >
-            <Text
-              style={[
-                styles.tabButtonText,
-                activeTab === "profile" && styles.activeTabButtonText,
-              ]}
+        {/* Action Buttons */}
+        {!isEditing && (
+          <View style={styles.actionSection}>
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={() => router.push("/_auth/phone-verification")}
             >
-              Thông tin cá nhân
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.tabButton,
-              activeTab === "password" && styles.activeTabButton,
-            ]}
-            onPress={() => setActiveTab("password")}
-            activeOpacity={0.7}
-          >
-            <Text
-              style={[
-                styles.tabButtonText,
-                activeTab === "password" && styles.activeTabButtonText,
-              ]}
+              <Ionicons name="call" size={20} color="#3B82F6" />
+              <Text style={styles.actionButtonText}>
+                Xác thực số điện thoại
+              </Text>
+              <Ionicons name="chevron-forward" size={16} color="#9CA3AF" />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={() => router.push("/account/address")}
             >
-              Đổi mật khẩu
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        <ScrollView
-          style={styles.scrollView}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.scrollContent}
-        >
-          {activeTab === "profile" ? renderProfileTab() : renderPasswordTab()}
-        </ScrollView>
-      </KeyboardAvoidingView>
-
-      <ImagePickerModal
-        visible={showImagePicker}
-        onClose={() => setShowImagePicker(false)}
-        onPickFromGallery={handlePickFromGallery}
-        onTakePhoto={handleTakePhoto}
-      />
-
-      <ValidationPopup
-        visible={showValidationPopup}
-        errors={validationErrors}
-        onClose={() => setShowValidationPopup(false)}
-        onContinue={() => setShowValidationPopup(false)}
-      />
+              <Ionicons name="location" size={20} color="#10B981" />
+              <Text style={styles.actionButtonText}>Quản lý địa chỉ</Text>
+              <Ionicons name="chevron-forward" size={16} color="#9CA3AF" />
+            </TouchableOpacity>
+          </View>
+        )}
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -587,10 +456,7 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
-  },
-  keyboardAvoidingView: {
-    flex: 1,
+    backgroundColor: "#F9FAFB",
   },
   header: {
     flexDirection: "row",
@@ -598,74 +464,84 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: 20,
     paddingVertical: 16,
+    backgroundColor: "#FFFFFF",
     borderBottomWidth: 1,
-    borderBottomColor: "#F3F4F6",
+    borderBottomColor: "#E5E7EB",
   },
   backButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "#F9F9F9",
+    backgroundColor: "#F3F4F6",
     justifyContent: "center",
     alignItems: "center",
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: "600",
-    color: "#333333",
+    color: "#111827",
   },
-  headerSpacer: {
-    width: 40,
+  headerRight: {
+    minWidth: 80,
   },
-  tabContainer: {
+  headerActions: {
     flexDirection: "row",
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F3F4F6",
+    alignItems: "center",
+    gap: 8,
   },
-  tabButton: {
-    flex: 1,
-    paddingVertical: 12,
+  cancelButton: {
     paddingHorizontal: 16,
-    borderRadius: 12,
-    marginHorizontal: 4,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: "#F3F4F6",
   },
-  activeTabButton: {
-    backgroundColor: "#E05C78",
-  },
-  tabButtonText: {
+  cancelButtonText: {
     fontSize: 14,
     fontWeight: "500",
-    color: "#666666",
-    textAlign: "center",
+    color: "#6B7280",
   },
-  activeTabButtonText: {
+  saveButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: "#E05C78",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  saveButtonText: {
+    fontSize: 14,
+    fontWeight: "500",
     color: "#FFFFFF",
   },
-  scrollView: {
+  editButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#FEF2F2",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  content: {
     flex: 1,
   },
-  scrollContent: {
-    paddingBottom: 32,
-  },
-  tabContent: {
-    paddingHorizontal: 20,
-  },
-  avatarSection: {
+  profilePictureSection: {
     alignItems: "center",
     paddingVertical: 24,
+    backgroundColor: "#FFFFFF",
+    borderBottomWidth: 1,
+    borderBottomColor: "#E5E7EB",
   },
-  avatarContainer: {
+  profilePictureContainer: {
     position: "relative",
-    marginBottom: 12,
+    marginBottom: 16,
   },
-  avatar: {
+  profilePicture: {
     width: 100,
     height: 100,
     borderRadius: 50,
   },
-  avatarPlaceholder: {
+  profilePicturePlaceholder: {
     width: 100,
     height: 100,
     borderRadius: 50,
@@ -673,7 +549,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  avatarText: {
+  profilePictureText: {
     fontSize: 32,
     fontWeight: "600",
     color: "#FFFFFF",
@@ -685,94 +561,148 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     borderRadius: 12,
     padding: 2,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
   },
-  cameraButton: {
-    position: "absolute",
-    bottom: 0,
-    right: 0,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: "#E05C78",
-    justifyContent: "center",
+  changePictureButton: {
+    flexDirection: "row",
     alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 4,
+    backgroundColor: "#E05C78",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    gap: 6,
   },
-  uploadingButton: {
-    backgroundColor: "#6B7280",
-    shadowOpacity: 0.1,
-  },
-  avatarLabel: {
-    fontSize: 14,
-    color: "#666666",
-  },
-  formSection: {
-    marginTop: 16,
-  },
-  inputGroup: {
-    marginBottom: 20,
-  },
-  inputLabel: {
+  changePictureText: {
     fontSize: 14,
     fontWeight: "500",
-    color: "#333333",
+    color: "#FFFFFF",
+  },
+  formSection: {
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 20,
+    paddingVertical: 24,
+    marginTop: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E5E7EB",
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#111827",
+    marginBottom: 20,
+  },
+  formRow: {
+    flexDirection: "row",
+    gap: 12,
+    marginBottom: 16,
+  },
+  formField: {
+    flex: 1,
+    marginBottom: 16,
+  },
+  fieldLabel: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: "#374151",
     marginBottom: 8,
+  },
+  required: {
+    color: "#EF4444",
   },
   textInput: {
     borderWidth: 1,
-    borderColor: "#E5E7EB",
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    borderColor: "#D1D5DB",
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
     fontSize: 16,
-    color: "#333333",
+    color: "#111827",
     backgroundColor: "#FFFFFF",
   },
-  textArea: {
-    minHeight: 80,
-    textAlignVertical: "top",
+  disabledInput: {
+    backgroundColor: "#F9FAFB",
+    color: "#6B7280",
   },
-  saveButton: {
-    backgroundColor: "#E05C78",
-    borderRadius: 16,
-    paddingVertical: 16,
-    alignItems: "center",
-    marginTop: 24,
-    shadowColor: "#E05C78",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  saveButtonDisabled: {
-    backgroundColor: "#CCCCCC",
-    shadowOpacity: 0,
-    elevation: 0,
-  },
-  saveButtonText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#FFFFFF",
+  fieldNote: {
+    fontSize: 12,
+    color: "#6B7280",
+    marginTop: 4,
+    fontStyle: "italic",
   },
   addressDisplay: {
-    backgroundColor: "#F9F9F9",
-    borderRadius: 12,
-    padding: 12,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
+    borderColor: "#D1D5DB",
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    backgroundColor: "#F9FAFB",
   },
   addressText: {
+    fontSize: 16,
+    color: "#6B7280",
+  },
+  statusSection: {
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 20,
+    paddingVertical: 24,
+    marginTop: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E5E7EB",
+  },
+  statusItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  statusIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#F3F4F6",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 16,
+  },
+  statusContent: {
+    flex: 1,
+  },
+  statusLabel: {
     fontSize: 14,
-    color: "#333333",
-    lineHeight: 20,
+    fontWeight: "500",
+    color: "#374151",
+    marginBottom: 2,
+  },
+  statusValue: {
+    fontSize: 14,
+    color: "#6B7280",
+  },
+  actionSection: {
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 20,
+    paddingVertical: 24,
+    marginTop: 16,
+  },
+  actionButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F3F4F6",
+  },
+  actionButtonText: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: "500",
+    color: "#374151",
+    marginLeft: 12,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  loadingText: {
+    fontSize: 16,
+    color: "#6B7280",
+    marginTop: 16,
   },
 });

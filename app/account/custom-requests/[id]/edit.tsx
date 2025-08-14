@@ -3,7 +3,6 @@ import { router, useLocalSearchParams } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   ScrollView,
   StatusBar,
   Text,
@@ -12,6 +11,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import Toast from "react-native-toast-message";
 import { customRequestApi } from "../../../../services/apis/custom-request.api";
 import { CustomRequestUpdate } from "../../../../services/types";
 
@@ -22,7 +22,7 @@ export default function EditCustomRequestScreen() {
   const [formData, setFormData] = useState<CustomRequestUpdate>({
     title: "",
     description: "",
-    high: 0,
+    height: 0,
     weight: 0,
     bust: 0,
     waist: 0,
@@ -35,13 +35,6 @@ export default function EditCustomRequestScreen() {
     backLength: 0,
     lowerWaist: 0,
     waistToFloor: 0,
-    dressStyle: "",
-    curtainNeckline: "",
-    sleeveStyle: "",
-    material: "",
-    color: "",
-    specialElement: "",
-    coverage: "",
     isPrivate: false,
     status: "DRAFT",
   });
@@ -56,12 +49,12 @@ export default function EditCustomRequestScreen() {
     try {
       setLoading(true);
       const response = await customRequestApi.getRequestById(id);
-      if (response.statusCode === 200) {
+      if (response.statusCode === 200 || response.statusCode === 201) {
         const request = response.item;
         setFormData({
           title: request.title,
           description: request.description,
-          high: request.high,
+          height: request.height,
           weight: request.weight,
           bust: request.bust,
           waist: request.waist,
@@ -74,13 +67,6 @@ export default function EditCustomRequestScreen() {
           backLength: request.backLength,
           lowerWaist: request.lowerWaist,
           waistToFloor: request.waistToFloor,
-          dressStyle: request.dressStyle,
-          curtainNeckline: request.curtainNeckline,
-          sleeveStyle: request.sleeveStyle,
-          material: request.material,
-          color: request.color,
-          specialElement: request.specialElement,
-          coverage: request.coverage,
           isPrivate: request.isPrivate,
           status:
             request.status === "DRAFT" || request.status === "SUBMIT"
@@ -90,7 +76,11 @@ export default function EditCustomRequestScreen() {
       }
     } catch (error) {
       console.error("Error loading request:", error);
-      Alert.alert("Lỗi", "Không thể tải thông tin yêu cầu");
+      Toast.show({
+        type: "error",
+        text1: "Lỗi",
+        text2: "Không thể tải thông tin yêu cầu",
+      });
     } finally {
       setLoading(false);
     }
@@ -106,28 +96,40 @@ export default function EditCustomRequestScreen() {
   const handleSubmit = async () => {
     // Validation
     if (!formData.title?.trim()) {
-      Alert.alert("Lỗi", "Vui lòng nhập tiêu đề yêu cầu");
+      Toast.show({
+        type: "error",
+        text1: "Lỗi",
+        text2: "Vui lòng nhập tiêu đề yêu cầu",
+      });
       return;
     }
     if (!formData.description?.trim()) {
-      Alert.alert("Lỗi", "Vui lòng nhập mô tả yêu cầu");
+      Toast.show({
+        type: "error",
+        text1: "Lỗi",
+        text2: "Vui lòng nhập mô tả yêu cầu",
+      });
       return;
     }
 
     try {
       setSaving(true);
       const response = await customRequestApi.updateRequest(id, formData);
-      if (response.statusCode === 200) {
-        Alert.alert("Thành công", "Đã cập nhật yêu cầu đặt may", [
-          {
-            text: "OK",
-            onPress: () => router.back(),
-          },
-        ]);
+      if (response.statusCode === 200 || response.statusCode === 201) {
+        Toast.show({
+          type: "success",
+          text1: "Thành công",
+          text2: "Đã cập nhật yêu cầu đặt may",
+        });
+        router.back();
       }
     } catch (error) {
       console.error("Error updating request:", error);
-      Alert.alert("Lỗi", "Không thể cập nhật yêu cầu. Vui lòng thử lại.");
+      Toast.show({
+        type: "error",
+        text1: "Lỗi",
+        text2: "Không thể cập nhật yêu cầu. Vui lòng thử lại.",
+      });
     } finally {
       setSaving(false);
     }
@@ -171,7 +173,7 @@ export default function EditCustomRequestScreen() {
       </Text>
 
       <View className="flex-row space-x-3">
-        {renderInputField("Chiều cao (cm)", "high", "170", "numeric")}
+        {renderInputField("Chiều cao (cm)", "height", "170", "numeric")}
         {renderInputField("Cân nặng (kg)", "weight", "55", "numeric")}
       </View>
 
@@ -207,63 +209,63 @@ export default function EditCustomRequestScreen() {
     </View>
   );
 
-  const renderDesignSection = () => (
-    <View className="bg-white rounded-2xl p-4 mb-6 shadow-soft">
-      <Text className="text-lg font-semibold text-gray-800 mb-4">
-        Thiết kế váy
-      </Text>
+  // const renderDesignSection = () => (
+  //   <View className="bg-white rounded-2xl p-4 mb-6 shadow-soft">
+  //     <Text className="text-lg font-semibold text-gray-800 mb-4">
+  //       Thiết kế váy
+  //     </Text>
 
-      {renderInputField(
-        "Kiểu váy",
-        "dressStyle",
-        "Váy ngắn hoặc vạt trước ngắn vạt sau dài",
-        "default",
-        true
-      )}
-      {renderInputField(
-        "Kiểu cổ",
-        "curtainNeckline",
-        "Cổ tim, cổ tròn, cổ thuyền, cổ yếm, cúp ngực",
-        "default",
-        true
-      )}
-      {renderInputField(
-        "Kiểu tay",
-        "sleeveStyle",
-        "Không tay, hai dây, tay trần, tay ngắn",
-        "default",
-        true
-      )}
-      {renderInputField(
-        "Chất liệu",
-        "material",
-        "Kim sa, Đính kết pha lê/ngọc trai",
-        "default",
-        true
-      )}
-      {renderInputField(
-        "Màu sắc",
-        "color",
-        "Trắng tinh, trắng ngà (ivory), kem",
-        "default",
-        true
-      )}
-      {renderInputField(
-        "Chi tiết đặc biệt",
-        "specialElement",
-        "Đính kết pha lê, hoa văn 3D",
-        "default",
-        true
-      )}
-      {renderInputField(
-        "Mức độ hở",
-        "coverage",
-        "Mức độ hở lưng, xẻ ngực",
-        "default",
-        true
-      )}
-    </View>
-  );
+  //     {renderInputField(
+  //       "Kiểu váy",
+  //       "dressStyle",
+  //       "Váy ngắn hoặc vạt trước ngắn vạt sau dài",
+  //       "default",
+  //       true
+  //     )}
+  //     {renderInputField(
+  //       "Kiểu cổ",
+  //       "curtainNeckline",
+  //       "Cổ tim, cổ tròn, cổ thuyền, cổ yếm, cúp ngực",
+  //       "default",
+  //       true
+  //     )}
+  //     {renderInputField(
+  //       "Kiểu tay",
+  //       "sleeveStyle",
+  //       "Không tay, hai dây, tay trần, tay ngắn",
+  //       "default",
+  //       true
+  //     )}
+  //     {renderInputField(
+  //       "Chất liệu",
+  //       "material",
+  //       "Kim sa, Đính kết pha lê/ngọc trai",
+  //       "default",
+  //       true
+  //     )}
+  //     {renderInputField(
+  //       "Màu sắc",
+  //       "color",
+  //       "Trắng tinh, trắng ngà (ivory), kem",
+  //       "default",
+  //       true
+  //     )}
+  //     {renderInputField(
+  //       "Chi tiết đặc biệt",
+  //       "specialElement",
+  //       "Đính kết pha lê, hoa văn 3D",
+  //       "default",
+  //       true
+  //     )}
+  //     {renderInputField(
+  //       "Mức độ hở",
+  //       "coverage",
+  //       "Mức độ hở lưng, xẻ ngực",
+  //       "default",
+  //       true
+  //     )}
+  //   </View>
+  // );
 
   if (loading) {
     return (
@@ -325,7 +327,7 @@ export default function EditCustomRequestScreen() {
           {renderMeasurementSection()}
 
           {/* Design Preferences */}
-          {renderDesignSection()}
+          {/* {renderDesignSection()} */}
 
           {/* Privacy Settings */}
           <View className="bg-white rounded-2xl p-4 mb-6 shadow-soft">
@@ -391,6 +393,7 @@ export default function EditCustomRequestScreen() {
           </TouchableOpacity>
         </View>
       </ScrollView>
+      <Toast />
     </SafeAreaView>
   );
 }

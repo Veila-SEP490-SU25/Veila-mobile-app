@@ -26,11 +26,15 @@ import {
   useLogoutMutation,
   useRefreshTokenMutation,
   useRequestOtpMutation,
+  useUpdateAddressMutation,
+  useUpdateProfileMutation,
   useVerifyOtpMutation,
 } from "../services/apis";
 import {
   IGoogleLogin,
   ILogin,
+  IUpdateAddress,
+  IUpdateProfile,
   IUser,
   IVerifyOtp,
   PhoneVerificationStatus,
@@ -42,6 +46,7 @@ type AuthContextType = {
   logout: () => Promise<void>;
   verifyOtp: (body: IVerifyOtp) => Promise<void>;
   refreshUser: () => Promise<void>;
+  updateUser: (data: IUpdateProfile | IUpdateAddress) => Promise<boolean>;
   user: IUser | null;
   isAuthenticated: boolean;
   isLoading: boolean;
@@ -74,6 +79,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [requestOtpMutation] = useRequestOtpMutation();
   const [getMe, { isFetching: isGetMeLoading }] = useLazyGetMeQuery();
   const [refreshTokenMutation] = useRefreshTokenMutation();
+  const [updateProfileMutation] = useUpdateProfileMutation();
+  const [updateAddressMutation] = useUpdateAddressMutation();
 
   const saveTokens = async (accessToken: string, refreshToken: string) => {
     await setAccessToken(accessToken);
@@ -118,6 +125,56 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       phoneVerificationStatus,
     };
   };
+
+  const updateUser = useCallback(
+    async (data: IUpdateProfile | IUpdateAddress): Promise<boolean> => {
+      try {
+        let response;
+
+        // Check if this is an address update
+        if ("provinceId" in data || "districtId" in data || "wardId" in data) {
+          // For address updates, we need to construct the full address string
+          // and preserve existing profile information
+          const addressData: IUpdateProfile = {
+            firstName: user?.firstName || "",
+            lastName: user?.lastName || "",
+            address: data.fullAddress || data.streetAddress || "", // Use fullAddress or streetAddress as the full address
+          };
+          response = await updateProfileMutation(addressData).unwrap();
+        } else {
+          // Update profile
+          response = await updateProfileMutation(
+            data as IUpdateProfile
+          ).unwrap();
+        }
+
+        if (response.statusCode === 200 && response.item) {
+          const updatedUser = convertApiResponseToUser(response.item);
+          setUser(updatedUser);
+          await setToLocalStorage("user", updatedUser);
+
+          Toast.show({
+            type: "success",
+            text1: "Thành công",
+            text2: "Thông tin đã được cập nhật",
+          });
+
+          return true;
+        } else {
+          throw new Error(response.message || "Failed to update user");
+        }
+      } catch (error) {
+        console.error("Error updating user:", error);
+        Toast.show({
+          type: "error",
+          text1: "Lỗi",
+          text2: "Không thể cập nhật thông tin. Vui lòng thử lại.",
+        });
+        return false;
+      }
+    },
+    [updateProfileMutation, user]
+  );
 
   const handleLogout = useCallback(async () => {
     try {
@@ -399,6 +456,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         logout,
         verifyOtp,
         refreshUser,
+        updateUser,
         user,
         isAuthenticated,
         isLoading,

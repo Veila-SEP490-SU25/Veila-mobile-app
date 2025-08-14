@@ -17,8 +17,6 @@ export class FirebasePhoneAuthService {
     }
 
     try {
-      console.log("Attempting to send verification code to:", phoneNumber);
-
       // Check Firebase connection
       if (!firebase.apps.length) {
         throw new Error("Firebase chưa được khởi tạo. Vui lòng restart app.");
@@ -27,20 +25,13 @@ export class FirebasePhoneAuthService {
       // Use native phone auth (no reCAPTCHA needed)
       const phoneProvider = new firebase.auth.PhoneAuthProvider();
 
-      console.log("Using native Firebase Phone Auth (no reCAPTCHA)");
-
       // For iOS Simulator, we'll use a mock approach
       if (__DEV__) {
-        console.log(
-          "Development mode: Using mock phone verification for iOS Simulator"
-        );
-
         // Simulate successful SMS sending
         await new Promise((resolve) => setTimeout(resolve, 2000));
 
         const mockVerificationId = `mock_verification_${Date.now()}`;
 
-        console.log("Mock SMS sent successfully to", phoneNumber);
         this.lastRequestTime = now;
 
         return {
@@ -66,7 +57,6 @@ export class FirebasePhoneAuthService {
         dummyVerifier
       );
 
-      console.log("Firebase Phone Auth: SMS sent successfully to", phoneNumber);
       this.lastRequestTime = now;
 
       return {
@@ -76,8 +66,6 @@ export class FirebasePhoneAuthService {
         isMock: false,
       };
     } catch (firebaseError: any) {
-      console.error("Firebase Phone Auth error:", firebaseError);
-
       let errorMessage = "Lỗi không xác định";
 
       if (firebaseError.code) {
@@ -130,23 +118,13 @@ export class FirebasePhoneAuthService {
 
   static async verifyCode(verificationId: string, code: string): Promise<any> {
     try {
-      console.log(
-        "Verifying code:",
-        code,
-        "for verification ID:",
-        verificationId
-      );
-
       // For mock mode in development
       if (verificationId.startsWith("mock_verification_")) {
-        console.log("Development mode: Using mock verification");
-
         // Simulate verification delay
         await new Promise((resolve) => setTimeout(resolve, 1500));
 
         // Mock verification logic
         if (code === "123456") {
-          console.log("Mock verification successful");
           return {
             success: true,
             user: {
@@ -169,16 +147,12 @@ export class FirebasePhoneAuthService {
 
       const result = await auth.signInWithCredential(credential);
 
-      console.log("Phone verification successful:", result.user?.uid);
-
       return {
         success: true,
         user: result.user,
         message: "Xác thực thành công",
       };
     } catch (error: any) {
-      console.error("Error verifying code:", error);
-
       if (error.code === "auth/invalid-verification-code") {
         throw new Error("Mã xác thực không đúng. Vui lòng thử lại.");
       } else if (error.code === "auth/invalid-verification-id") {
@@ -201,8 +175,7 @@ export class FirebasePhoneAuthService {
         return true;
       }
       return false;
-    } catch (error) {
-      console.error("Error checking phone verification:", error);
+    } catch {
       return false;
     }
   }

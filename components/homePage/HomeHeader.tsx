@@ -2,13 +2,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React from "react";
-import {
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function HomeHeader({
@@ -27,13 +21,11 @@ export default function HomeHeader({
           <Ionicons name="menu" size={24} color="#fff" />
         </TouchableOpacity>
 
-        <View style={styles.searchContainer}>
-          <Ionicons name="search" size={18} color="#999" />
-          <TextInput
-            placeholder="Tìm váy cưới, phong cách, bài blog..."
-            style={styles.searchInput}
-            placeholderTextColor="#999"
-            returnKeyType="search"
+        <View style={styles.logoContainer}>
+          <Image
+            source={require("../../assets/images/logo.png")}
+            style={styles.logo}
+            resizeMode="contain"
           />
         </View>
 
@@ -94,21 +86,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginRight: 12,
   },
-  searchContainer: {
+  logoContainer: {
     flex: 1,
-    flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(255, 255, 255, 0.9)",
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    justifyContent: "center",
     marginRight: 12,
   },
-  searchInput: {
-    flex: 1,
-    marginLeft: 8,
-    fontSize: 14,
-    color: "#333",
+  logo: {
+    width: 80,
+    height: 32,
   },
   iconButton: {
     width: 40,

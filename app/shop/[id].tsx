@@ -5,19 +5,22 @@ import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  FlatList,
   Image,
-  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
+import Toast from "react-native-toast-message";
+import AccessoryGrid from "../../components/shopping/AccessoryGrid";
+import BlogList from "../../components/shopping/BlogList";
 import CategoryTabs, {
   CategoryType,
 } from "../../components/shopping/CategoryTabs";
 import DressGrid from "../../components/shopping/DressGrid";
 import { shopApi } from "../../services/apis/shop.api";
-import { Dress, ShopDetail } from "../../services/types";
+import { Accessory, Dress, ShopDetail } from "../../services/types";
 
 export default function ShopDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -25,15 +28,89 @@ export default function ShopDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] =
     useState<CategoryType>("DRESS");
+  const [isFavorite, setIsFavorite] = useState(false);
+  const [products, setProducts] = useState<{
+    dresses: Dress[];
+    rentalDresses: Dress[];
+    accessories: Accessory[];
+    blogs: any[];
+  }>({
+    dresses: [],
+    rentalDresses: [],
+    accessories: [],
+    blogs: [],
+  });
 
   const loadShopDetail = useCallback(async () => {
     try {
       if (!id) return;
+      setLoading(true);
+
+      // Load shop details
       const shopData = await shopApi.getShopById(id);
-      setShop(shopData);
+
+      // Check if the response has the expected structure
+      if (shopData && typeof shopData === "object") {
+        // If the response has an 'item' property (wrapped response)
+        if ("item" in shopData && shopData.item) {
+          setShop(shopData.item as ShopDetail);
+        } else if ("id" in shopData && "name" in shopData) {
+          // If the response is directly the shop data
+          const shopDetail: ShopDetail = {
+            id: shopData.id as string,
+            name: shopData.name as string,
+            phone: shopData.phone as string,
+            email: shopData.email as string,
+            address: shopData.address as string,
+            description: shopData.description as string,
+            images: shopData.images as string[] | null,
+            logoUrl: shopData.logoUrl as string,
+            coverUrl: shopData.coverUrl as string,
+          };
+          setShop(shopDetail);
+        } else {
+          Toast.show({
+            type: "error",
+            text1: "Lỗi",
+            text2: "Dữ liệu shop không hợp lệ",
+          });
+          return;
+        }
+      } else {
+        Toast.show({
+          type: "error",
+          text1: "Lỗi",
+          text2: "Dữ liệu shop không hợp lệ",
+        });
+        return;
+      }
+
+      // Load all products
+      const [dresses, accessories, blogs] = await Promise.all([
+        shopApi.getShopDresses(id, 0, 20),
+        shopApi.getShopAccessories(id, 0, 20),
+        shopApi.getShopBlogs(id, 0, 20),
+      ]);
+
+      setProducts({
+        dresses: dresses.items || [],
+        rentalDresses: dresses.items?.filter((d) => d.isRentable) || [],
+        accessories: accessories.items || [],
+        blogs: blogs.items || [],
+      });
+
+      Toast.show({
+        type: "success",
+        text1: "Thành công",
+        text2: "Đã tải thông tin shop",
+      });
     } catch (error) {
       console.error("Error loading shop detail:", error);
-      Alert.alert("Lỗi", "Không thể tải thông tin cửa hàng");
+      Toast.show({
+        type: "error",
+        text1: "Lỗi",
+        text2: "Không thể tải thông tin cửa hàng",
+      });
     } finally {
       setLoading(false);
     }
@@ -44,8 +121,16 @@ export default function ShopDetailScreen() {
   }, [loadShopDetail]);
 
   const handleDressPress = useCallback((dress: Dress) => {
-    Alert.alert("Váy cưới", `Bạn đã chọn: ${dress.name}`);
-    // TODO: Navigate to dress detail
+    router.push(`/dress/${dress.id}` as any);
+  }, []);
+
+  const handleAccessoryPress = useCallback((accessory: Accessory) => {
+    Alert.alert("Phụ kiện", `Bạn đã chọn: ${accessory.name}`);
+    // TODO: Navigate to accessory detail
+  }, []);
+
+  const handleBlogPress = useCallback((blog: any) => {
+    router.push(`/blog/${blog.id}` as any);
   }, []);
 
   const handleContact = useCallback(() => {
@@ -61,6 +146,184 @@ export default function ShopDetailScreen() {
       );
     }
   }, [shop]);
+
+  const handleChat = useCallback(() => {
+    if (shop) {
+      router.push(`/chat/${shop.id}` as any);
+    }
+  }, [shop]);
+
+  const handleCustomRequest = useCallback(() => {
+    router.push(`/account/custom-requests/create?shopId=${id}` as any);
+  }, [id]);
+
+  const handleFavorite = useCallback(() => {
+    setIsFavorite(!isFavorite);
+    Toast.show({
+      type: "success",
+      text1: isFavorite ? "Đã bỏ yêu thích" : "Đã thêm vào yêu thích",
+    });
+  }, [isFavorite]);
+
+  const renderActionButtons = () => (
+    <View style={styles.actionButtonsContainer}>
+      <TouchableOpacity
+        style={[styles.actionButton, styles.chatButton]}
+        onPress={handleChat}
+        activeOpacity={0.8}
+      >
+        <View style={styles.actionButtonContent}>
+          <Ionicons name="chatbubble-ellipses" size={20} color="#FFFFFF" />
+          <Text style={styles.actionButtonText}>Nhắn tin</Text>
+        </View>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={[styles.actionButton, styles.customRequestButton]}
+        onPress={handleCustomRequest}
+        activeOpacity={0.8}
+      >
+        <View style={styles.actionButtonContent}>
+          <Ionicons name="cut" size={20} color="#FFFFFF" />
+          <Text style={styles.actionButtonText}>Đặt may</Text>
+        </View>
+      </TouchableOpacity>
+    </View>
+  );
+
+  const renderShopStats = () => (
+    <View style={styles.statsContainer}>
+      <View style={styles.statItem}>
+        <View style={styles.statIconContainer}>
+          <Ionicons name="shirt-outline" size={20} color="#E05C78" />
+        </View>
+        <Text style={styles.statNumber}>{products.dresses.length}</Text>
+        <Text style={styles.statLabel}>Váy cưới</Text>
+      </View>
+      <View style={styles.statDivider} />
+      <View style={styles.statItem}>
+        <View style={styles.statIconContainer}>
+          <Ionicons name="repeat-outline" size={20} color="#10B981" />
+        </View>
+        <Text style={styles.statNumber}>{products.rentalDresses.length}</Text>
+        <Text style={styles.statLabel}>Váy thuê</Text>
+      </View>
+      <View style={styles.statDivider} />
+      <View style={styles.statItem}>
+        <View style={styles.statIconContainer}>
+          <Ionicons name="diamond-outline" size={20} color="#8B5CF6" />
+        </View>
+        <Text style={styles.statNumber}>{products.accessories.length}</Text>
+        <Text style={styles.statLabel}>Phụ kiện</Text>
+      </View>
+      <View style={styles.statDivider} />
+      <View style={styles.statItem}>
+        <View style={styles.statIconContainer}>
+          <Ionicons name="newspaper-outline" size={20} color="#F59E0B" />
+        </View>
+        <Text style={styles.statNumber}>{products.blogs.length}</Text>
+        <Text style={styles.statLabel}>Bài viết</Text>
+      </View>
+    </View>
+  );
+
+  const renderContent = () => {
+    switch (selectedCategory) {
+      case "DRESS":
+        return (
+          <View style={styles.contentContainer}>
+            <View style={styles.categoryHeader}>
+              <Text style={styles.categoryTitle}>Váy cưới bán</Text>
+              <Text style={styles.categorySubtitle}>
+                {products.dresses.length} sản phẩm có sẵn
+              </Text>
+            </View>
+            {products.dresses.length > 0 ? (
+              <DressGrid
+                shopId={id}
+                onDressPress={handleDressPress}
+                disableScroll={true}
+              />
+            ) : (
+              <View style={styles.emptyContainer}>
+                <Ionicons name="shirt-outline" size={48} color="#CCCCCC" />
+                <Text style={styles.emptyText}>Chưa có váy cưới nào</Text>
+              </View>
+            )}
+          </View>
+        );
+
+      case "RENTAL_DRESS":
+        return (
+          <View style={styles.contentContainer}>
+            <View style={styles.categoryHeader}>
+              <Text style={styles.categoryTitle}>Váy cưới cho thuê</Text>
+              <Text style={styles.categorySubtitle}>
+                {products.rentalDresses.length} sản phẩm có thể thuê
+              </Text>
+            </View>
+            {products.rentalDresses.length > 0 ? (
+              <DressGrid
+                shopId={id}
+                onDressPress={handleDressPress}
+                disableScroll={true}
+              />
+            ) : (
+              <View style={styles.emptyContainer}>
+                <Ionicons name="repeat-outline" size={48} color="#CCCCCC" />
+                <Text style={styles.emptyText}>Chưa có váy cho thuê</Text>
+              </View>
+            )}
+          </View>
+        );
+
+      case "ACCESSORY":
+        return (
+          <View style={styles.contentContainer}>
+            <View style={styles.categoryHeader}>
+              <Text style={styles.categoryTitle}>Phụ kiện cưới</Text>
+              <Text style={styles.categorySubtitle}>
+                {products.accessories.length} sản phẩm
+              </Text>
+            </View>
+            {products.accessories.length > 0 ? (
+              <AccessoryGrid
+                accessories={products.accessories}
+                onAccessoryPress={handleAccessoryPress}
+              />
+            ) : (
+              <View style={styles.emptyContainer}>
+                <Ionicons name="diamond-outline" size={48} color="#CCCCCC" />
+                <Text style={styles.emptyText}>Chưa có phụ kiện nào</Text>
+              </View>
+            )}
+          </View>
+        );
+
+      case "BLOG":
+        return (
+          <View style={styles.contentContainer}>
+            <View style={styles.categoryHeader}>
+              <Text style={styles.categoryTitle}>Bài viết</Text>
+              <Text style={styles.categorySubtitle}>
+                {products.blogs.length} bài viết
+              </Text>
+            </View>
+            {products.blogs.length > 0 ? (
+              <BlogList blogs={products.blogs} onBlogPress={handleBlogPress} />
+            ) : (
+              <View style={styles.emptyContainer}>
+                <Ionicons name="newspaper-outline" size={48} color="#CCCCCC" />
+                <Text style={styles.emptyText}>Chưa có bài viết nào</Text>
+              </View>
+            )}
+          </View>
+        );
+
+      default:
+        return null;
+    }
+  };
 
   if (loading) {
     return (
@@ -99,93 +362,135 @@ export default function ShopDetailScreen() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView
+      <FlatList
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
-      >
-        {/* Cover Image */}
-        <View style={styles.coverContainer}>
-          <Image
-            source={{
-              uri:
-                shop.coverUrl ||
-                shop.images?.[0] ||
-                "https://via.placeholder.com/400x200?text=Cửa+hàng",
-            }}
-            style={styles.coverImage}
-            resizeMode="cover"
-          />
-          <View style={styles.overlay}>
-            <View style={styles.logoContainer}>
+        data={[{ key: "content" }]}
+        renderItem={() => (
+          <>
+            {/* Cover Image */}
+            <View style={styles.coverContainer}>
               <Image
                 source={{
                   uri:
-                    shop.logoUrl ||
-                    "https://via.placeholder.com/80x80?text=Logo",
+                    shop.coverUrl ||
+                    shop.images?.[0] ||
+                    "https://via.placeholder.com/400x200?text=Cửa+hàng",
                 }}
-                style={styles.logo}
+                style={styles.coverImage}
                 resizeMode="cover"
               />
-            </View>
-          </View>
-        </View>
-
-        {/* Shop Info */}
-        <View style={styles.shopInfo}>
-          <Text style={styles.shopName}>{shop.name}</Text>
-          <Text style={styles.shopDescription}>{shop.description}</Text>
-
-          <View style={styles.contactInfo}>
-            <View style={styles.contactItem}>
-              <Ionicons name="call-outline" size={16} color="#666666" />
-              <Text style={styles.contactText}>{shop.phone}</Text>
-            </View>
-
-            <View style={styles.contactItem}>
-              <Ionicons name="mail-outline" size={16} color="#666666" />
-              <Text style={styles.contactText}>{shop.email}</Text>
+              <View style={styles.overlay}>
+                <View style={styles.logoContainer}>
+                  <Image
+                    source={{
+                      uri:
+                        shop.logoUrl ||
+                        "https://via.placeholder.com/80x80?text=Logo",
+                    }}
+                    style={styles.logo}
+                    resizeMode="cover"
+                  />
+                </View>
+              </View>
             </View>
 
-            <View style={styles.contactItem}>
-              <Ionicons name="location-outline" size={16} color="#666666" />
-              <Text style={styles.contactText}>{shop.address}</Text>
-            </View>
-          </View>
+            {/* Shop Info */}
+            <View style={styles.shopInfo}>
+              <View style={styles.shopHeader}>
+                <Text style={styles.shopName}>{shop.name}</Text>
+                <TouchableOpacity
+                  style={[
+                    styles.favoriteButton,
+                    { backgroundColor: isFavorite ? "#EF4444" : "#F3F4F6" },
+                  ]}
+                  onPress={handleFavorite}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons
+                    name={isFavorite ? "heart" : "heart-outline"}
+                    size={20}
+                    color={isFavorite ? "#FFFFFF" : "#E05C78"}
+                  />
+                </TouchableOpacity>
+              </View>
 
-          <TouchableOpacity
-            style={styles.contactButton}
-            onPress={handleContact}
-          >
-            <Ionicons name="call" size={20} color="#FFFFFF" />
-            <Text style={styles.contactButtonText}>Liên hệ ngay</Text>
-          </TouchableOpacity>
-        </View>
+              <Text style={styles.shopDescription}>{shop.description}</Text>
 
-        {/* Category Tabs */}
-        <CategoryTabs
-          selectedCategory={selectedCategory}
-          onSelectCategory={setSelectedCategory}
-        />
+              <View style={styles.contactInfo}>
+                <View style={styles.contactItem}>
+                  <View style={styles.contactIconContainer}>
+                    <Ionicons name="call-outline" size={18} color="#E05C78" />
+                  </View>
+                  <View style={styles.contactTextContainer}>
+                    <Text style={styles.contactLabel}>Điện thoại</Text>
+                    <Text style={styles.contactText}>{shop.phone}</Text>
+                  </View>
+                  <TouchableOpacity style={styles.contactAction}>
+                    <Ionicons name="call" size={16} color="#10B981" />
+                  </TouchableOpacity>
+                </View>
 
-        {/* Content based on selected category */}
-        <View style={styles.contentContainer}>
-          {selectedCategory === "DRESS" && (
-            <DressGrid shopId={id} onDressPress={handleDressPress} />
-          )}
-          {selectedCategory === "ACCESSORY" && (
-            <View style={styles.placeholderContainer}>
-              <Text style={styles.placeholderText}>
-                Phụ kiện - Đang phát triển
-              </Text>
+                <View style={styles.contactItem}>
+                  <View style={styles.contactIconContainer}>
+                    <Ionicons name="mail-outline" size={18} color="#E05C78" />
+                  </View>
+                  <View style={styles.contactTextContainer}>
+                    <Text style={styles.contactLabel}>Email</Text>
+                    <Text style={styles.contactText}>{shop.email}</Text>
+                  </View>
+                  <TouchableOpacity style={styles.contactAction}>
+                    <Ionicons name="mail" size={16} color="#3B82F6" />
+                  </TouchableOpacity>
+                </View>
+
+                <View style={styles.contactItem}>
+                  <View style={styles.contactIconContainer}>
+                    <Ionicons
+                      name="location-outline"
+                      size={18}
+                      color="#E05C78"
+                    />
+                  </View>
+                  <View style={styles.contactTextContainer}>
+                    <Text style={styles.contactLabel}>Địa chỉ</Text>
+                    <Text style={styles.contactText}>{shop.address}</Text>
+                  </View>
+                  <TouchableOpacity style={styles.contactAction}>
+                    <Ionicons name="navigate" size={16} color="#F59E0B" />
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              {/* Action Buttons */}
+              {renderActionButtons()}
+
+              {/* Contact Button */}
+              <TouchableOpacity
+                style={styles.contactButton}
+                onPress={handleContact}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="call" size={20} color="#FFFFFF" />
+                <Text style={styles.contactButtonText}>Liên hệ ngay</Text>
+              </TouchableOpacity>
+
+              {/* Shop Stats */}
+              {renderShopStats()}
             </View>
-          )}
-          {selectedCategory === "BLOG" && (
-            <View style={styles.placeholderContainer}>
-              <Text style={styles.placeholderText}>Blog - Đang phát triển</Text>
-            </View>
-          )}
-        </View>
-      </ScrollView>
+
+            {/* Category Tabs */}
+            <CategoryTabs
+              selectedCategory={selectedCategory}
+              onSelectCategory={setSelectedCategory}
+            />
+
+            {/* Content based on selected category */}
+            {renderContent()}
+          </>
+        )}
+        keyExtractor={(item) => item.key}
+      />
     </View>
   );
 }
@@ -291,12 +596,24 @@ const styles = StyleSheet.create({
     padding: 20,
     backgroundColor: "#FFFFFF",
   },
+  shopHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
+  },
   shopName: {
     fontSize: 24,
     fontWeight: "700",
     color: "#333333",
-    marginBottom: 8,
-    textAlign: "center",
+    flex: 1,
+  },
+  favoriteButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: "center",
+    alignItems: "center",
   },
   shopDescription: {
     fontSize: 14,
@@ -311,13 +628,32 @@ const styles = StyleSheet.create({
   contactItem: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 8,
+    marginBottom: 12,
+  },
+  contactIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#F3F4F6",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+  },
+  contactTextContainer: {
+    flex: 1,
+  },
+  contactLabel: {
+    fontSize: 12,
+    color: "#666666",
+    marginBottom: 4,
   },
   contactText: {
     fontSize: 14,
-    color: "#666666",
-    marginLeft: 8,
-    flex: 1,
+    fontWeight: "600",
+    color: "#333333",
+  },
+  contactAction: {
+    padding: 8,
   },
   contactButton: {
     flexDirection: "row",
@@ -339,18 +675,103 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     marginLeft: 8,
   },
-  contentContainer: {
+  actionButtonsContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 20,
+    marginBottom: 20,
+    gap: 12,
+  },
+  actionButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 25,
+    shadowColor: "#E05C78",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
     flex: 1,
   },
-  placeholderContainer: {
+  chatButton: {
+    backgroundColor: "#3B82F6",
+  },
+  customRequestButton: {
+    backgroundColor: "#10B981",
+  },
+  actionButtonContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  actionButtonText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#FFFFFF",
+    marginLeft: 8,
+  },
+  statsContainer: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    marginTop: 20,
+    marginBottom: 20,
+  },
+  statItem: {
+    alignItems: "center",
+  },
+  statIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#F3F4F6",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  statNumber: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: "#E05C78",
+  },
+  statLabel: {
+    fontSize: 12,
+    color: "#666666",
+    marginTop: 4,
+  },
+  statDivider: {
+    width: 1,
+    height: "100%",
+    backgroundColor: "#E0E0E0",
+  },
+  contentContainer: {
+    padding: 20,
+  },
+  categoryHeader: {
+    marginBottom: 15,
+  },
+  categoryTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: "#333333",
+  },
+  categorySubtitle: {
+    fontSize: 14,
+    color: "#666666",
+    marginTop: 4,
+  },
+  emptyContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
     padding: 40,
   },
-  placeholderText: {
+  emptyText: {
     fontSize: 16,
     fontWeight: "600",
     color: "#666666",
+    marginTop: 10,
   },
 });

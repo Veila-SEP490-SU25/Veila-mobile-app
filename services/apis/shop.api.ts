@@ -38,15 +38,15 @@ export const shopApi = {
     sort?: string
   ): Promise<ShopListResponse> => {
     let url = `/shops?page=${page}&size=${size}`;
-    
+
     if (filter) {
       url += `&filter=${encodeURIComponent(filter)}`;
     }
-    
+
     if (sort) {
       url += `&sort=${encodeURIComponent(sort)}`;
     }
-    
+
     return makeRequest(url);
   },
 
@@ -100,5 +100,10 @@ export const shopApi = {
     size: number = 10
   ): Promise<any> => {
     return makeRequest(`/shops/${shopId}/blogs?page=${page}&size=${size}`);
+  },
+
+  // Get accessory detail
+  getAccessoryById: async (id: string): Promise<any> => {
+    return makeRequest(`/accessories/${id}`);
   },
 };

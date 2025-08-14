@@ -10,7 +10,7 @@ export interface WalletUser {
   middleName: string;
   lastName: string;
   phone: string;
-  address: string;
+  address: string | null;
   birthDate: string | null;
   avatarUrl: string | null;
   coverUrl: string | null;
@@ -27,8 +27,10 @@ export interface Wallet {
   createdAt: string;
   updatedAt: string;
   deletedAt: string | null;
-  availableBalance: string;
-  lockedBalance: string;
+  availableBalance: number | string;
+  lockedBalance: number | string;
+  bin?: string | null;
+  bankNumber?: string | null;
   user: WalletUser;
 }
 
@@ -36,4 +38,4 @@ export interface WalletResponse {
   message: string;
   statusCode: number;
   item: Wallet;
-} 
+}

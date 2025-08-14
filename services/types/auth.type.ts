@@ -42,14 +42,22 @@ export interface IResetPassword {
 }
 
 export interface IUpdateProfile {
-  firstName: string;
+  firstName?: string;
   middleName?: string;
-  lastName: string;
+  lastName?: string;
   address?: string;
   birthDate?: string;
   avatarUrl?: string;
   coverUrl?: string;
   images?: string;
+}
+
+export interface IUpdateAddress {
+  provinceId?: string;
+  districtId?: string;
+  wardId?: string;
+  streetAddress?: string;
+  fullAddress?: string;
 }
 
 export interface IChangePassword {

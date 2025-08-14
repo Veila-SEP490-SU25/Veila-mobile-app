@@ -1,12 +1,14 @@
+import { Ionicons } from "@expo/vector-icons";
 import React from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
-export type CategoryType = "DRESS" | "BLOG";
+export type CategoryType = "DRESS" | "RENTAL_DRESS" | "ACCESSORY" | "BLOG";
 
 interface CategoryTab {
   id: CategoryType;
   label: string;
-  icon: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  description: string;
 }
 
 interface CategoryTabsProps {
@@ -18,12 +20,26 @@ const categories: CategoryTab[] = [
   {
     id: "DRESS",
     label: "Váy cưới",
-    icon: "👗",
+    icon: "shirt-outline",
+    description: "Mua sở hữu",
+  },
+  {
+    id: "RENTAL_DRESS",
+    label: "Váy thuê",
+    icon: "repeat-outline",
+    description: "Thuê theo ngày",
+  },
+  {
+    id: "ACCESSORY",
+    label: "Phụ kiện",
+    icon: "diamond-outline",
+    description: "Phụ kiện cưới",
   },
   {
     id: "BLOG",
     label: "Blog",
-    icon: "📝",
+    icon: "newspaper-outline",
+    description: "Bài viết",
   },
 ];
 
@@ -43,14 +59,27 @@ export default function CategoryTabs({
               onPress={() => onSelectCategory(category.id)}
               activeOpacity={0.8}
             >
-              <Text style={[styles.tabIcon, isActive && styles.activeTabIcon]}>
-                {category.icon}
-              </Text>
-              <Text
-                style={[styles.tabLabel, isActive && styles.activeTabLabel]}
-              >
-                {category.label}
-              </Text>
+              <View style={styles.tabContent}>
+                <Ionicons
+                  name={category.icon}
+                  size={20}
+                  color={isActive ? "#FFFFFF" : "#666666"}
+                  style={styles.tabIcon}
+                />
+                <Text
+                  style={[styles.tabLabel, isActive && styles.activeTabLabel]}
+                >
+                  {category.label}
+                </Text>
+                <Text
+                  style={[
+                    styles.tabDescription,
+                    isActive && styles.activeTabDescription,
+                  ]}
+                >
+                  {category.description}
+                </Text>
+              </View>
               {isActive && <View style={styles.activeIndicator} />}
             </TouchableOpacity>
           );
@@ -94,8 +123,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.18,
     transform: [{ scale: 1.02 }],
   },
+  tabContent: {
+    alignItems: "center",
+  },
   tabIcon: {
-    fontSize: 24,
     marginBottom: 6,
   },
   activeTabIcon: {
@@ -110,6 +141,15 @@ const styles = StyleSheet.create({
   activeTabLabel: {
     color: "#FFFFFF",
     fontWeight: "700",
+  },
+  tabDescription: {
+    fontSize: 10,
+    color: "#999999",
+    textAlign: "center",
+    marginTop: 4,
+  },
+  activeTabDescription: {
+    color: "#FFFFFF",
   },
   activeIndicator: {
     position: "absolute",

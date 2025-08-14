@@ -1,8 +1,16 @@
 import { Ionicons } from "@expo/vector-icons";
 import assets from "assets";
 import { LoadingItem } from "components/loadingItem";
+import { useRouter } from "expo-router";
 import React, { Suspense } from "react";
-import { Image, SafeAreaView, ScrollView, Text, View } from "react-native";
+import {
+  Image,
+  SafeAreaView,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import PhoneVerificationForm from "../../components/auth/verify/PhoneVerificationForm";
 import { useAuth } from "../../providers/auth.provider";
 
@@ -10,6 +18,7 @@ const Separator = () => <View className="w-full h-px bg-gray-200 my-6" />;
 
 const PhoneVerificationScreen = () => {
   const { user } = useAuth();
+  const router = useRouter();
 
   const getScreenTitle = () => {
     if (!user?.phone) {
@@ -35,7 +44,16 @@ const PhoneVerificationScreen = () => {
       >
         {/* Header Section */}
         <View className="px-6 ">
-          <View className="items-center">
+          {/* Back Button */}
+          <TouchableOpacity
+            onPress={() => router.back()}
+            className="absolute top-4 left-4 z-10 w-10 h-10 rounded-full bg-gray-100 items-center justify-center"
+            activeOpacity={0.8}
+          >
+            <Ionicons name="arrow-back" size={20} color="#374151" />
+          </TouchableOpacity>
+
+          <View className="items-center  ">
             <Image
               source={assets.Images.logo}
               resizeMode="contain"
@@ -70,7 +88,7 @@ const PhoneVerificationScreen = () => {
         </View>
 
         {/* Security Features */}
-        <View className="px-6 pb-6 mt-6 space-y-3">
+        <View className="px-10 pb-6 gap-y-3">
           {/* Project Verification */}
           <View className="bg-gradient-to-r from-purple-50 to-violet-50 rounded-xl p-4 border border-purple-200 shadow-sm">
             <View className="flex-row items-start">

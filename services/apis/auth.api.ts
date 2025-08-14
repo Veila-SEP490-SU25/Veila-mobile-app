@@ -12,6 +12,7 @@ import {
   IRequestResetPassword,
   IResetPassword,
   IToken,
+  IUpdateAddress,
   IUpdateProfile,
   IUser,
   IUserResponse,
@@ -53,6 +54,14 @@ export const authApi = createApi({
     }),
 
     updateProfile: builder.mutation<IItemResponse<IUser>, IUpdateProfile>({
+      query: (body) => ({
+        url: "auth/me",
+        method: "PUT",
+        body,
+      }),
+    }),
+
+    updateAddress: builder.mutation<IItemResponse<IUser>, IUpdateAddress>({
       query: (body) => ({
         url: "auth/me",
         method: "PUT",
@@ -142,6 +151,7 @@ export const {
   useLogoutMutation,
   useLazyGetMeQuery,
   useUpdateProfileMutation,
+  useUpdateAddressMutation,
   useChangePasswordMutation,
   useRefreshTokenMutation,
   useRegisterMutation,

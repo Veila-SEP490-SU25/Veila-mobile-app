@@ -22,8 +22,35 @@ const makeRequest = async (endpoint: string, options: RequestInit = {}) => {
   return response.json();
 };
 
+export interface DepositRequest {
+  amount: number;
+  note?: string;
+  returnUrl: string;
+  cancelUrl: string;
+}
+
+export interface DepositResponseItem {
+  transactionId: string;
+  orderCode: number;
+  checkoutUrl: string;
+  qrCode: string;
+  expiredAt: number;
+}
+
+export interface DepositResponse {
+  message: string;
+  statusCode: number;
+  item: DepositResponseItem;
+}
+
 export const walletApi = {
   getMyWallet: async (): Promise<WalletResponse> => {
-    return makeRequest("/wallet/my-wallet");
+    return makeRequest("/wallets/my-wallet");
   },
-}; 
+  deposit: async (body: DepositRequest): Promise<DepositResponse> => {
+    return makeRequest("/wallets/deposit", {
+      method: "PUT",
+      body: JSON.stringify(body),
+    });
+  },
+};

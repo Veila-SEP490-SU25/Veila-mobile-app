@@ -13,6 +13,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import Toast from "react-native-toast-message";
 import { customRequestApi } from "../../services/apis/custom-request.api";
 import { CustomRequest } from "../../services/types";
 
@@ -69,12 +70,11 @@ export default function CustomRequestsScreen() {
           filters.push(`title:like:${debouncedSearchQuery.trim()}`);
         }
 
-        // Temporarily comment out privacy filter to test
-        // if (selectedFilter === "PRIVATE") {
-        //   filters.push("isPrivate:eq:true");
-        // } else if (selectedFilter === "PUBLIC") {
-        //   filters.push("isPrivate:eq:false");
-        // }
+        if (selectedFilter === "PRIVATE") {
+          filters.push("isPrivate:eq:true");
+        } else if (selectedFilter === "PUBLIC") {
+          filters.push("isPrivate:eq:false");
+        }
 
         if (selectedStatus !== "ALL") {
           filters.push(`status:eq:${selectedStatus}`);
@@ -84,21 +84,6 @@ export default function CustomRequestsScreen() {
           filterString = filters.join(",");
         }
 
-        // Debug logs
-        console.log("Filter Debug:", {
-          selectedFilter,
-          selectedStatus,
-          filters,
-          filterString,
-          currentPage,
-          "isPrivate filter":
-            selectedFilter === "PRIVATE"
-              ? "isPrivate:eq:true"
-              : selectedFilter === "PUBLIC"
-                ? "isPrivate:eq:false"
-                : "none",
-        });
-
         const response = await customRequestApi.getMyRequests(
           currentPage,
           10,
@@ -107,7 +92,7 @@ export default function CustomRequestsScreen() {
         );
         console.log("API Response:", response);
 
-        if (response.statusCode === 200) {
+        if (response.statusCode === 200 || response.statusCode === 201) {
           let filteredItems = response.items;
 
           // Client-side filtering for privacy if API doesn't support it
@@ -132,7 +117,7 @@ export default function CustomRequestsScreen() {
           } else {
             setRequests((prev) => [...prev, ...filteredItems]);
           }
-          setHasNextPage(response.hasNextPage && filteredItems.length > 0);
+          setHasNextPage(response.hasNextPage);
         }
       } catch (error) {
         console.error("Error loading requests:", error);
@@ -162,22 +147,39 @@ export default function CustomRequestsScreen() {
   };
 
   const handleDeleteRequest = (id: string) => {
-    Alert.alert("Xác nhận xóa", "Bạn có chắc chắn muốn xóa yêu cầu này?", [
-      { text: "Hủy", style: "cancel" },
-      {
-        text: "Xóa",
-        style: "destructive",
-        onPress: async () => {
-          try {
-            await customRequestApi.deleteRequest(id);
-            setRequests((prev) => prev.filter((req) => req.id !== id));
-            Alert.alert("Thành công", "Đã xóa yêu cầu");
-          } catch {
-            Alert.alert("Lỗi", "Không thể xóa yêu cầu");
-          }
-        },
+    Toast.show({
+      type: "info",
+      text1: "Xác nhận xóa",
+      text2: "Bạn có chắc chắn muốn xóa yêu cầu này?",
+      onPress: () => {
+        // Show confirmation dialog
+        Toast.show({
+          type: "info",
+          text1: "Xác nhận",
+          text2: "Nhấn lại để xác nhận xóa",
+          onPress: () => deleteRequest(id),
+        });
       },
-    ]);
+    });
+  };
+
+  const deleteRequest = async (id: string) => {
+    try {
+      await customRequestApi.deleteRequest(id);
+      setRequests((prev) => prev.filter((req) => req.id !== id));
+      Toast.show({
+        type: "success",
+        text1: "Thành công",
+        text2: "Đã xóa yêu cầu",
+      });
+    } catch (error) {
+      console.error("Error deleting request:", error);
+      Toast.show({
+        type: "error",
+        text1: "Lỗi",
+        text2: "Không thể xóa yêu cầu",
+      });
+    }
   };
 
   const renderFilterTabs = () => (
@@ -283,6 +285,22 @@ export default function CustomRequestsScreen() {
           {item.description}
         </Text>
 
+        {/* Measurements Preview */}
+        <View className="bg-gray-50 rounded-lg p-3 mb-3">
+          <Text className="text-xs font-medium text-gray-700 mb-2">
+            Kích thước:
+          </Text>
+          <View className="flex-row flex-wrap gap-2">
+            <Text className="text-xs text-gray-600">Cao: {item.height}cm</Text>
+            <Text className="text-xs text-gray-600">
+              Cân nặng: {item.weight}kg
+            </Text>
+            <Text className="text-xs text-gray-600">Ngực: {item.bust}cm</Text>
+            <Text className="text-xs text-gray-600">Eo: {item.waist}cm</Text>
+            <Text className="text-xs text-gray-600">Hông: {item.hip}cm</Text>
+          </View>
+        </View>
+
         <View className="flex-row items-center justify-between mb-3">
           <View className="flex-row items-center">
             <Ionicons name="calendar-outline" size={16} color="#6B7280" />
@@ -334,7 +352,7 @@ export default function CustomRequestsScreen() {
       </Text>
       <Text className="text-gray-400 text-center mt-2">
         {searchQuery || selectedFilter !== "ALL" || selectedStatus !== "ALL"
-          ? `Bộ lọc hiện tại: ${selectedFilter !== "ALL" ? `${selectedFilter === "PRIVATE" ? "Riêng tư" : "Công khai"}` : ""}${selectedStatus !== "ALL" ? ` ${selectedStatus === "DRAFT" ? "Bản nháp" : "Đã đăng"}` : ""}${searchQuery ? ` "${searchQuery}"` : ""}`
+          ? "Thử thay đổi bộ lọc hoặc từ khóa tìm kiếm"
           : "Tạo yêu cầu đầu tiên để bắt đầu thiết kế váy cưới"}
       </Text>
       {!searchQuery && selectedFilter === "ALL" && selectedStatus === "ALL" && (
@@ -438,6 +456,7 @@ export default function CustomRequestsScreen() {
           }
         />
       )}
+      <Toast />
     </SafeAreaView>
   );
 }

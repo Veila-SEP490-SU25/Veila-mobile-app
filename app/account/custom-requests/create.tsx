@@ -3,7 +3,6 @@ import { router } from "expo-router";
 import React, { useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   ScrollView,
   StatusBar,
   Text,
@@ -12,6 +11,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import Toast from "react-native-toast-message";
 import { customRequestApi } from "../../../services/apis/custom-request.api";
 import { CustomRequestCreate } from "../../../services/types";
 
@@ -20,7 +20,8 @@ export default function CreateCustomRequestScreen() {
   const [formData, setFormData] = useState<CustomRequestCreate>({
     title: "",
     description: "",
-    high: 0,
+    images: "",
+    height: 0,
     weight: 0,
     bust: 0,
     waist: 0,
@@ -33,16 +34,69 @@ export default function CreateCustomRequestScreen() {
     backLength: 0,
     lowerWaist: 0,
     waistToFloor: 0,
-    dressStyle: "",
-    curtainNeckline: "",
-    sleeveStyle: "",
-    material: "",
-    color: "",
-    specialElement: "",
-    coverage: "",
-    isPrivate: false,
     status: "DRAFT",
+    isPrivate: false,
   });
+
+  const handleSave = async () => {
+    if (!formData.title.trim()) {
+      Toast.show({
+        type: "error",
+        text1: "Lỗi",
+        text2: "Vui lòng nhập tiêu đề yêu cầu",
+      });
+      return;
+    }
+
+    if (!formData.description.trim()) {
+      Toast.show({
+        type: "error",
+        text1: "Lỗi",
+        text2: "Vui lòng nhập mô tả yêu cầu",
+      });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await customRequestApi.createRequest(formData);
+
+      console.log("API Response:", response); // Debug log
+
+      // Check for successful status codes (200 OK or 201 Created)
+      if (
+        response &&
+        (response.statusCode === 200 || response.statusCode === 201)
+      ) {
+        Toast.show({
+          type: "success",
+          text1: "Thành công",
+          text2: response.message || "Đã tạo yêu cầu mới",
+        });
+        router.back();
+      } else {
+        // Unexpected response format
+        Toast.show({
+          type: "error",
+          text1: "Lỗi",
+          text2: "Phản hồi không hợp lệ từ máy chủ",
+        });
+      }
+    } catch (error) {
+      console.error("Error creating request:", error);
+
+      // Show error message
+      const errorMessage =
+        error instanceof Error ? error.message : "Không thể tạo yêu cầu";
+      Toast.show({
+        type: "error",
+        text1: "Lỗi",
+        text2: "Không thể tạo yêu cầu. Vui lòng thử lại.",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const updateField = (
     field: keyof CustomRequestCreate,
@@ -51,47 +105,12 @@ export default function CreateCustomRequestScreen() {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handleSubmit = async () => {
-    // Validation
-    if (!formData.title.trim()) {
-      Alert.alert("Lỗi", "Vui lòng nhập tiêu đề yêu cầu");
-      return;
-    }
-    if (!formData.description.trim()) {
-      Alert.alert("Lỗi", "Vui lòng nhập mô tả yêu cầu");
-      return;
-    }
-
-    try {
-      setLoading(true);
-      const response = await customRequestApi.createRequest(formData);
-      if (response.statusCode === 200) {
-        const successMessage =
-          formData.status === "DRAFT"
-            ? "Đã lưu nháp yêu cầu. Bạn có thể chỉnh sửa và gửi sau."
-            : "Đã gửi yêu cầu đặt may. Chúng tôi sẽ xem xét và liên hệ với bạn sớm nhất.";
-
-        Alert.alert("Thành công", successMessage, [
-          {
-            text: "OK",
-            onPress: () => router.back(),
-          },
-        ]);
-      }
-    } catch (error) {
-      console.error("Error creating request:", error);
-      Alert.alert("Lỗi", "Không thể tạo yêu cầu. Vui lòng thử lại.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const renderInputField = (
     label: string,
     field: keyof CustomRequestCreate,
     placeholder: string,
     keyboardType: "default" | "numeric" = "default",
-    multiline = false
+    multiline: boolean = false
   ) => (
     <View className="mb-4">
       <Text className="text-base font-medium text-gray-700 mb-2">{label}</Text>
@@ -124,7 +143,7 @@ export default function CreateCustomRequestScreen() {
       </Text>
 
       <View className="flex-row space-x-3">
-        {renderInputField("Chiều cao (cm)", "high", "170", "numeric")}
+        {renderInputField("Chiều cao (cm)", "height", "170", "numeric")}
         {renderInputField("Cân nặng (kg)", "weight", "55", "numeric")}
       </View>
 
@@ -160,63 +179,63 @@ export default function CreateCustomRequestScreen() {
     </View>
   );
 
-  const renderDesignSection = () => (
-    <View className="bg-white rounded-2xl p-4 mb-6 shadow-soft">
-      <Text className="text-lg font-semibold text-gray-800 mb-4">
-        Thiết kế váy
-      </Text>
+  // const renderDesignSection = () => (
+  //   <View className="bg-white rounded-2xl p-4 mb-6 shadow-soft">
+  //     <Text className="text-lg font-semibold text-gray-800 mb-4">
+  //       Thiết kế váy
+  //     </Text>
 
-      {renderInputField(
-        "Kiểu váy",
-        "dressStyle",
-        "Váy ngắn hoặc vạt trước ngắn vạt sau dài",
-        "default",
-        true
-      )}
-      {renderInputField(
-        "Kiểu cổ",
-        "curtainNeckline",
-        "Cổ tim, cổ tròn, cổ thuyền, cổ yếm, cúp ngực",
-        "default",
-        true
-      )}
-      {renderInputField(
-        "Kiểu tay",
-        "sleeveStyle",
-        "Không tay, hai dây, tay trần, tay ngắn",
-        "default",
-        true
-      )}
-      {renderInputField(
-        "Chất liệu",
-        "material",
-        "Kim sa, Đính kết pha lê/ngọc trai",
-        "default",
-        true
-      )}
-      {renderInputField(
-        "Màu sắc",
-        "color",
-        "Trắng tinh, trắng ngà (ivory), kem",
-        "default",
-        true
-      )}
-      {renderInputField(
-        "Chi tiết đặc biệt",
-        "specialElement",
-        "Đính kết pha lê, hoa văn 3D",
-        "default",
-        true
-      )}
-      {renderInputField(
-        "Mức độ hở",
-        "coverage",
-        "Mức độ hở lưng, xẻ ngực",
-        "default",
-        true
-      )}
-    </View>
-  );
+  //     {renderInputField(
+  //       "Kiểu váy",
+  //       "dressStyle",
+  //       "Váy ngắn hoặc vạt trước ngắn vạt sau dài",
+  //       "default",
+  //       true
+  //     )}
+  //     {renderInputField(
+  //       "Kiểu cổ",
+  //       "curtainNeckline",
+  //       "Cổ tim, cổ tròn, cổ thuyền, cổ yếm, cúp ngực",
+  //       "default",
+  //       true
+  //     )}
+  //     {renderInputField(
+  //       "Kiểu tay",
+  //       "sleeveStyle",
+  //       "Không tay, hai dây, tay trần, tay ngắn",
+  //       "default",
+  //       true
+  //     )}
+  //     {renderInputField(
+  //       "Chất liệu",
+  //       "material",
+  //       "Kim sa, Đính kết pha lê/ngọc trai",
+  //       "default",
+  //       true
+  //     )}
+  //     {renderInputField(
+  //       "Màu sắc",
+  //       "color",
+  //       "Trắng tinh, trắng ngà (ivory), kem",
+  //       "default",
+  //       true
+  //     )}
+  //     {renderInputField(
+  //       "Chi tiết đặc biệt",
+  //       "specialElement",
+  //       "Đính kết pha lê, hoa văn 3D",
+  //       "default",
+  //       true
+  //     )}
+  //     {renderInputField(
+  //       "Mức độ hở",
+  //       "coverage",
+  //       "Mức độ hở lưng, xẻ ngực",
+  //       "default",
+  //       true
+  //     )}
+  //   </View>
+  // );
 
   return (
     <SafeAreaView className="flex-1 bg-gray-50">
@@ -258,13 +277,15 @@ export default function CreateCustomRequestScreen() {
               "default",
               true
             )}
+            {renderInputField(
+              "Hình ảnh tham khảo",
+              "images",
+              "URL hình ảnh (phân cách bằng dấu phẩy)"
+            )}
           </View>
 
           {/* Measurements */}
           {renderMeasurementSection()}
-
-          {/* Design Preferences */}
-          {renderDesignSection()}
 
           {/* Status Selection */}
           <View className="bg-white rounded-2xl p-4 mb-6 shadow-soft">
@@ -417,7 +438,7 @@ export default function CreateCustomRequestScreen() {
             className={`w-full py-4 rounded-xl mb-8 ${
               loading ? "bg-gray-400" : "bg-primary-500"
             }`}
-            onPress={handleSubmit}
+            onPress={handleSave}
             disabled={loading}
           >
             {loading ? (
@@ -437,6 +458,7 @@ export default function CreateCustomRequestScreen() {
           </TouchableOpacity>
         </View>
       </ScrollView>
+      <Toast />
     </SafeAreaView>
   );
 }

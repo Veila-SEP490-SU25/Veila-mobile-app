@@ -1,9 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -12,6 +11,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import Toast from "react-native-toast-message";
 import { useAuth } from "../../../providers/auth.provider";
 import { useVerifyPhoneMutation } from "../../../services/apis/auth.api";
 import { FirebasePhoneAuthService } from "../../../services/firebase-phone-auth";
@@ -30,6 +30,8 @@ export default function PhoneVerificationForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [confirmationResult, setConfirmationResult] = useState<any>(null);
+  const [resendCountdown, setResendCountdown] = useState(0);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Update phoneNumber when user changes
   useEffect(() => {
@@ -37,6 +39,27 @@ export default function PhoneVerificationForm() {
       setPhoneNumber(user.phone);
     }
   }, [user?.phone]);
+
+  // Cleanup timer on unmount
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, []);
+
+  const startResendTimer = (seconds: number = 60) => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    setResendCountdown(seconds);
+    timerRef.current = setInterval(() => {
+      setResendCountdown((prev) => {
+        if (prev <= 1) {
+          if (timerRef.current) clearInterval(timerRef.current);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
 
   // Check if phone number has changed
   const hasPhoneChanged = user?.phone && phoneNumber !== user.phone;
@@ -56,6 +79,14 @@ export default function PhoneVerificationForm() {
     return "Đã xác thực";
   };
 
+  const formatToE164VN = (raw: string) => {
+    const t = raw.trim();
+    if (!t) return "";
+    if (t.startsWith("+84")) return t;
+    if (t.startsWith("0")) return `+84${t.slice(1)}`;
+    return `+84${t}`;
+  };
+
   const handlePhoneChange = (text: string) => {
     setPhoneNumber(text);
     setError("");
@@ -71,14 +102,7 @@ export default function PhoneVerificationForm() {
     setError("");
 
     try {
-      const formattedPhone = phoneNumber.startsWith("0")
-        ? `+84${phoneNumber.slice(1)}`
-        : phoneNumber.startsWith("+84")
-          ? phoneNumber
-          : `+84${phoneNumber}`;
-
-      console.log("Sending verification code to:", formattedPhone);
-
+      const formattedPhone = formatToE164VN(phoneNumber);
       const result =
         await FirebasePhoneAuthService.sendVerificationCode(formattedPhone);
 
@@ -86,22 +110,26 @@ export default function PhoneVerificationForm() {
         setConfirmationResult(result);
         setStep("otp");
         setError("");
-        console.log("Verification code sent successfully");
+        startResendTimer(60);
 
-        // Show success message for mock mode
         if (result.isMock) {
-          Alert.alert(
-            "Mã xác thực đã được gửi",
-            "Vui lòng kiểm tra tin nhắn SMS và nhập mã 6 số",
-            [{ text: "OK" }]
-          );
+          Toast.show({
+            type: "info",
+            text1: "Mã xác thực đã được gửi",
+            text2: "Vui lòng kiểm tra SMS và nhập mã 6 số",
+          });
         }
       } else {
         setError("Không thể gửi mã xác thực. Vui lòng thử lại.");
+        Toast.show({ type: "error", text1: "Gửi mã thất bại" });
       }
     } catch (error: any) {
-      console.error("Error sending code:", error);
       setError(error.message || "Lỗi không xác định");
+      Toast.show({
+        type: "error",
+        text1: "Gửi mã thất bại",
+        text2: error.message,
+      });
     } finally {
       setIsLoading(false);
     }
@@ -110,11 +138,13 @@ export default function PhoneVerificationForm() {
   const handleVerifyCode = async () => {
     if (!code.trim() || code.length !== 6) {
       setError("Vui lòng nhập mã 6 số");
+      Toast.show({ type: "warning", text1: "Mã OTP không hợp lệ" });
       return;
     }
 
     if (!confirmationResult) {
       setError("Không có thông tin xác thực. Vui lòng gửi lại mã.");
+      Toast.show({ type: "error", text1: "Thiếu thông tin xác thực" });
       return;
     }
 
@@ -130,72 +160,80 @@ export default function PhoneVerificationForm() {
       if (result.success) {
         setError("");
 
-        // Call backend API to save verified phone number
         try {
-          console.log(
-            "Calling backend API to save verified phone number:",
-            phoneNumber
-          );
-
-          const backendResult = await verifyPhone({
-            phone: phoneNumber,
-          }).unwrap();
-
-          console.log("Backend API response:", backendResult);
-
-          // Refresh user data to get updated phone verification status
+          await verifyPhone({ phone: phoneNumber }).unwrap();
           try {
             await refreshUser();
-            console.log("User data refreshed successfully");
-          } catch (refreshError) {
-            console.error("Error refreshing user data:", refreshError);
-          }
+          } catch {}
 
-          Alert.alert(
-            "Xác thực thành công!",
-            "Số điện thoại đã được xác thực và lưu vào hệ thống thành công.",
-            [
-              {
-                text: "OK",
-                onPress: () => {
-                  // Navigate back or to success screen
-                  router.back();
-                },
-              },
-            ]
-          );
-        } catch (backendError: any) {
-          console.error("Backend API error:", backendError);
-
-          // Even if backend fails, phone verification was successful
-          Alert.alert(
-            "Xác thực thành công!",
-            "Số điện thoại đã được xác thực với Firebase. Tuy nhiên, có vấn đề khi lưu vào hệ thống. Vui lòng thử lại sau.",
-            [
-              {
-                text: "OK",
-                onPress: () => {
-                  router.back();
-                },
-              },
-            ]
-          );
+          Toast.show({
+            type: "success",
+            text1: "Xác thực thành công",
+            text2: "Số điện thoại đã được lưu vào hệ thống",
+          });
+          setTimeout(() => router.back(), 400);
+        } catch {
+          Toast.show({
+            type: "warning",
+            text1: "Xác thực Firebase thành công",
+            text2: "Lưu vào hệ thống thất bại. Vui lòng thử lại",
+          });
+          setTimeout(() => router.back(), 600);
         }
       } else {
         setError("Xác thực thất bại. Vui lòng thử lại.");
+        Toast.show({ type: "error", text1: "Xác thực thất bại" });
       }
     } catch (error: any) {
-      console.error("Error verifying code:", error);
       setError(error.message || "Lỗi xác thực");
+      Toast.show({
+        type: "error",
+        text1: "Xác thực thất bại",
+        text2: error.message,
+      });
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleResendCode = async () => {
+    if (resendCountdown > 0) return;
+    setIsLoading(true);
+    setError("");
+    try {
+      const formattedPhone = formatToE164VN(phoneNumber);
+      const result =
+        await FirebasePhoneAuthService.sendVerificationCode(formattedPhone);
+      if (result.success) {
+        setConfirmationResult(result);
+        setCode("");
+        startResendTimer(60);
+        Toast.show({
+          type: "info",
+          text1: "Đã gửi lại mã",
+          text2: "Vui lòng kiểm tra SMS",
+        });
+      } else {
+        setError("Không thể gửi lại mã. Vui lòng thử lại.");
+        Toast.show({ type: "error", text1: "Gửi lại mã thất bại" });
+      }
+    } catch (e: any) {
+      setError(e.message || "Lỗi gửi lại mã");
+      Toast.show({
+        type: "error",
+        text1: "Gửi lại mã thất bại",
+        text2: e.message,
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const goBackToPhoneStep = () => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    setResendCountdown(0);
     setCode("");
     setStep("phone");
-    setConfirmationResult(null);
   };
 
   return (
@@ -208,27 +246,29 @@ export default function PhoneVerificationForm() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {/* Header */}
-        <View className="bg-gradient-to-b from-blue-50 to-white px-6">
-          <TouchableOpacity
-            onPress={() => router.back()}
-            className="absolute top-12 left-6 z-10"
-          >
-            <Ionicons name="arrow-back" size={24} color="#374151" />
-          </TouchableOpacity>
-
-          <View className="items-center pt-16 pb-6">
-            <Text className="text-2xl font-bold text-gray-900 mb-2">
-              Xác thực số điện thoại
-            </Text>
-            <Text className="text-gray-600 text-center text-sm">
-              Nhập số điện thoại để nhận mã xác thực
-            </Text>
-          </View>
-        </View>
-
         {/* Content */}
-        <View className="px-4 py-4">
+        <View className="px-4 ">
+          {/* Step Indicator moved here to avoid duplicate header */}
+          <View className="flex-row items-center justify-center mb-4">
+            <View className="flex-row items-center">
+              <View
+                className={`w-6 h-6 rounded-full items-center justify-center ${
+                  step === "phone" ? "bg-blue-600" : "bg-blue-200"
+                }`}
+              >
+                <Text className="text-white text-xs font-bold">1</Text>
+              </View>
+              <View className="w-10 h-0.5 bg-blue-300 mx-2" />
+              <View
+                className={`w-6 h-6 rounded-full items-center justify-center ${
+                  step === "otp" ? "bg-blue-600" : "bg-blue-200"
+                }`}
+              >
+                <Text className="text-white text-xs font-bold">2</Text>
+              </View>
+            </View>
+          </View>
+
           {/* Current Phone Status */}
           {user?.phone && (
             <View className="bg-gradient-to-r from-gray-50 to-slate-50 rounded-xl p-4 mb-4 border border-gray-200 shadow-sm">
@@ -265,7 +305,7 @@ export default function PhoneVerificationForm() {
           {step === "phone" ? (
             /* Phone Input Step */
             <View>
-              <View className="mb-4">
+              <View className="mb-2">
                 <Text className="text-gray-700 font-semibold mb-2 text-sm">
                   Số điện thoại mới
                 </Text>
@@ -305,17 +345,18 @@ export default function PhoneVerificationForm() {
               <TouchableOpacity
                 onPress={handleSendCode}
                 disabled={isLoading || !phoneNumber.trim()}
-                className={`rounded-xl py-3 px-4 shadow-sm ${
-                  isLoading || !phoneNumber.trim()
-                    ? "bg-gray-300"
-                    : "bg-gradient-to-r from-blue-600 to-blue-700"
-                }`}
+                className={`rounded-xl py-3 px-4 shadow-sm`}
                 style={{
                   elevation: 2,
                   shadowColor: "#000",
                   shadowOffset: { width: 0, height: 1 },
                   shadowOpacity: 0.1,
                   shadowRadius: 2,
+                  backgroundColor:
+                    isLoading || !phoneNumber.trim() ? "#D1D5DB" : "#2563EB",
+                  borderWidth: 1,
+                  borderColor:
+                    isLoading || !phoneNumber.trim() ? "#D1D5DB" : "#1D4ED8",
                 }}
               >
                 {isLoading ? (
@@ -335,12 +376,12 @@ export default function PhoneVerificationForm() {
           ) : (
             /* OTP Input Step */
             <View>
-              <View className="mb-4">
+              <View className="mb-3">
                 <Text className="text-gray-700 font-semibold mb-3 text-center text-sm">
                   Nhập mã 6 số đã được gửi đến
                 </Text>
                 <Text className="text-base font-bold text-gray-900 text-center mb-4">
-                  {phoneNumber}
+                  {formatToE164VN(phoneNumber)}
                 </Text>
                 <InputOTP value={code} onChange={setCode} maxLength={6} />
               </View>
@@ -365,17 +406,18 @@ export default function PhoneVerificationForm() {
                 <TouchableOpacity
                   onPress={handleVerifyCode}
                   disabled={isLoading || code.length !== 6}
-                  className={`rounded-xl py-3 px-4 shadow-sm ${
-                    isLoading || code.length !== 6
-                      ? "bg-gray-300"
-                      : "bg-gradient-to-r from-green-600 to-green-700"
-                  }`}
+                  className={`rounded-xl py-3 px-4 shadow-sm`}
                   style={{
                     elevation: 2,
                     shadowColor: "#000",
                     shadowOffset: { width: 0, height: 1 },
                     shadowOpacity: 0.1,
                     shadowRadius: 2,
+                    backgroundColor:
+                      isLoading || code.length !== 6 ? "#D1D5DB" : "#059669",
+                    borderWidth: 1,
+                    borderColor:
+                      isLoading || code.length !== 6 ? "#D1D5DB" : "#047857",
                   }}
                 >
                   {isLoading ? (
@@ -392,13 +434,32 @@ export default function PhoneVerificationForm() {
                   )}
                 </TouchableOpacity>
 
+                <View className="flex-row items-center justify-center">
+                  <TouchableOpacity
+                    onPress={goBackToPhoneStep}
+                    disabled={isLoading}
+                  >
+                    <Text className="text-gray-600 text-sm underline">
+                      Đổi số điện thoại
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
                 <TouchableOpacity
                   onPress={handleResendCode}
-                  disabled={isLoading}
+                  disabled={isLoading || resendCountdown > 0}
                   className="py-3 px-4"
                 >
-                  <Text className="text-primary-600 font-semibold text-center text-sm">
-                    Gửi lại mã
+                  <Text
+                    className={`font-semibold text-center text-sm ${
+                      isLoading || resendCountdown > 0
+                        ? "text-gray-400"
+                        : "text-primary-600"
+                    }`}
+                  >
+                    {resendCountdown > 0
+                      ? `Gửi lại mã (${resendCountdown}s)`
+                      : "Gửi lại mã"}
                   </Text>
                 </TouchableOpacity>
               </View>

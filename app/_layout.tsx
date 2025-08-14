@@ -45,6 +45,8 @@ export default function RootLayout() {
             <Stack.Screen name="_tab" options={{ headerShown: false }} />
             <Stack.Screen name="_auth" options={{ headerShown: false }} />
             <Stack.Screen name="_onboarding" options={{ headerShown: false }} />
+            <Stack.Screen name="account" options={{ headerShown: false }} />
+            <Stack.Screen name="payment" options={{ headerShown: false }} />
           </Stack>
           <Toast
             config={toastConfig}

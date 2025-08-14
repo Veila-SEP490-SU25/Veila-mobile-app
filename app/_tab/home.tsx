@@ -16,6 +16,8 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { useAuth } from "../../providers/auth.provider";
+import { walletApi } from "../../services/apis/wallet.api";
 
 interface QuickAction {
   id: string;
@@ -32,8 +34,11 @@ export default function Home() {
   const fadeAnim = React.useRef(new Animated.Value(0)).current;
   const slideAnim = React.useRef(new Animated.Value(50)).current;
 
+  const { user } = useAuth();
+  const [walletBalance, setWalletBalance] = useState<string | null>(null);
+  const [isLoadingWallet, setIsLoadingWallet] = useState(false);
+
   useEffect(() => {
-    // Create animation once and store reference
     const animation = Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
@@ -47,14 +52,30 @@ export default function Home() {
       }),
     ]);
 
-    // Start animation
     animation.start();
 
-    // Cleanup function to prevent memory leaks
     return () => {
       animation.stop();
     };
-  }, [fadeAnim, slideAnim]); // Empty dependency array - run only once
+  }, [fadeAnim, slideAnim]);
+
+  useEffect(() => {
+    // Fetch wallet balance once for customer
+    const loadWallet = async () => {
+      if (!user || user.role !== "CUSTOMER") return;
+      try {
+        setIsLoadingWallet(true);
+        const res = await walletApi.getMyWallet();
+        if (res?.item?.availableBalance != null) {
+          setWalletBalance(formatCurrency(res.item.availableBalance));
+        }
+      } catch {
+      } finally {
+        setIsLoadingWallet(false);
+      }
+    };
+    loadWallet();
+  }, [user]);
 
   const onRefresh = React.useCallback(() => {
     setRefreshing(true);
@@ -73,10 +94,8 @@ export default function Home() {
   }, []);
 
   const handleNavigate = useCallback((route: string) => {
-    // Close menu first
     setShowMenu(false);
 
-    // Simple navigation without complex timing
     setTimeout(() => {
       if (
         route === "/_tab/home" ||
@@ -141,6 +160,43 @@ export default function Home() {
     },
   ];
 
+  const formatCurrency = (amount: string) => {
+    const num = parseFloat(amount);
+    return new Intl.NumberFormat("vi-VN", {
+      style: "currency",
+      currency: "VND",
+    }).format(num);
+  };
+
+  const getPhoneVerification = () => {
+    // Derive from computed field if available, else fallback
+    const status = user?.phoneVerificationStatus;
+    if (status === "VERIFIED") {
+      return {
+        label: "Đã xác thực",
+        color: "#10B981",
+        icon: "shield-checkmark" as const,
+      };
+    }
+    if (status === "PENDING") {
+      return {
+        label: "Chờ xác thực",
+        color: "#F59E0B",
+        icon: "shield-outline" as const,
+      };
+    }
+    return {
+      label: "Chưa xác thực",
+      color: "#EF4444",
+      icon: "shield-outline" as const,
+    };
+  };
+
+  const phoneInfo = getPhoneVerification();
+  const addressInfo = user?.address
+    ? { label: "Đã cập nhật", color: "#10B981" }
+    : { label: "Thiếu địa chỉ", color: "#EF4444" };
+
   const renderQuickAction = (action: QuickAction) => (
     <Animated.View
       key={action.id}
@@ -154,12 +210,7 @@ export default function Home() {
         onPress={action.onPress}
         activeOpacity={0.8}
       >
-        <View
-          style={[
-            styles.quickActionIcon,
-            { backgroundColor: `${action.color}15` },
-          ]}
-        >
+        <View style={styles.quickActionIcon}>
           <Ionicons name={action.icon} size={24} color={action.color} />
         </View>
         <View style={styles.quickActionContent}>
@@ -208,6 +259,112 @@ export default function Home() {
             nghiệp
           </Text>
         </Animated.View>
+
+        {user?.role === "CUSTOMER" && (
+          <Animated.View
+            style={[styles.statusChipsSection, { opacity: fadeAnim }]}
+          >
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.chipsRow}
+            >
+              <TouchableOpacity
+                style={[styles.chip, { borderColor: phoneInfo.color }]}
+                onPress={() => router.push("/_auth/phone-verification" as any)}
+                activeOpacity={0.85}
+              >
+                <View
+                  style={[
+                    styles.chipIcon,
+                    { backgroundColor: `${phoneInfo.color}15` },
+                  ]}
+                >
+                  <Ionicons
+                    name={phoneInfo.icon}
+                    size={16}
+                    color={phoneInfo.color}
+                  />
+                </View>
+                <View style={styles.chipTextWrapper}>
+                  <Text style={styles.chipTitle}>Số điện thoại</Text>
+                  <Text
+                    style={[styles.chipSubtitle, { color: phoneInfo.color }]}
+                  >
+                    {phoneInfo.label}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.chip, { borderColor: "#06B6D4" }]}
+                onPress={() => router.push("/account/wallet" as any)}
+                activeOpacity={0.85}
+              >
+                <View
+                  style={[styles.chipIcon, { backgroundColor: `#06B6D415` }]}
+                >
+                  <Ionicons name="wallet-outline" size={16} color="#06B6D4" />
+                </View>
+                <View style={styles.chipTextWrapper}>
+                  <Text style={styles.chipTitle}>Số dư ví</Text>
+                  <Text style={[styles.chipSubtitle, { color: "#06B6D4" }]}>
+                    {isLoadingWallet ? "Đang tải..." : (walletBalance ?? "—")}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.chip, { borderColor: addressInfo.color }]}
+                onPress={() => router.push("/account/address" as any)}
+                activeOpacity={0.85}
+              >
+                <View
+                  style={[
+                    styles.chipIcon,
+                    { backgroundColor: `${addressInfo.color}15` },
+                  ]}
+                >
+                  <Ionicons
+                    name="location-outline"
+                    size={16}
+                    color={addressInfo.color}
+                  />
+                </View>
+                <View style={styles.chipTextWrapper}>
+                  <Text style={styles.chipTitle}>Địa chỉ giao hàng</Text>
+                  <Text
+                    style={[styles.chipSubtitle, { color: addressInfo.color }]}
+                  >
+                    {addressInfo.label}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.chip, { borderColor: "#F59E0B" }]}
+                onPress={() => router.push("/account/orders" as any)}
+                activeOpacity={0.85}
+              >
+                <View
+                  style={[styles.chipIcon, { backgroundColor: `#F59E0B15` }]}
+                >
+                  <Ionicons
+                    name="file-tray-outline"
+                    size={16}
+                    color="#F59E0B"
+                  />
+                </View>
+                <View style={styles.chipTextWrapper}>
+                  <Text style={styles.chipTitle}>Đơn hàng</Text>
+                  <Text style={[styles.chipSubtitle, { color: "#F59E0B" }]}>
+                    Xem gần đây
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            </ScrollView>
+          </Animated.View>
+        )}
 
         <Animated.View style={{ opacity: fadeAnim }}>
           <BannerCarousel />
@@ -279,6 +436,44 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#666666",
     lineHeight: 20,
+  },
+  statusChipsSection: {
+    backgroundColor: "#FFFFFF",
+    paddingVertical: 12,
+  },
+  chipsRow: {
+    paddingHorizontal: 16,
+    gap: 8,
+  },
+  chip: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 14,
+    borderWidth: 1,
+    marginRight: 8,
+  },
+  chipIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 10,
+  },
+  chipTextWrapper: {
+    minWidth: 110,
+  },
+  chipTitle: {
+    fontSize: 12,
+    color: "#6B7280",
+  },
+  chipSubtitle: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#374151",
   },
   quickActionsSection: {
     backgroundColor: "#FFFFFF",

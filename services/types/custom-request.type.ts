@@ -1,12 +1,9 @@
 export interface CustomRequest {
   id: string;
-  images: string | null;
-  createdAt: string;
-  updatedAt: string;
-  deletedAt: string | null;
   title: string;
   description: string;
-  high: number;
+  images: string | null;
+  height: number;
   weight: number;
   bust: number;
   waist: number;
@@ -19,23 +16,18 @@ export interface CustomRequest {
   backLength: number;
   lowerWaist: number;
   waistToFloor: number;
-  dressStyle: string;
-  curtainNeckline: string;
-  sleeveStyle: string;
-  material: string;
-  color: string;
-  specialElement: string;
-  coverage: string;
   status: "DRAFT" | "SUBMIT";
-
   isPrivate: boolean;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt: string | null;
 }
 
 export interface CustomRequestCreate {
   title: string;
   description: string;
   images?: string;
-  high: number;
+  height: number;
   weight: number;
   bust: number;
   waist: number;
@@ -48,28 +40,21 @@ export interface CustomRequestCreate {
   backLength: number;
   lowerWaist: number;
   waistToFloor: number;
-  dressStyle: string;
-  curtainNeckline: string;
-  sleeveStyle: string;
-  material: string;
-  color: string;
-  specialElement: string;
-  coverage: string;
-  isPrivate?: boolean;
   status?: "DRAFT" | "SUBMIT";
+  isPrivate?: boolean;
 }
 
 export interface CustomRequestUpdate extends Partial<CustomRequestCreate> {}
 
 export interface CustomRequestResponse {
   message: string;
-  statusCode: number;
+  statusCode: 200 | 201;
   item: CustomRequest;
 }
 
 export interface CustomRequestListResponse {
   message: string;
-  statusCode: number;
+  statusCode: 200 | 201;
   pageIndex: number;
   pageSize: number;
   totalItems: number;

@@ -1,9 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   ScrollView,
   StatusBar,
   Text,
@@ -11,27 +10,18 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import Toast from "react-native-toast-message";
 import { customRequestApi } from "../../../services/apis/custom-request.api";
 import { CustomRequest } from "../../../services/types";
 
 const STATUS_COLORS = {
   DRAFT: "#6B7280",
   SUBMIT: "#3B82F6",
-  PENDING: "#F59E0B",
-  APPROVED: "#10B981",
-  REJECTED: "#EF4444",
-  IN_PROGRESS: "#3B82F6",
-  COMPLETED: "#8B5CF6",
 };
 
 const STATUS_LABELS = {
   DRAFT: "Bản nháp",
   SUBMIT: "Đã đăng",
-  PENDING: "Chờ duyệt",
-  APPROVED: "Đã duyệt",
-  REJECTED: "Từ chối",
-  IN_PROGRESS: "Đang thực hiện",
-  COMPLETED: "Hoàn thành",
 };
 
 export default function CustomRequestDetailScreen() {
@@ -39,45 +29,65 @@ export default function CustomRequestDetailScreen() {
   const [request, setRequest] = useState<CustomRequest | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (id) {
-      loadRequest();
-    }
-  }, [id]);
-
-  const loadRequest = async () => {
+  const loadRequest = useCallback(async () => {
     try {
       setLoading(true);
       const response = await customRequestApi.getRequestById(id);
-      if (response.statusCode === 200) {
+      if (response.statusCode === 200 || response.statusCode === 201) {
         setRequest(response.item);
       }
     } catch (error) {
       console.error("Error loading request:", error);
-      Alert.alert("Lỗi", "Không thể tải thông tin yêu cầu");
+      Toast.show({
+        type: "error",
+        text1: "Lỗi",
+        text2: "Không thể tải thông tin yêu cầu",
+      });
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
+
+  useEffect(() => {
+    if (id) {
+      loadRequest();
+    }
+  }, [id, loadRequest]);
 
   const handleDelete = () => {
-    Alert.alert("Xác nhận xóa", "Bạn có chắc chắn muốn xóa yêu cầu này?", [
-      { text: "Hủy", style: "cancel" },
-      {
-        text: "Xóa",
-        style: "destructive",
-        onPress: async () => {
-          try {
-            await customRequestApi.deleteRequest(id);
-            Alert.alert("Thành công", "Đã xóa yêu cầu", [
-              { text: "OK", onPress: () => router.back() },
-            ]);
-          } catch (error) {
-            Alert.alert("Lỗi", "Không thể xóa yêu cầu");
-          }
-        },
+    Toast.show({
+      type: "info",
+      text1: "Xác nhận xóa",
+      text2: "Bạn có chắc chắn muốn xóa yêu cầu này?",
+      onPress: () => {
+        // Show confirmation dialog
+        Toast.show({
+          type: "info",
+          text1: "Xác nhận",
+          text2: "Nhấn lại để xác nhận xóa",
+          onPress: () => deleteRequest(),
+        });
       },
-    ]);
+    });
+  };
+
+  const deleteRequest = async () => {
+    try {
+      await customRequestApi.deleteRequest(id);
+      Toast.show({
+        type: "success",
+        text1: "Thành công",
+        text2: "Đã xóa yêu cầu",
+      });
+      router.back();
+    } catch (error) {
+      console.error("Error deleting request:", error);
+      Toast.show({
+        type: "error",
+        text1: "Lỗi",
+        text2: "Không thể xóa yêu cầu",
+      });
+    }
   };
 
   const renderInfoSection = (title: string, children: React.ReactNode) => (
@@ -87,12 +97,12 @@ export default function CustomRequestDetailScreen() {
     </View>
   );
 
-  const renderInfoRow = (label: string, value: string | number) => (
-    <View className="flex-row justify-between items-center py-2 border-b border-gray-100">
-      <Text className="text-gray-600 flex-1">{label}</Text>
-      <Text className="text-gray-800 font-medium text-right ml-4">{value}</Text>
-    </View>
-  );
+  // const renderInfoRow = (label: string, value: string | number) => (
+  //   <View className="flex-row justify-between items-center py-2 border-b border-gray-100">
+  //     <Text className="text-gray-600 flex-1">{label}</Text>
+  //     <Text className="text-gray-800 font-medium text-right ml-4">{value}</Text>
+  //   </View>
+  // );
 
   const renderMeasurementGrid = () => (
     <View className="space-y-2">
@@ -100,7 +110,7 @@ export default function CustomRequestDetailScreen() {
         <View className="flex-1">
           <Text className="text-sm text-gray-500 mb-1">Chiều cao</Text>
           <Text className="text-base font-medium text-gray-800">
-            {request?.high} cm
+            {request?.height} cm
           </Text>
         </View>
         <View className="flex-1">
@@ -307,7 +317,7 @@ export default function CustomRequestDetailScreen() {
           {renderInfoSection("Kích thước cơ thể", renderMeasurementGrid())}
 
           {/* Design Preferences */}
-          {renderInfoSection(
+          {/* {renderInfoSection(
             "Thiết kế váy",
             <View className="space-y-3">
               {renderInfoRow("Kiểu váy", request.dressStyle)}
@@ -318,7 +328,7 @@ export default function CustomRequestDetailScreen() {
               {renderInfoRow("Chi tiết đặc biệt", request.specialElement)}
               {renderInfoRow("Mức độ hở", request.coverage)}
             </View>
-          )}
+          )} */}
 
           {/* Action Buttons */}
           <View className="flex-row space-x-3 mb-8">
@@ -340,6 +350,7 @@ export default function CustomRequestDetailScreen() {
           </View>
         </View>
       </ScrollView>
+      <Toast />
     </SafeAreaView>
   );
 }

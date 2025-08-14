@@ -24,7 +24,7 @@ export default function AccountLayout() {
       <Stack.Screen
         name="orders"
         options={{
-          title: "Đơn hàng",
+          title: "Đơn hàng của tôi",
         }}
       />
       <Stack.Screen
@@ -36,7 +36,7 @@ export default function AccountLayout() {
       <Stack.Screen
         name="wallet"
         options={{
-          title: "Ví điện tử",
+          title: "Quản lý ví",
         }}
       />
       <Stack.Screen
@@ -46,15 +46,27 @@ export default function AccountLayout() {
         }}
       />
       <Stack.Screen
+        name="transactions"
+        options={{
+          title: "Lịch sử giao dịch",
+        }}
+      />
+      <Stack.Screen
+        name="transaction-detail/[id]"
+        options={{
+          title: "Chi tiết giao dịch",
+        }}
+      />
+      <Stack.Screen
         name="custom-requests"
         options={{
-          title: "Yêu cầu đặt may",
+          title: "Yêu cầu may đo",
         }}
       />
       <Stack.Screen
         name="custom-requests/create"
         options={{
-          title: "Tạo yêu cầu mới",
+          title: "Tạo yêu cầu may đo",
         }}
       />
       <Stack.Screen

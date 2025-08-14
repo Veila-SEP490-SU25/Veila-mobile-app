@@ -21,6 +21,7 @@ interface DressGridProps {
   onDressPress: (dress: Dress) => void;
   onCustomRequestPress?: () => void;
   onChatPress?: () => void;
+  disableScroll?: boolean; // Add this prop to disable scroll when nested
 }
 
 type Mode = "buy" | "rent";
@@ -37,6 +38,7 @@ export default function DressGrid({
   onDressPress,
   onCustomRequestPress,
   onChatPress,
+  disableScroll = false,
 }: DressGridProps) {
   const [dresses, setDresses] = useState<Dress[]>([]);
   const [loading, setLoading] = useState(true);
@@ -422,6 +424,7 @@ export default function DressGrid({
             </View>
           ) : null
         }
+        scrollEnabled={!disableScroll}
       />
 
       {/* Filter Modal */}
