@@ -270,6 +270,7 @@ export default function Shopping() {
           <TouchableOpacity
             activeOpacity={0.8}
             className="flex-1 bg-primary-500 rounded-xl py-3 items-center"
+            onPress={() => router.push("/dresses/buy" as any)}
           >
             <Ionicons name="shirt-outline" size={20} color="#fff" />
             <Text className="text-white font-semibold mt-1 text-sm">
@@ -281,6 +282,7 @@ export default function Shopping() {
           <TouchableOpacity
             activeOpacity={0.8}
             className="flex-1 bg-green-500 rounded-xl py-3 items-center"
+            onPress={() => router.push("/dresses/rent" as any)}
           >
             <Ionicons name="repeat-outline" size={20} color="#fff" />
             <Text className="text-white font-semibold mt-1 text-sm">
@@ -288,14 +290,15 @@ export default function Shopping() {
             </Text>
           </TouchableOpacity>
 
-          {/* Yêu thích */}
+          {/* Đặt may */}
           <TouchableOpacity
             activeOpacity={0.8}
             className="flex-1 bg-orange-500 rounded-xl py-3 items-center"
+            onPress={handleCustomRequest}
           >
-            <Ionicons name="star-outline" size={20} color="#fff" />
+            <Ionicons name="cut-outline" size={20} color="#fff" />
             <Text className="text-white font-semibold mt-1 text-sm">
-              Yêu thích
+              Đặt may
             </Text>
           </TouchableOpacity>
         </View>
@@ -478,11 +481,7 @@ export default function Shopping() {
           {renderBlogSlide()}
           {renderShopSlide()}
           <View className="mx-4 mb-4 rounded-2xl ">
-            <DressGrid
-              onDressPress={handleDressPress}
-              onCustomRequestPress={handleCustomRequest}
-              onChatPress={handleShopChat}
-            />
+            <DressGrid onDressPress={handleDressPress} />
           </View>
         </View>
       )}

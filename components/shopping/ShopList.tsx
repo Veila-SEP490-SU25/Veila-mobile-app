@@ -1,12 +1,11 @@
 import { Ionicons } from "@expo/vector-icons";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
   Image,
   Modal,
   RefreshControl,
-  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
@@ -43,48 +42,51 @@ export default function ShopList({ onShopPress }: ShopListProps) {
     page: 0,
   });
 
-  const loadShops = async (pageNum: number = 0, refresh: boolean = false) => {
-    try {
-      const currentFilters = {
-        ...filterOptions,
-        page: pageNum,
-        name: searchQuery ? `name:like:${searchQuery}` : undefined,
-      };
+  const loadShops = useCallback(
+    async (pageNum: number = 0, refresh: boolean = false) => {
+      try {
+        const currentFilters = {
+          ...filterOptions,
+          page: pageNum,
+          name: searchQuery ? `name:like:${searchQuery}` : undefined,
+        };
 
-      const response = await shopApi.getShops(
-        currentFilters.page,
-        currentFilters.size,
-        currentFilters.name,
-        currentFilters.sort
-      );
+        const response = await shopApi.getShops(
+          currentFilters.page,
+          currentFilters.size,
+          currentFilters.name,
+          currentFilters.sort
+        );
 
-      const newShops = response.items;
+        const newShops = response.items;
 
-      if (refresh) {
-        setShops(newShops);
-      } else {
-        setShops((prev) => [...prev, ...newShops]);
+        if (refresh) {
+          setShops(newShops);
+        } else {
+          setShops((prev) => [...prev, ...newShops]);
+        }
+
+        setHasMore(response.hasNextPage);
+      } catch (error) {
+        if (__DEV__) {
+          console.error("Error loading shops:", error);
+        }
+        Toast.show({
+          type: "error",
+          text1: "Lỗi",
+          text2: "Không thể tải danh sách cửa hàng",
+        });
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
       }
-
-      setHasMore(response.hasNextPage);
-    } catch (error) {
-      if (__DEV__) {
-        console.error("Error loading shops:", error);
-      }
-      Toast.show({
-        type: "error",
-        text1: "Lỗi",
-        text2: "Không thể tải danh sách cửa hàng",
-      });
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  };
+    },
+    [filterOptions, searchQuery]
+  ); // các giá trị loadShops phụ thuộc
 
   useEffect(() => {
     loadShops(0, true);
-  }, [filterOptions.sort, filterOptions.size]);
+  }, [filterOptions.sort, filterOptions.size, loadShops]);
 
   useEffect(() => {
     // Debounce search
@@ -96,7 +98,7 @@ export default function ShopList({ onShopPress }: ShopListProps) {
     }, 500);
 
     return () => clearTimeout(timeoutId);
-  }, [searchQuery]);
+  }, [searchQuery, loadShops, filterOptions]);
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -420,327 +422,6 @@ export default function ShopList({ onShopPress }: ShopListProps) {
           </View>
         </View>
       </Modal>
-      <Toast />
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  mainContainer: {
-    flex: 1,
-    backgroundColor: "#F5F5F5",
-  },
-  headerContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: "#FFFFFF",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  searchContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#F0F0F0",
-    borderRadius: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    flex: 1,
-  },
-  searchIcon: {
-    marginRight: 8,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 14,
-    color: "#333333",
-  },
-  clearButton: {
-    padding: 4,
-  },
-  filterButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#F8F9FA",
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "#E05C78",
-  },
-  filterButtonText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#E05C78",
-    marginLeft: 4,
-  },
-  resultsInfo: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    backgroundColor: "#FFFFFF",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  resultsText: {
-    fontSize: 14,
-    color: "#666666",
-  },
-  container: {
-    padding: 16,
-  },
-  shopCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    marginBottom: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
-    overflow: "hidden",
-  },
-  imageContainer: {
-    position: "relative",
-    height: 160,
-  },
-  shopImage: {
-    width: "100%",
-    height: "100%",
-  },
-  overlay: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 60,
-    backgroundColor: "rgba(0, 0, 0, 0.3)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  logoContainer: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: "#FFFFFF",
-    padding: 4,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 4,
-  },
-  logo: {
-    width: "100%",
-    height: "100%",
-    borderRadius: 26,
-  },
-  ratingContainer: {
-    position: "absolute",
-    top: 10,
-    right: 10,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-    borderRadius: 10,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  rating: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  ratingText: {
-    fontSize: 12,
-    fontWeight: "bold",
-    color: "#FFFFFF",
-    marginLeft: 4,
-  },
-  shopInfo: {
-    padding: 16,
-  },
-  shopName: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#333333",
-    marginBottom: 12,
-    textAlign: "center",
-  },
-  contactInfo: {
-    marginBottom: 16,
-  },
-  contactItem: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    marginBottom: 8,
-  },
-  contactText: {
-    fontSize: 14,
-    color: "#666666",
-    marginLeft: 8,
-    flex: 1,
-  },
-  actionContainer: {
-    alignItems: "center",
-  },
-  viewButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#F8F9FA",
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "#E05C78",
-  },
-  viewButtonText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#E05C78",
-    marginRight: 4,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 20,
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: "#666666",
-  },
-  loadingMore: {
-    paddingVertical: 16,
-    alignItems: "center",
-  },
-  loadingMoreText: {
-    marginTop: 8,
-    fontSize: 14,
-    color: "#666666",
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 40,
-  },
-  emptyText: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#333333",
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  emptySubtext: {
-    fontSize: 14,
-    color: "#666666",
-    textAlign: "center",
-  },
-  modalOverlay: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-  },
-  modalContent: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 20,
-    padding: 20,
-    width: "90%",
-    alignItems: "center",
-  },
-  modalHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    width: "100%",
-    marginBottom: 20,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "#333333",
-  },
-  closeButton: {
-    padding: 5,
-  },
-  filterSection: {
-    width: "100%",
-    marginBottom: 20,
-  },
-  filterSectionTitle: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "#333333",
-    marginBottom: 10,
-  },
-  sortOptions: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    backgroundColor: "#F0F0F0",
-    borderRadius: 10,
-    padding: 5,
-  },
-  sortOption: {
-    paddingVertical: 8,
-    paddingHorizontal: 15,
-    borderRadius: 20,
-  },
-  activeSortOption: {
-    backgroundColor: "#E05C78",
-    borderColor: "#E05C78",
-    borderWidth: 1,
-  },
-  sortOptionText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#333333",
-  },
-  activeSortOptionText: {
-    color: "#FFFFFF",
-  },
-  sizeOptions: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    backgroundColor: "#F0F0F0",
-    borderRadius: 10,
-    padding: 5,
-  },
-  sizeOption: {
-    paddingVertical: 8,
-    paddingHorizontal: 15,
-    borderRadius: 20,
-  },
-  activeSizeOption: {
-    backgroundColor: "#E05C78",
-    borderColor: "#E05C78",
-    borderWidth: 1,
-  },
-  sizeOptionText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#333333",
-  },
-  activeSizeOptionText: {
-    color: "#FFFFFF",
-  },
-  applyButton: {
-    backgroundColor: "#E05C78",
-    paddingVertical: 12,
-    paddingHorizontal: 30,
-    borderRadius: 25,
-    width: "100%",
-  },
-  applyButtonText: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "#FFFFFF",
-    textAlign: "center",
-  },
-});

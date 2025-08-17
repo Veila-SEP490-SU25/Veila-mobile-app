@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import CheckoutPopup from "components/CheckoutPopup";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
@@ -10,11 +11,13 @@ import {
   View,
 } from "react-native";
 import Toast from "react-native-toast-message";
+import AccessoriesDebugger from "../../components/AccessoriesDebugger";
 import { useAuth } from "../../providers/auth.provider";
 import { dressApi } from "../../services/apis/dress.api";
 import { ChatService } from "../../services/chat.service";
 import { Dress } from "../../services/types/dress.type";
 import { getTokens } from "../../utils";
+import { formatVNDCustom } from "../../utils/currency.util";
 
 // Extended Dress interface for the new data structure
 interface DressDetail extends Dress {
@@ -38,6 +41,8 @@ export default function DressDetailScreen() {
   const [isFavorite, setIsFavorite] = useState(false);
   const [currentFeedbackPage, setCurrentFeedbackPage] = useState(0);
   const [chatLoading, setChatLoading] = useState(false);
+  const [showCheckoutPopup, setShowCheckoutPopup] = useState(false);
+  const [checkoutType, setCheckoutType] = useState<"SELL" | "RENT">("SELL");
   const feedbacksPerPage = 5;
 
   const loadDressDetail = useCallback(async () => {
@@ -73,6 +78,61 @@ export default function DressDetailScreen() {
   const handleShopPress = useCallback(() => {
     if (shop?.id) router.push(`/shop/${shop.id}` as any);
   }, [shop]);
+
+  const handleOpenCheckout = useCallback((type: "SELL" | "RENT") => {
+    setCheckoutType(type);
+    setShowCheckoutPopup(true);
+  }, []);
+
+  const handleCheckoutSuccess = useCallback((orderNumber: string) => {
+    // Handle different checkout statuses
+    if (orderNumber === "INSUFFICIENT_BALANCE") {
+      // Navigate to wallet/topup page
+      Toast.show({
+        type: "info",
+        text1: "Chuyển hướng",
+        text2: "Đang chuyển đến trang nạp tiền...",
+      });
+
+      setTimeout(() => {
+        router.push("/account/wallet" as any);
+      }, 1500);
+    } else if (orderNumber === "VIEW_WALLET") {
+      // Navigate to wallet page
+      Toast.show({
+        type: "info",
+        text1: "Chuyển hướng",
+        text2: "Đang chuyển đến trang ví...",
+      });
+
+      setTimeout(() => {
+        router.push("/account/wallet" as any);
+      }, 1500);
+    } else if (orderNumber === "UNKNOWN_STATUS") {
+      // Navigate to orders page to check status
+      Toast.show({
+        type: "info",
+        text1: "Chuyển hướng",
+        text2: "Đang chuyển đến trang đơn hàng...",
+      });
+
+      setTimeout(() => {
+        router.push("/account/orders" as any);
+      }, 1500);
+    } else {
+      // Normal success - show success message and navigate
+      Toast.show({
+        type: "success",
+        text1: "Đặt hàng thành công!",
+        text2: `Mã đơn hàng: ${orderNumber}`,
+      });
+
+      // Navigate to order confirmation or orders page
+      setTimeout(() => {
+        router.push("/account/orders" as any);
+      }, 2000);
+    }
+  }, []);
 
   const handleChatPress = useCallback(async () => {
     try {
@@ -279,7 +339,7 @@ export default function DressDetailScreen() {
                     </Text>
                   </View>
                   <Text className="text-xl font-bold text-primary-500">
-                    {dress.sellPrice}đ
+                    {formatVNDCustom(dress.sellPrice)}
                   </Text>
                 </View>
               )}
@@ -292,39 +352,39 @@ export default function DressDetailScreen() {
                     </Text>
                   </View>
                   <Text className="text-xl font-bold text-green-600">
-                    {dress.rentalPrice}đ
+                    {formatVNDCustom(dress.rentalPrice)}
                   </Text>
                 </View>
               )}
             </View>
           </View>
 
-          {/* Buy/Rent Buttons */}
-          {(dress.isSellable || dress.isRentable) && (
-            <View className="mb-6">
-              <Text className="text-lg font-bold text-gray-800 mb-3">
-                Mua hoặc Thuê
-              </Text>
-              <View className="flex-row gap-x-3">
-                {dress.isSellable && (
-                  <TouchableOpacity className="flex-1 bg-primary-500 rounded-2xl py-4 items-center shadow-lg">
-                    <Ionicons name="shirt-outline" size={20} color="#FFFFFF" />
-                    <Text className="text-white font-bold text-lg mt-2">
-                      Mua ngay
-                    </Text>
-                  </TouchableOpacity>
-                )}
-                {dress.isRentable && (
-                  <TouchableOpacity className="flex-1 bg-green-500 rounded-2xl py-4 items-center shadow-lg">
-                    <Ionicons name="repeat-outline" size={20} color="#FFFFFF" />
-                    <Text className="text-white font-bold text-lg mt-2">
-                      Thuê ngay
-                    </Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-            </View>
-          )}
+          {/* Action Buttons */}
+          <View className="flex-row space-x-3 mt-6">
+            <TouchableOpacity
+              className="flex-1 bg-primary-500 rounded-2xl py-4 items-center shadow-lg"
+              onPress={() => handleOpenCheckout("SELL")}
+            >
+              <Text className="text-white font-semibold text-lg">Mua ngay</Text>
+            </TouchableOpacity>
+
+            {dress.isRentable && (
+              <TouchableOpacity
+                className="flex-1 bg-secondary-500 rounded-2xl py-4 items-center shadow-lg"
+                onPress={() => handleOpenCheckout("RENT")}
+              >
+                <Text className="text-white font-semibold text-lg">
+                  Thuê váy
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {/* Debug Section - Remove in production */}
+          <AccessoriesDebugger
+            dressId={dress?.id}
+            shopId={dress?.user?.shop?.id}
+          />
 
           {/* Action Buttons - Chat and Custom Order */}
           <View className="mb-6">
@@ -598,7 +658,16 @@ export default function DressDetailScreen() {
           )}
         </View>
       </ScrollView>
-      <Toast />
+
+      {/* Checkout Popup */}
+      <CheckoutPopup
+        visible={showCheckoutPopup}
+        onClose={() => setShowCheckoutPopup(false)}
+        dressId={dress?.id || ""}
+        type={checkoutType}
+        onSuccess={handleCheckoutSuccess}
+        shopId={dress?.user?.shop?.id}
+      />
     </View>
   );
 }

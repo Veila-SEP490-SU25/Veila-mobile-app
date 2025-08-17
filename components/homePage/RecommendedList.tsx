@@ -1,157 +1,102 @@
-import { Ionicons } from "@expo/vector-icons";
+import { router } from "expo-router";
 import React from "react";
 import {
+  FlatList,
   Image,
-  Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
+import { formatVNDCustom } from "../../utils/currency.util";
 
 interface Dress {
   id: string;
   name: string;
-  image: string;
-  theme: string;
+  images: string[];
   price: string;
   originalPrice?: string;
-  rating: number;
-  reviewCount: number;
-  isNew?: boolean;
-  isSale?: boolean;
 }
 
-const recommendedDresses: Dress[] = [
+const mockDresses: Dress[] = [
   {
     id: "1",
-    name: "Váy công chúa ren tay dài",
-    image:
-      "https://images.unsplash.com/photo-1519741497674-611481863552?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80",
-    theme: "Cổ điển",
-    price: "2,500,000đ",
-    originalPrice: "3,200,000đ",
-    rating: 4.8,
-    reviewCount: 124,
-    isSale: true,
+    name: "Váy cưới dáng A lãng mạn",
+    images: ["https://via.placeholder.com/300x400?text=Váy+1"],
+    price: "2,500,000",
+    originalPrice: "3,200,000",
   },
   {
     id: "2",
-    name: "Váy cưới đuôi cá satin",
-    image:
-      "https://images.unsplash.com/photo-1515372039744-b8f02a3ae446?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80",
-    theme: "Hiện đại",
-    price: "3,800,000đ",
-    rating: 4.9,
-    reviewCount: 89,
-    isNew: true,
+    name: "Váy cưới dáng mermaid sang trọng",
+    images: ["https://via.placeholder.com/300x400?text=Váy+2"],
+    price: "3,800,000",
   },
   {
     id: "3",
-    name: "Váy cưới bohemian vintage",
-    image:
-      "https://images.unsplash.com/photo-1515372039744-b8f02a3ae446?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80",
-    theme: "Boho",
-    price: "2,200,000đ",
-    rating: 4.7,
-    reviewCount: 156,
+    name: "Váy cưới dáng ballgown cổ điển",
+    images: ["https://via.placeholder.com/300x400?text=Váy+3"],
+    price: "2,200,000",
+    originalPrice: "2,500,000",
   },
   {
     id: "4",
-    name: "Váy cưới minimalist",
-    image:
-      "https://images.unsplash.com/photo-1515372039744-b8f02a3ae446?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80",
-    theme: "Tối giản",
-    price: "1,800,000đ",
-    originalPrice: "2,500,000đ",
-    rating: 4.6,
-    reviewCount: 78,
-    isSale: true,
+    name: "Váy cưới dáng sheath hiện đại",
+    images: ["https://via.placeholder.com/300x400?text=Váy+4"],
+    price: "1,800,000",
+    originalPrice: "2,500,000",
   },
 ];
 
 export default function RecommendedList() {
-  const renderStars = (rating: number) => {
-    const stars = [];
-    for (let i = 1; i <= 5; i++) {
-      stars.push(
-        <Ionicons
-          key={i}
-          name={i <= rating ? "star" : "star-outline"}
-          size={12}
-          color={i <= rating ? "#F59E0B" : "#D1D5DB"}
-        />
-      );
-    }
-    return stars;
+  const handleDressPress = (dress: Dress) => {
+    router.push(`/dress/${dress.id}` as any);
   };
 
-  const renderDress = (dress: Dress) => (
-    <Pressable
-      key={dress.id}
+  const renderDress = ({ item }: { item: Dress }) => (
+    <TouchableOpacity
       style={styles.dressCard}
-      onPress={() => console.log("Dress pressed:", dress.id)}
+      onPress={() => handleDressPress(item)}
+      activeOpacity={0.8}
     >
-      <View style={styles.imageContainer}>
-        <Image
-          source={{ uri: dress.image }}
-          style={styles.dressImage}
-          resizeMode="cover"
-        />
-        {dress.isNew && (
-          <View style={styles.newBadge}>
-            <Text style={styles.newBadgeText}>NEW</Text>
-          </View>
-        )}
-        {dress.isSale && (
-          <View style={styles.saleBadge}>
-            <Text style={styles.saleBadgeText}>SALE</Text>
-          </View>
-        )}
-        <TouchableOpacity style={styles.favoriteButton}>
-          <Ionicons name="heart-outline" size={20} color="#FFFFFF" />
-        </TouchableOpacity>
-      </View>
+      <Image source={{ uri: item.images[0] }} style={styles.dressImage} />
 
       <View style={styles.dressInfo}>
         <Text style={styles.dressName} numberOfLines={2}>
-          {dress.name}
+          {item.name}
         </Text>
-        <Text style={styles.dressTheme}>{dress.theme}</Text>
-
-        <View style={styles.ratingContainer}>
-          <View style={styles.starsContainer}>{renderStars(dress.rating)}</View>
-          <Text style={styles.reviewCount}>({dress.reviewCount})</Text>
-        </View>
 
         <View style={styles.priceContainer}>
-          <Text style={styles.price}>{dress.price}</Text>
-          {dress.originalPrice && (
-            <Text style={styles.originalPrice}>{dress.originalPrice}</Text>
+          <Text style={styles.price}>
+            {formatVNDCustom(parseInt(item.price), "₫")}
+          </Text>
+          {item.originalPrice && (
+            <Text style={styles.originalPrice}>
+              {formatVNDCustom(parseInt(item.originalPrice), "₫")}
+            </Text>
           )}
         </View>
       </View>
-    </Pressable>
+    </TouchableOpacity>
   );
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Váy nổi bật dành riêng cho bạn</Text>
-        <TouchableOpacity style={styles.viewAllButton}>
-          <Text style={styles.viewAllText}>Xem tất cả</Text>
-          <Ionicons name="chevron-forward" size={16} color="#E05C78" />
+        <Text style={styles.title}>Đề xuất cho bạn</Text>
+        <TouchableOpacity>
+          <Text style={styles.seeAll}>Xem tất cả</Text>
         </TouchableOpacity>
       </View>
 
-      <ScrollView
+      <FlatList
+        data={mockDresses}
+        renderItem={renderDress}
+        keyExtractor={(item) => item.id}
         horizontal
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContainer}
-      >
-        {recommendedDresses.map(renderDress)}
-      </ScrollView>
+        contentContainerStyle={styles.listContainer}
+      />
     </View>
   );
 }
@@ -175,17 +120,12 @@ const styles = StyleSheet.create({
     color: "#333333",
     flex: 1,
   },
-  viewAllButton: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  viewAllText: {
+  seeAll: {
     fontSize: 14,
     color: "#E05C78",
     fontWeight: "500",
-    marginRight: 4,
   },
-  scrollContainer: {
+  listContainer: {
     paddingHorizontal: 20,
   },
   dressCard: {
@@ -199,55 +139,11 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 4,
   },
-  imageContainer: {
-    position: "relative",
+  dressImage: {
+    width: "100%",
     height: 240,
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
-    overflow: "hidden",
-  },
-  dressImage: {
-    width: "100%",
-    height: "100%",
-  },
-  newBadge: {
-    position: "absolute",
-    top: 12,
-    left: 12,
-    backgroundColor: "#10B981",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  newBadgeText: {
-    color: "#FFFFFF",
-    fontSize: 10,
-    fontWeight: "700",
-  },
-  saleBadge: {
-    position: "absolute",
-    top: 12,
-    left: 12,
-    backgroundColor: "#EF4444",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  saleBadgeText: {
-    color: "#FFFFFF",
-    fontSize: 10,
-    fontWeight: "700",
-  },
-  favoriteButton: {
-    position: "absolute",
-    top: 12,
-    right: 12,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: "rgba(0, 0, 0, 0.3)",
-    justifyContent: "center",
-    alignItems: "center",
   },
   dressInfo: {
     padding: 12,
@@ -258,24 +154,6 @@ const styles = StyleSheet.create({
     color: "#333333",
     marginBottom: 4,
     lineHeight: 18,
-  },
-  dressTheme: {
-    fontSize: 12,
-    color: "#666666",
-    marginBottom: 8,
-  },
-  ratingContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 8,
-  },
-  starsContainer: {
-    flexDirection: "row",
-    marginRight: 4,
-  },
-  reviewCount: {
-    fontSize: 11,
-    color: "#999999",
   },
   priceContainer: {
     flexDirection: "row",

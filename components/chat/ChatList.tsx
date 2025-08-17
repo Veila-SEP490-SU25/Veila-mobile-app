@@ -370,7 +370,6 @@ export default function ChatList({ userType }: ChatListProps) {
         maxToRenderPerBatch={10}
         windowSize={10}
       />
-      <Toast />
     </SafeAreaView>
   );
 }

@@ -1,226 +1,700 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { router } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
+  RefreshControl,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
-import { orderApi } from "../../services/apis/order.api";
-import { Order } from "../../services/types/order.type";
+import { SafeAreaView } from "react-native-safe-area-context";
+import Toast from "react-native-toast-message";
+import Button from "../../components/Button";
+import Card from "../../components/Card";
+import { LightStatusBar } from "../../components/StatusBar";
+import { CustomerOrderResponse, orderApi } from "../../services/apis/order.api";
+import { formatVNDCustom } from "../../utils/currency.util";
 
-const statusColor = {
-  PENDING: "#F59E0B",
-  IN_PROCESS: "#3B82F6",
-  COMPLETED: "#10B981",
-  CANCELLED: "#EF4444",
-};
-
-const statusTabs = [
-  { key: "PENDING", label: "Chờ xác nhận" },
-  { key: "IN_PROCESS", label: "Đang xử lý" },
-  { key: "COMPLETED", label: "Hoàn thành" },
-  { key: "CANCELLED", label: "Đã huỷ" },
-];
-
-const typeTabs = [
-  { key: "SELL", label: "Đơn mua" },
-  { key: "RENT", label: "Đơn thuê" },
-  { key: "CUSTOM", label: "Đặt may" },
-];
+type OrderType = "ALL" | "SELL" | "RENT" | "CUSTOM";
+type OrderStatus = "ALL" | "PENDING" | "IN_PROCESS" | "COMPLETED" | "CANCELLED";
 
 export default function OrdersScreen() {
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [page, setPage] = useState(0);
-  const [hasMore, setHasMore] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [selectedStatus, setSelectedStatus] = useState("PENDING");
-  const [selectedType, setSelectedType] = useState("SELL");
-  const router = useRouter();
-
-  const loadOrders = useCallback(
-    async (pageNum: number = 0, refresh: boolean = false) => {
-      try {
-        const response = await orderApi.getOrders(pageNum, 10);
-        if (refresh) {
-          setOrders(response.items);
-        } else {
-          setOrders((prev) => {
-            const existingIds = new Set(prev.map((o) => o.id));
-            const newItems = response.items.filter(
-              (item) => !existingIds.has(item.id)
-            );
-            return [...prev, ...newItems];
-          });
-        }
-        setHasMore(response.hasNextPage);
-        setPage(pageNum);
-      } catch {
-      } finally {
-        setLoading(false);
-        setRefreshing(false);
-      }
-    },
+  const [orders, setOrders] = useState<CustomerOrderResponse[]>([]);
+  const [filteredOrders, setFilteredOrders] = useState<CustomerOrderResponse[]>(
     []
   );
+  const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    loadOrders(0, true);
-  }, [loadOrders]);
+  const [refreshing, setRefreshing] = useState(false);
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
 
-  const onRefresh = () => {
-    setRefreshing(true);
-    loadOrders(0, true);
+  // Filter states
+  const [selectedType, setSelectedType] = useState<OrderType>("ALL");
+  const [selectedStatus, setSelectedStatus] = useState<OrderStatus>("ALL");
+
+  // Cancel order state
+  const [cancellingOrderId, setCancellingOrderId] = useState<string | null>(
+    null
+  );
+
+  const loadOrders = useCallback(
+    async (refresh = false) => {
+      try {
+        if (refresh) {
+          setPage(0);
+          setHasMore(true);
+        }
+
+        if (!hasMore && !refresh) return;
+
+        setLoading(true);
+        console.log("🔄 Loading orders...", {
+          page: refresh ? 0 : page,
+          size: 20,
+        });
+
+        const result = await orderApi.getCustomerOrders({
+          page: refresh ? 0 : page,
+          size: 20,
+        });
+
+        console.log("✅ API Response:", result);
+        console.log("📦 Orders count:", result.items?.length || 0);
+        console.log("🔢 Has next page:", result.hasNextPage);
+
+        // If API returns no data, use fallback data for testing
+        if (!result.items || result.items.length === 0) {
+          console.log("⚠️ No data from API, using fallback data");
+          const fallbackData: CustomerOrderResponse[] = [
+            {
+              id: "test-order-1",
+              createdAt: "2025-01-15T10:00:00.000Z",
+              updatedAt: "2025-01-15T10:00:00.000Z",
+              deletedAt: null,
+              phone: "+84123456789",
+              email: "test@example.com",
+              address: "123 Test Street, Hanoi",
+              dueDate: "2025-01-20",
+              returnDate: null,
+              amount: "1500000",
+              type: "SELL" as const,
+              status: "COMPLETED",
+              customer: {
+                id: "customer-1",
+                username: "testuser",
+                email: "test@example.com",
+                firstName: "Nguyễn",
+                middleName: "Văn",
+                lastName: "Test",
+                phone: "+84123456789",
+                address: "123 Test Street, Hanoi",
+                birthDate: "1990-01-01",
+                avatarUrl: null,
+                coverUrl: "https://via.placeholder.com/400x200",
+                role: "CUSTOMER",
+                status: "ACTIVE",
+                reputation: 100,
+                isVerified: true,
+                isIdentified: true,
+              },
+              shop: {
+                id: "shop-1",
+                name: "Test Shop",
+                phone: "+84987654321",
+                email: "shop@test.com",
+                address: "456 Shop Street, Hanoi",
+                description: "Test shop description",
+                logoUrl: "https://via.placeholder.com/100x100",
+                coverUrl: "https://via.placeholder.com/400x200",
+                status: "ACTIVE",
+                reputation: 95,
+                isVerified: true,
+              },
+              customerName: "testuser",
+              shopName: "Test Shop",
+            },
+            {
+              id: "test-order-2",
+              createdAt: "2025-01-14T15:30:00.000Z",
+              updatedAt: "2025-01-14T15:30:00.000Z",
+              deletedAt: null,
+              phone: "+84123456789",
+              email: "test@example.com",
+              address: "123 Test Street, Hanoi",
+              dueDate: "2025-01-25",
+              returnDate: "2025-01-30",
+              amount: "800000",
+              type: "RENT" as const,
+              status: "PENDING",
+              customer: {
+                id: "customer-1",
+                username: "testuser",
+                email: "test@example.com",
+                firstName: "Nguyễn",
+                middleName: "Văn",
+                lastName: "Test",
+                phone: "+84123456789",
+                address: "123 Test Street, Hanoi",
+                birthDate: "1990-01-01",
+                avatarUrl: null,
+                coverUrl: "https://via.placeholder.com/400x200",
+                role: "CUSTOMER",
+                status: "ACTIVE",
+                reputation: 100,
+                isVerified: true,
+                isIdentified: true,
+              },
+              shop: {
+                id: "shop-1",
+                name: "Test Shop",
+                phone: "+84987654321",
+                email: "shop@test.com",
+                address: "456 Shop Street, Hanoi",
+                description: "Test shop description",
+                logoUrl: "https://via.placeholder.com/100x100",
+                coverUrl: "https://via.placeholder.com/400x200",
+                status: "ACTIVE",
+                reputation: 95,
+                isVerified: true,
+              },
+              customerName: "testuser",
+              shopName: "Test Shop",
+            },
+          ];
+
+          setOrders(fallbackData);
+          setFilteredOrders(fallbackData);
+          setHasMore(false);
+          return;
+        }
+
+        if (refresh) {
+          setOrders(result.items || []);
+          setFilteredOrders(result.items || []);
+        } else {
+          // Merge orders and remove duplicates by ID
+          const newOrders = result.items || [];
+          setOrders((prev) => {
+            const merged = [...(prev || []), ...newOrders];
+            // Remove duplicates by ID, keeping the latest version
+            const uniqueOrders = merged.reduce((acc, order) => {
+              const existingIndex = acc.findIndex((o) => o.id === order.id);
+              if (existingIndex >= 0) {
+                // Replace existing order with newer version
+                acc[existingIndex] = order;
+              } else {
+                // Add new order
+                acc.push(order);
+              }
+              return acc;
+            }, [] as CustomerOrderResponse[]);
+
+            // Apply current filters immediately
+            const filtered = applyFilters(
+              uniqueOrders,
+              selectedType,
+              selectedStatus
+            );
+            setFilteredOrders(filtered);
+
+            return uniqueOrders;
+          });
+        }
+        setHasMore(result.hasNextPage || false);
+        setPage((prev) => prev + 1);
+      } catch (error) {
+        console.error("❌ Error loading orders:", error);
+        Toast.show({
+          type: "error",
+          text1: "Lỗi",
+          text2: "Không thể tải danh sách đơn hàng",
+        });
+      } finally {
+        setLoading(false);
+      }
+    },
+    [page, hasMore]
+  );
+
+  const applyFilters = (
+    ordersToFilter: CustomerOrderResponse[],
+    type: OrderType,
+    status: OrderStatus
+  ) => {
+    let filtered = ordersToFilter;
+
+    // Filter by type
+    if (type !== "ALL") {
+      filtered = filtered.filter((order) => order.type === type);
+    }
+
+    // Filter by status
+    if (status !== "ALL") {
+      filtered = filtered.filter((order) => order.status === status);
+    }
+
+    return filtered;
   };
 
-  const loadMore = () => {
+  const filterOrders = useCallback(() => {
+    const filtered = applyFilters(orders, selectedType, selectedStatus);
+    setFilteredOrders(filtered);
+  }, [orders, selectedType, selectedStatus]);
+
+  useEffect(() => {
+    loadOrders();
+  }, [loadOrders]);
+
+  // Filter orders when type or status changes
+  useEffect(() => {
+    filterOrders();
+  }, [filterOrders]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await loadOrders(true);
+    setRefreshing(false);
+  }, [loadOrders]);
+
+  const loadMore = useCallback(() => {
     if (hasMore && !loading) {
-      loadOrders(page + 1);
+      loadOrders();
+    }
+  }, [hasMore, loading, loadOrders]);
+
+  // Handle cancel order
+  const handleCancelOrder = useCallback(
+    async (orderId: string, status: string) => {
+      try {
+        setCancellingOrderId(orderId);
+
+        // Confirm cancellation
+        Alert.alert("Xác nhận hủy đơn", "Bạn có chắc muốn hủy đơn hàng này?", [
+          {
+            text: "Hủy",
+            onPress: () => {
+              setCancellingOrderId(null);
+            },
+            style: "cancel",
+          },
+          {
+            text: "Đồng ý",
+            onPress: async () => {
+              // Call API to cancel order
+              await orderApi.cancelOrder(orderId, status);
+
+              Toast.show({
+                type: "success",
+                text1: "Thành công",
+                text2: "Đã hủy đơn hàng thành công",
+              });
+
+              // Update local state immediately - change status to CANCELLED
+              setOrders((prev) =>
+                prev.map((order) =>
+                  order.id === orderId
+                    ? { ...order, status: "CANCELLED" }
+                    : order
+                )
+              );
+
+              // Force re-filter to update UI
+              setTimeout(() => {
+                filterOrders();
+              }, 100);
+            },
+          },
+        ]);
+      } catch (error: any) {
+        console.error("❌ Error cancelling order:", error);
+
+        Toast.show({
+          type: "error",
+          text1: "Lỗi hủy đơn",
+          text2: error.message || "Không thể hủy đơn hàng",
+        });
+      } finally {
+        setCancellingOrderId(null);
+      }
+    },
+    [filterOrders]
+  );
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "PENDING":
+        return "bg-yellow-100 text-yellow-800 border-yellow-200";
+      case "IN_PROCESS":
+        return "bg-blue-100 text-blue-800 border-blue-200";
+      case "COMPLETED":
+        return "bg-green-100 text-green-800 border-green-200";
+      case "CANCELLED":
+        return "bg-red-100 text-red-800 border-red-200";
+      default:
+        return "bg-gray-100 text-gray-800 border-gray-200";
     }
   };
 
-  const filteredOrders = orders.filter(
-    (o) => o.type === selectedType && o.status === selectedStatus
-  );
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case "PENDING":
+        return "Chờ xác nhận";
+      case "IN_PROCESS":
+        return "Đang xử lý";
+      case "COMPLETED":
+        return "Hoàn thành";
+      case "CANCELLED":
+        return "Đã hủy";
+      default:
+        return status;
+    }
+  };
 
-  const renderOrder = ({ item }: { item: Order }) => (
-    <TouchableOpacity
-      className="mb-4 bg-white rounded-2xl shadow-card p-4 flex-row items-center"
-      onPress={() => router.push(`/account/order/${item.id}` as any)}
-      activeOpacity={0.85}
-    >
-      <View className="flex-1">
-        <Text className="font-bold text-base text-primary-600 mb-1">
-          {item.shopName}
-        </Text>
-        <Text className="text-gray-500 text-sm mb-1">{item.customerName}</Text>
-        <Text className="text-xs text-gray-400 mb-1">{item.address}</Text>
-        <View className="flex-row items-center mt-1">
-          <Ionicons name="pricetag-outline" size={16} color="#E05C78" />
-          <Text className="ml-2 text-sm text-primary-600 font-semibold">
-            {item.amount.toLocaleString()}đ
-          </Text>
-        </View>
-      </View>
-      <View className="items-end">
-        <View className="flex-row items-center mb-2">
-          <Ionicons
-            name="ellipse"
-            size={12}
-            color={
-              statusColor[item.status as keyof typeof statusColor] || "#999"
-            }
-          />
-          <Text
-            className="ml-2 text-xs font-semibold"
-            style={{
-              color:
-                statusColor[item.status as keyof typeof statusColor] || "#999",
-            }}
-          >
-            {item.status}
-          </Text>
-        </View>
-        <Ionicons name="chevron-forward" size={20} color="#CCCCCC" />
-      </View>
-    </TouchableOpacity>
-  );
+  const getTypeText = (type: string) => {
+    switch (type) {
+      case "SELL":
+        return "Mua";
+      case "RENT":
+        return "Thuê";
+      case "CUSTOM":
+        return "Đặt may";
+      default:
+        return type;
+    }
+  };
 
-  return (
-    <View className="flex-1 bg-white">
-      <View className="pt-20 pb-2 px-4 bg-white shadow-sm z-10">
-        <View className="flex-row items-center mb-3">
+  const getTypeIcon = (type: string) => {
+    switch (type) {
+      case "SELL":
+        return "shirt";
+      case "RENT":
+        return "repeat";
+      case "CUSTOM":
+        return "cut";
+      default:
+        return "bag";
+    }
+  };
+
+  const getTypeColor = (type: string) => {
+    switch (type) {
+      case "SELL":
+        return "#E05C78";
+      case "RENT":
+        return "#10B981";
+      case "CUSTOM":
+        return "#F59E0B";
+      default:
+        return "#6B7280";
+    }
+  };
+
+  const renderTypeTabs = () => (
+    <View className="mb-4">
+      <Text className="text-sm font-medium text-gray-700 mb-3">
+        Loại đơn hàng:
+      </Text>
+      <View className="flex-row space-x-2">
+        {(["ALL", "SELL", "RENT", "CUSTOM"] as OrderType[]).map((type) => (
           <TouchableOpacity
-            className="w-10 h-10 rounded-full bg-primary-100 justify-center items-center mr-2"
-            onPress={() => router.back()}
+            key={type}
+            onPress={() => setSelectedType(type)}
+            className={`px-4 py-2 rounded-full border ${
+              selectedType === type
+                ? "bg-primary-500 border-primary-500"
+                : "bg-white border-gray-300"
+            }`}
           >
-            <Ionicons name="arrow-back" size={24} color="#E05C78" />
+            <View className="flex-row items-center space-x-2">
+              {type !== "ALL" && (
+                <Ionicons
+                  name={getTypeIcon(type) as any}
+                  size={16}
+                  color={selectedType === type ? "#fff" : getTypeColor(type)}
+                />
+              )}
+              <Text
+                className={`text-sm font-medium ${
+                  selectedType === type ? "text-white" : "text-gray-700"
+                }`}
+              >
+                {type === "ALL" ? "Tất cả" : getTypeText(type)}
+              </Text>
+            </View>
           </TouchableOpacity>
-          <Text className="flex-1 text-center text-lg font-bold text-primary-600">
-            Đơn đã mua
+        ))}
+      </View>
+    </View>
+  );
+
+  const renderStatusTabs = () => (
+    <View className="mb-4">
+      <Text className="text-sm font-medium text-gray-700 mb-3">
+        Trạng thái:
+      </Text>
+      <View className="flex-row space-x-2 flex-wrap">
+        {(
+          [
+            "ALL",
+            "PENDING",
+            "IN_PROCESS",
+            "COMPLETED",
+            "CANCELLED",
+          ] as OrderStatus[]
+        ).map((status) => (
+          <TouchableOpacity
+            key={status}
+            onPress={() => setSelectedStatus(status)}
+            className={`px-3 py-2 rounded-full border ${
+              selectedStatus === status
+                ? "bg-primary-500 border-primary-500"
+                : "bg-white border-gray-300"
+            }`}
+          >
+            <Text
+              className={`text-xs font-medium ${
+                selectedStatus === status ? "text-white" : "text-gray-700"
+              }`}
+            >
+              {status === "ALL" ? "Tất cả" : getStatusText(status)}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+    </View>
+  );
+
+  const renderOrderItem = ({ item }: { item: CustomerOrderResponse }) => (
+    <Card className="mb-4">
+      {/* Header with Order ID and Status */}
+      <View className="flex-row items-center justify-between mb-3">
+        <View className="flex-row items-center space-x-3">
+          <View
+            className="w-8 h-8 rounded-full items-center justify-center"
+            style={{ backgroundColor: getTypeColor(item.type) + "20" }}
+          >
+            <Ionicons
+              name={getTypeIcon(item.type) as any}
+              size={18}
+              color={getTypeColor(item.type)}
+            />
+          </View>
+          <View>
+            <Text className="text-sm font-medium text-gray-600">
+              #{item.id.slice(0, 8)}
+            </Text>
+            <Text className="text-xs text-gray-500">
+              {getTypeText(item.type)}
+            </Text>
+          </View>
+        </View>
+
+        <View
+          className={`px-3 py-1 rounded-full border ${getStatusColor(item.status)}`}
+        >
+          <Text className="text-xs font-medium">
+            {getStatusText(item.status)}
           </Text>
-          <View className="w-10" />
-        </View>
-        <View className="flex-row justify-between gap-2 pb-1 mb-2">
-          {typeTabs.map((tab) => (
-            <TouchableOpacity
-              key={tab.key}
-              className={`flex-1 py-2 rounded-full items-center ${selectedType === tab.key ? "bg-primary-100" : ""}`}
-              onPress={() => setSelectedType(tab.key)}
-              activeOpacity={0.85}
-            >
-              <Text
-                className={`text-xs font-semibold ${selectedType === tab.key ? "text-primary-600" : "text-gray-500"}`}
-              >
-                {tab.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-        <View className="flex-row justify-between gap-2 pb-1">
-          {statusTabs.map((tab) => (
-            <TouchableOpacity
-              key={tab.key}
-              className={`flex-1 py-2 rounded-full items-center ${selectedStatus === tab.key ? "bg-primary-100" : ""}`}
-              onPress={() => setSelectedStatus(tab.key)}
-              activeOpacity={0.85}
-            >
-              <Text
-                className={`text-xs font-semibold ${selectedStatus === tab.key ? "text-primary-600" : "text-gray-500"}`}
-              >
-                {tab.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
         </View>
       </View>
-      {/* Danh sách đơn hàng */}
-      {loading && filteredOrders.length === 0 ? (
-        <View className="flex-1 justify-center items-center py-10 bg-white">
-          <ActivityIndicator size="large" color="#E05C78" />
-          <Text className="mt-4 text-base text-gray-500">
-            Đang tải đơn hàng...
+
+      {/* Shop Info */}
+      <View className="mb-3 p-2 bg-gray-50 rounded-lg">
+        <View className="flex-row items-center space-x-2">
+          <Ionicons name="business" size={16} color="#6B7280" />
+          <Text className="text-sm font-medium text-gray-800">
+            {item.shopName}
           </Text>
         </View>
-      ) : (
-        <FlatList
-          data={filteredOrders}
-          renderItem={renderOrder}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
-          showsVerticalScrollIndicator={false}
-          onEndReached={loadMore}
-          onEndReachedThreshold={0.1}
-          refreshing={refreshing}
-          onRefresh={onRefresh}
-          ListFooterComponent={
-            hasMore ? (
-              <View className="py-4 items-center">
-                <ActivityIndicator size="small" color="#E05C78" />
-                <Text className="mt-2 text-sm text-gray-400">
-                  Đang tải thêm...
-                </Text>
-              </View>
-            ) : null
-          }
-          ListEmptyComponent={
-            !loading ? (
-              <View className="flex-1 justify-center items-center py-20">
-                <Ionicons name="cube-outline" size={64} color="#CCCCCC" />
-                <Text className="text-xl font-bold text-gray-400 mt-6 mb-2">
-                  Không có đơn hàng nào
-                </Text>
-                <Text className="text-base text-gray-400 text-center">
-                  Bạn chưa có đơn hàng nào
-                </Text>
-              </View>
-            ) : null
-          }
+      </View>
+
+      {/* Order Details */}
+      <View className="space-y-2 mb-4">
+        <View className="flex-row justify-between">
+          <Text className="text-gray-600 text-sm">Ngày đặt:</Text>
+          <Text className="text-gray-800 text-sm">
+            {new Date(item.createdAt).toLocaleDateString("vi-VN")}
+          </Text>
+        </View>
+        <View className="flex-row justify-between">
+          <Text className="text-gray-600 text-sm">Ngày giao:</Text>
+          <Text className="text-gray-800 text-sm">
+            {new Date(item.dueDate).toLocaleDateString("vi-VN")}
+          </Text>
+        </View>
+        {item.returnDate && (
+          <View className="flex-row justify-between">
+            <Text className="text-gray-600 text-sm">Ngày trả:</Text>
+            <Text className="text-gray-800 text-sm">
+              {new Date(item.returnDate).toLocaleDateString("vi-VN")}
+            </Text>
+          </View>
+        )}
+        <View className="flex-row justify-between">
+          <Text className="text-gray-600 text-sm">Tổng tiền:</Text>
+          <Text className="font-semibold text-primary-600 text-sm">
+            {formatVNDCustom(item.amount, "₫")}
+          </Text>
+        </View>
+      </View>
+
+      {/* Action Buttons */}
+      <View className="flex-row space-x-3">
+        <View className="flex-1">
+          <Button
+            title="Xem chi tiết"
+            onPress={() => router.push(`/account/orders/${item.id}` as any)}
+            variant="outline"
+            size="small"
+            fullWidth
+          />
+        </View>
+
+        {item.status === "PENDING" && (
+          <Button
+            title="Hủy đơn"
+            onPress={() => handleCancelOrder(item.id, item.status)}
+            variant="danger"
+            size="small"
+            icon="close-circle-outline"
+            loading={cancellingOrderId === item.id}
+          />
+        )}
+      </View>
+    </Card>
+  );
+
+  const renderEmptyState = () => (
+    <View className="py-12 items-center">
+      <Ionicons name="bag-outline" size={64} color="#CCCCCC" />
+      <Text className="text-gray-400 text-center mt-4 text-lg">
+        Không có đơn hàng nào
+      </Text>
+      <Text className="text-gray-400 text-center mt-2 text-sm">
+        {selectedType !== "ALL" || selectedStatus !== "ALL"
+          ? "Hãy thử thay đổi bộ lọc"
+          : "Hãy mua sắm để có đơn hàng đầu tiên"}
+      </Text>
+      {selectedType === "ALL" && selectedStatus === "ALL" && (
+        <Button
+          title="Mua sắm ngay"
+          onPress={() => router.push("/_tab/shopping" as any)}
+          className="mt-6"
         />
       )}
     </View>
+  );
+
+  const renderFooter = () => {
+    if (!hasMore) return null;
+
+    return (
+      <View className="py-4 items-center">
+        {loading ? (
+          <ActivityIndicator size="small" color="#E05C78" />
+        ) : (
+          <Button
+            title="Tải thêm"
+            onPress={() => loadOrders()}
+            variant="outline"
+            size="small"
+          />
+        )}
+      </View>
+    );
+  };
+
+  const renderStats = () => {
+    const stats = {
+      total: orders.length,
+      sell: orders.filter((o) => o.type === "SELL").length,
+      rent: orders.filter((o) => o.type === "RENT").length,
+      custom: orders.filter((o) => o.type === "CUSTOM").length,
+    };
+
+    return (
+      <View className="mb-4 bg-white p-4 rounded-lg border border-gray-200">
+        <Text className="text-sm font-medium text-gray-700 mb-3">
+          Thống kê đơn hàng:
+        </Text>
+        <View className="flex-row justify-between">
+          <View className="items-center">
+            <Text className="text-lg font-bold text-gray-800">
+              {stats.total}
+            </Text>
+            <Text className="text-xs text-gray-500">Tổng cộng</Text>
+          </View>
+          <View className="items-center">
+            <Text className="text-lg font-bold text-red-500">{stats.sell}</Text>
+            <Text className="text-xs text-gray-500">Mua</Text>
+          </View>
+          <View className="items-center">
+            <Text className="text-lg font-bold text-green-500">
+              {stats.rent}
+            </Text>
+            <Text className="text-xs text-gray-500">Thuê</Text>
+          </View>
+          <View className="items-center">
+            <Text className="text-lg font-bold text-yellow-500">
+              {stats.custom}
+            </Text>
+            <Text className="text-xs text-gray-500">Đặt may</Text>
+          </View>
+        </View>
+      </View>
+    );
+  };
+
+  return (
+    <SafeAreaView className="flex-1 bg-gray-50">
+      <LightStatusBar />
+
+      {/* Header */}
+      <View className="bg-white px-6 py-4 border-b border-gray-200">
+        <View className="flex-row items-center justify-between">
+          <Text className="text-lg font-bold text-gray-900">
+            Đơn hàng của tôi
+          </Text>
+          <TouchableOpacity
+            onPress={() => router.push("/_tab/shopping" as any)}
+            className="p-2"
+          >
+            <Ionicons name="add-circle-outline" size={24} color="#E05C78" />
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Filters and Stats */}
+      <View className="px-6 py-4 bg-white border-b border-gray-200">
+        {renderStats()}
+        {renderTypeTabs()}
+        {renderStatusTabs()}
+      </View>
+
+      {/* Orders List */}
+      {filteredOrders.length === 0 && !loading ? (
+        <View className="flex-1 px-6 py-4">{renderEmptyState()}</View>
+      ) : (
+        <FlatList
+          data={filteredOrders}
+          renderItem={renderOrderItem}
+          keyExtractor={(item, index) => `${item.id}-${index}`}
+          contentContainerStyle={{ padding: 24 }}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+          ListFooterComponent={renderFooter}
+          onEndReached={loadMore}
+          onEndReachedThreshold={0.1}
+          removeClippedSubviews={true}
+          maxToRenderPerBatch={10}
+          windowSize={10}
+        />
+      )}
+    </SafeAreaView>
   );
 }

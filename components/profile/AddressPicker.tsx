@@ -41,6 +41,7 @@ export default function AddressPicker({
   const [allDistricts, setAllDistricts] = useState<IDistrict[]>([]);
   const [allWards, setAllWards] = useState<IWard[]>([]);
   const [isInitialized, setIsInitialized] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -342,27 +343,6 @@ export default function AddressPicker({
           </TouchableOpacity>
         </>
       )}
-    </View>
-  );
-
-  const renderErrorState = () => (
-    <View style={styles.errorContainer}>
-      <Ionicons name="alert-circle-outline" size={48} color="#EF4444" />
-      <Text style={styles.errorText}>{error}</Text>
-      <TouchableOpacity
-        style={styles.retryButton}
-        onPress={() => {
-          if (currentStep === "province") {
-            loadAllProvinces();
-          } else if (currentStep === "district") {
-            loadAllDistricts(value.province!.id);
-          } else if (currentStep === "ward") {
-            loadAllWards(value.district!.id);
-          }
-        }}
-      >
-        <Text style={styles.retryButtonText}>Thử lại</Text>
-      </TouchableOpacity>
     </View>
   );
 

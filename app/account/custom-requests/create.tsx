@@ -1,17 +1,14 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React, { useState } from "react";
-import {
-  ActivityIndicator,
-  ScrollView,
-  StatusBar,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Toast from "react-native-toast-message";
+import Badge from "../../../components/Badge";
+import Button from "../../../components/Button";
+import Card from "../../../components/Card";
+import Input from "../../../components/Input";
+import { LightStatusBar } from "../../../components/StatusBar";
 import { customRequestApi } from "../../../services/apis/custom-request.api";
 import { CustomRequestCreate } from "../../../services/types";
 
@@ -88,9 +85,6 @@ export default function CreateCustomRequestScreen() {
     } catch (error) {
       console.error("Error creating request:", error);
 
-      // Show error message
-      const errorMessage =
-        error instanceof Error ? error.message : "Không thể tạo yêu cầu";
       Toast.show({
         type: "error",
         text1: "Lỗi",
@@ -117,7 +111,7 @@ export default function CreateCustomRequestScreen() {
   ) => (
     <View className="mb-4">
       <Text className="text-base font-medium text-gray-700 mb-2">{label}</Text>
-      <TextInput
+      <Input
         className={`bg-white border border-gray-200 rounded-xl px-4 py-3 text-gray-800 ${
           multiline ? "min-h-[80px]" : ""
         }`}
@@ -242,7 +236,7 @@ export default function CreateCustomRequestScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-gray-50">
-      <StatusBar barStyle="dark-content" backgroundColor="#F9FAFB" />
+      <LightStatusBar />
 
       {/* Header */}
       <View className="bg-white px-6 py-4 border-b border-gray-100">
@@ -263,35 +257,47 @@ export default function CreateCustomRequestScreen() {
       <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
         <View className="p-4">
           {/* Basic Information */}
-          <View className="bg-white rounded-2xl p-4 mb-6 shadow-soft">
+          <Card className="mb-6">
             <Text className="text-lg font-semibold text-gray-800 mb-4">
               Thông tin cơ bản
             </Text>
 
-            {renderInputField(
-              "Tiêu đề yêu cầu",
-              "title",
-              "Yêu cầu thiết kế váy cưới"
-            )}
-            {renderInputField(
-              "Mô tả chi tiết",
-              "description",
-              "Mô tả chi tiết về yêu cầu của bạn...",
-              "default",
-              true
-            )}
-            {renderInputField(
-              "Hình ảnh tham khảo",
-              "images",
-              "URL hình ảnh (phân cách bằng dấu phẩy)"
-            )}
-          </View>
+            <View className="space-y-4">
+              <View>
+                <Text className="text-sm font-medium text-gray-700 mb-1">
+                  Tiêu đề yêu cầu <Text className="text-red-500">*</Text>
+                </Text>
+                <Input
+                  value={formData.title}
+                  onChangeText={(text: string) => updateField("title", text)}
+                  className="border border-gray-300 rounded-lg px-3 py-2 text-gray-900 bg-white"
+                  placeholder="Yêu cầu thiết kế váy cưới"
+                />
+              </View>
+
+              <View>
+                <Text className="text-sm font-medium text-gray-700 mb-1">
+                  Mô tả chi tiết <Text className="text-red-500">*</Text>
+                </Text>
+                <Input
+                  value={formData.description}
+                  onChangeText={(text: string) =>
+                    updateField("description", text)
+                  }
+                  className="border border-gray-300 rounded-lg px-3 py-2 text-gray-900 bg-white min-h-[80px]"
+                  placeholder="Mô tả chi tiết về yêu cầu của bạn..."
+                  multiline
+                  textAlignVertical="top"
+                />
+              </View>
+            </View>
+          </Card>
 
           {/* Measurements */}
           {renderMeasurementSection()}
 
           {/* Status Selection */}
-          <View className="bg-white rounded-2xl p-4 mb-6 shadow-soft">
+          <Card className="mb-6">
             <Text className="text-lg font-semibold text-gray-800 mb-4">
               Trạng thái yêu cầu
             </Text>
@@ -338,11 +344,13 @@ export default function CreateCustomRequestScreen() {
                     </Text>
                   </View>
                 </View>
-                <Ionicons
-                  name="save-outline"
-                  size={24}
-                  color={formData.status === "DRAFT" ? "#E05C78" : "#9CA3AF"}
-                />
+                <Badge
+                  variant={formData.status === "DRAFT" ? "primary" : "default"}
+                  outlined={formData.status !== "DRAFT"}
+                  icon="save-outline"
+                >
+                  {formData.status === "DRAFT" ? "Đã chọn" : ""}
+                </Badge>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -386,14 +394,16 @@ export default function CreateCustomRequestScreen() {
                     </Text>
                   </View>
                 </View>
-                <Ionicons
-                  name="paper-plane"
-                  size={24}
-                  color={formData.status === "SUBMIT" ? "#E05C78" : "#9CA3AF"}
-                />
+                <Badge
+                  variant={formData.status === "SUBMIT" ? "primary" : "default"}
+                  outlined={formData.status !== "SUBMIT"}
+                  icon="paper-plane"
+                >
+                  {formData.status === "SUBMIT" ? "Đã chọn" : ""}
+                </Badge>
               </TouchableOpacity>
             </View>
-          </View>
+          </Card>
 
           {/* Privacy Settings */}
           <View className="bg-white rounded-2xl p-4 mb-6 shadow-soft">
@@ -437,31 +447,20 @@ export default function CreateCustomRequestScreen() {
           </View>
 
           {/* Submit Button */}
-          <TouchableOpacity
-            className={`w-full py-4 rounded-xl mb-8 ${
-              loading ? "bg-gray-400" : "bg-primary-500"
-            }`}
-            onPress={handleSave}
-            disabled={loading}
-          >
-            {loading ? (
-              <View className="flex-row items-center justify-center">
-                <ActivityIndicator size="small" color="#FFFFFF" />
-                <Text className="text-white font-semibold ml-2">
-                  {formData.status === "DRAFT" ? "Đang lưu..." : "Đang gửi..."}
-                </Text>
-              </View>
-            ) : (
-              <Text className="text-white font-semibold text-center text-lg">
-                {formData.status === "DRAFT"
-                  ? "Lưu nháp"
-                  : "Gửi yêu cầu đặt may"}
-              </Text>
-            )}
-          </TouchableOpacity>
+          <View className="mb-8">
+            <Button
+              title={
+                formData.status === "DRAFT" ? "Lưu nháp" : "Gửi yêu cầu đặt may"
+              }
+              onPress={handleSave}
+              loading={loading}
+              disabled={loading}
+              fullWidth
+              size="large"
+            />
+          </View>
         </View>
       </ScrollView>
-      <Toast />
     </SafeAreaView>
   );
 }

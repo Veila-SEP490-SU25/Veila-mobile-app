@@ -354,7 +354,6 @@ export default function CustomRequestDetailScreen() {
           </View>
         </View>
       </ScrollView>
-      <Toast />
     </SafeAreaView>
   );
 }

@@ -1,5 +1,4 @@
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
 import React from "react";
 import {
   FlatList,
@@ -13,98 +12,96 @@ import { Accessory } from "../../services/types";
 
 interface AccessoryGridProps {
   accessories: Accessory[];
-  onAccessoryPress: (accessory: Accessory) => void;
+  mode?: "buy" | "rent";
+  onAccessorySelect?: (accessory: Accessory) => void;
+  isSelector?: boolean;
 }
 
 export default function AccessoryGrid({
   accessories,
-  onAccessoryPress,
+  mode = "buy",
+  onAccessorySelect,
 }: AccessoryGridProps) {
-  const handleAccessoryPress = (accessory: Accessory) => {
-    // Navigate to accessory detail page
-    router.push(`/accessory/${accessory.id}` as any);
-    // Also call the callback if provided
-    onAccessoryPress(accessory);
-  };
-
   const renderAccessory = ({ item }: { item: Accessory }) => (
     <TouchableOpacity
       style={styles.accessoryCard}
-      onPress={() => handleAccessoryPress(item)}
+      onPress={() => onAccessorySelect?.(item)}
       activeOpacity={0.8}
     >
-      <View style={styles.imageContainer}>
-        <Image
-          source={{
-            uri:
-              item.images?.[0] ||
-              "https://via.placeholder.com/120x120?text=Phụ+kiện",
-          }}
-          style={styles.accessoryImage}
-          resizeMode="cover"
-        />
-        {item.status === "AVAILABLE" && (
-          <View style={styles.availableBadge}>
-            <Text style={styles.availableText}>Có sẵn</Text>
-          </View>
-        )}
-        {item.status === "UNAVAILABLE" && (
-          <View style={styles.unavailableBadge}>
-            <Text style={styles.unavailableText}>Hết hàng</Text>
-          </View>
-        )}
-      </View>
+      <Image
+        source={{
+          uri:
+            item.images?.[0] ||
+            "https://via.placeholder.com/120x120?text=Phụ+kiện",
+        }}
+        style={styles.accessoryImage}
+        resizeMode="cover"
+      />
 
       <View style={styles.accessoryInfo}>
         <Text style={styles.accessoryName} numberOfLines={2}>
           {item.name}
         </Text>
 
-        <View style={styles.ratingContainer}>
-          <Ionicons name="star" size={14} color="#FFD700" />
-          <Text style={styles.ratingText}>{item.ratingAverage}</Text>
-        </View>
-
-        <View style={styles.pricingContainer}>
-          {item.isSellable && (
-            <View style={styles.priceItem}>
-              <Text style={styles.priceLabel}>Mua:</Text>
-              <Text style={styles.priceValue}>{item.sellPrice}đ</Text>
+        <View style={styles.priceContainer}>
+          {mode === "buy" && item.isSellable && (
+            <View style={styles.priceRow}>
+              <Text style={styles.priceLabel}>Giá bán:</Text>
+              <Text style={styles.priceValue}>
+                {item.sellPrice ? `${item.sellPrice} ₫` : "Liên hệ"}
+              </Text>
             </View>
           )}
-          {item.isRentable && (
-            <View style={styles.priceItem}>
-              <Text style={styles.priceLabel}>Thuê:</Text>
-              <Text style={styles.rentalValue}>{item.rentalPrice}đ</Text>
+
+          {mode === "rent" && item.isRentable && (
+            <View style={styles.priceRow}>
+              <Text style={styles.priceLabel}>Giá thuê:</Text>
+              <Text style={styles.rentalValue}>
+                {item.rentalPrice ? `${item.rentalPrice} ₫` : "Liên hệ"}
+              </Text>
             </View>
           )}
         </View>
 
-        <View style={styles.actionContainer}>
-          <TouchableOpacity
-            style={styles.viewButton}
-            onPress={() => handleAccessoryPress(item)}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.viewButtonText}>Xem chi tiết</Text>
-            <Ionicons name="arrow-forward" size={14} color="#E05C78" />
-          </TouchableOpacity>
-        </View>
+        {/* Shop info - Remove since user field doesn't exist in Accessory type */}
+        {/* Status badge */}
+        {item.status === "AVAILABLE" ? (
+          <View style={styles.availableBadge}>
+            <Text style={styles.availableText}>Có sẵn</Text>
+          </View>
+        ) : (
+          <View style={styles.unavailableBadge}>
+            <Text style={styles.unavailableText}>Hết hàng</Text>
+          </View>
+        )}
       </View>
     </TouchableOpacity>
   );
 
+  if (accessories.length === 0) {
+    return (
+      <View style={styles.emptyContainer}>
+        <Ionicons name="diamond-outline" size={48} color="#CCCCCC" />
+        <Text style={styles.emptyTitle}>Không có phụ kiện nào</Text>
+        <Text style={styles.emptySubtitle}>Hãy quay lại sau</Text>
+      </View>
+    );
+  }
+
   return (
-    <FlatList
-      data={accessories}
-      renderItem={renderAccessory}
-      keyExtractor={(item) => item.id}
-      numColumns={2}
-      columnWrapperStyle={styles.row}
-      showsVerticalScrollIndicator={false}
-      contentContainerStyle={styles.container}
-      scrollEnabled={false} // Disable scroll since it's inside another FlatList
-    />
+    <View style={styles.container}>
+      <FlatList
+        data={accessories}
+        renderItem={renderAccessory}
+        keyExtractor={(item) => item.id}
+        numColumns={2}
+        columnWrapperStyle={styles.accessoryRow}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.listContainer}
+        scrollEnabled={false}
+        nestedScrollEnabled={false}
+      />
+    </View>
   );
 }
 
@@ -112,7 +109,7 @@ const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 4,
   },
-  row: {
+  accessoryRow: {
     justifyContent: "space-between",
   },
   accessoryCard: {
@@ -129,41 +126,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#F3F4F6",
   },
-  imageContainer: {
-    position: "relative",
-    height: 140,
-  },
   accessoryImage: {
     width: "100%",
-    height: "100%",
-  },
-  availableBadge: {
-    position: "absolute",
-    top: 8,
-    right: 8,
-    backgroundColor: "#10B981",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  availableText: {
-    color: "#FFFFFF",
-    fontSize: 10,
-    fontWeight: "600",
-  },
-  unavailableBadge: {
-    position: "absolute",
-    top: 8,
-    right: 8,
-    backgroundColor: "#EF4444",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  unavailableText: {
-    color: "#FFFFFF",
-    fontSize: 10,
-    fontWeight: "600",
+    height: 140,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
   },
   accessoryInfo: {
     padding: 12,
@@ -175,21 +142,19 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     lineHeight: 18,
   },
-  ratingContainer: {
+  shopInfo: {
     flexDirection: "row",
     alignItems: "center",
     marginBottom: 8,
   },
-  ratingText: {
+  shopName: {
     fontSize: 12,
-    color: "#666666",
-    marginLeft: 4,
-    fontWeight: "500",
+    color: "#999999",
   },
-  pricingContainer: {
+  priceContainer: {
     marginBottom: 12,
   },
-  priceItem: {
+  priceRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
@@ -209,23 +174,55 @@ const styles = StyleSheet.create({
     color: "#10B981",
     fontWeight: "700",
   },
-  actionContainer: {
-    alignItems: "center",
-  },
-  viewButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#FEF2F2",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "#FECACA",
-  },
-  viewButtonText: {
-    fontSize: 11,
-    color: "#E05C78",
-    fontWeight: "600",
+  shopLogo: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
     marginRight: 4,
+  },
+  availableBadge: {
+    backgroundColor: "#E0F2F7",
+    borderRadius: 12,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    alignSelf: "flex-start",
+    marginTop: 8,
+  },
+  availableText: {
+    color: "#06B6D4",
+    fontSize: 10,
+    fontWeight: "600",
+  },
+  unavailableBadge: {
+    backgroundColor: "#FEE2E2",
+    borderRadius: 12,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    alignSelf: "flex-start",
+  },
+  unavailableText: {
+    color: "#991B1B",
+    fontSize: 10,
+    fontWeight: "600",
+  },
+  listContainer: {
+    paddingBottom: 10,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: 20,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#333333",
+    marginTop: 10,
+  },
+  emptySubtitle: {
+    fontSize: 14,
+    color: "#6B7280",
+    marginTop: 5,
   },
 });

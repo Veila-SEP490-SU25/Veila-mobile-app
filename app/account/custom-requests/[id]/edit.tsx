@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   ScrollView,
@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Toast from "react-native-toast-message";
+import Button from "../../../../components/Button";
 import { customRequestApi } from "../../../../services/apis/custom-request.api";
 import { CustomRequestUpdate } from "../../../../services/types";
 
@@ -39,13 +40,7 @@ export default function EditCustomRequestScreen() {
     status: "DRAFT",
   });
 
-  useEffect(() => {
-    if (id) {
-      loadRequest();
-    }
-  }, [id]);
-
-  const loadRequest = async () => {
+  const loadRequest = useCallback(async () => {
     try {
       setLoading(true);
       const response = await customRequestApi.getRequestById(id);
@@ -86,7 +81,13 @@ export default function EditCustomRequestScreen() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
+
+  useEffect(() => {
+    if (id) {
+      loadRequest();
+    }
+  }, [id, loadRequest]);
 
   const updateField = (
     field: keyof CustomRequestUpdate,
@@ -375,29 +376,14 @@ export default function EditCustomRequestScreen() {
           </View>
 
           {/* Submit Button */}
-          <TouchableOpacity
-            className={`w-full py-4 rounded-xl mb-8 ${
-              saving ? "bg-gray-400" : "bg-primary-500"
-            }`}
+          <Button
+            title={saving ? "Đang cập nhật..." : "Cập nhật yêu cầu"}
             onPress={handleSubmit}
             disabled={saving}
-          >
-            {saving ? (
-              <View className="flex-row items-center justify-center">
-                <ActivityIndicator size="small" color="#FFFFFF" />
-                <Text className="text-white font-semibold ml-2">
-                  Đang cập nhật...
-                </Text>
-              </View>
-            ) : (
-              <Text className="text-white font-semibold text-center text-lg">
-                Cập nhật yêu cầu
-              </Text>
-            )}
-          </TouchableOpacity>
+            loading={saving}
+          />
         </View>
       </ScrollView>
-      <Toast />
     </SafeAreaView>
   );
 }

@@ -204,7 +204,6 @@ export default function ChatTestComponent() {
           </View>
         )}
       </ScrollView>
-      <Toast />
     </>
   );
 }

@@ -7,11 +7,7 @@ interface LoadingItemProps {
   width?: string | number;
 }
 
-export const LoadingItem = ({
-  variant = "default",
-  height = 60,
-  width = "100%",
-}: LoadingItemProps) => {
+export const LoadingItem = ({ variant = "default" }: LoadingItemProps) => {
   const shimmerAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {

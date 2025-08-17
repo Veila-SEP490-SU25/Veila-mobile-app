@@ -1,373 +1,938 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useCallback, useEffect, useRef, useState } from "react";
-import {
-  ActivityIndicator,
-  SafeAreaView,
-  StatusBar,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { router, useLocalSearchParams } from "expo-router";
+import React, { useCallback, useEffect, useState } from "react";
+import { ScrollView, Text, TouchableOpacity, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import Toast from "react-native-toast-message";
-import { WebView } from "react-native-webview";
+import Button from "../../components/Button";
+import Card from "../../components/Card";
+import DatePicker from "../../components/DatePicker";
+import Input from "../../components/Input";
+import { LightStatusBar } from "../../components/StatusBar";
+import { useAuth } from "../../providers/auth.provider";
+import { dressApi } from "../../services/apis/dress.api";
+import {
+  AccessoryDetail,
+  CreateOrderRequest,
+  DressDetails,
+  orderApi,
+} from "../../services/apis/order.api";
+import { shopApi } from "../../services/apis/shop.api";
+import { Accessory } from "../../services/types";
+import { Dress } from "../../services/types/dress.type";
+import { formatVNDCustom } from "../../utils/currency.util";
 
-export default function PaymentCheckoutScreen() {
-  const { url } = useLocalSearchParams<{ url: string }>();
-  const router = useRouter();
-  const [loading, setLoading] = useState(true);
-  const [webViewError, setWebViewError] = useState(false);
-  const [, setCurrentUrl] = useState("");
-  const [showFallback, setShowFallback] = useState(false);
-  const webViewRef = useRef<WebView>(null);
-  const checkoutUrl = Array.isArray(url) ? url[0] : url;
+interface CheckoutStep {
+  id: string;
+  title: string;
+  description: string;
+  isCompleted: boolean;
+}
 
-  // Auto-show fallback after 30 seconds if no navigation detected
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (loading) {
-        setShowFallback(true);
-        setLoading(false);
-      }
-    }, 30000);
-
-    return () => clearTimeout(timer);
-  }, [loading]);
-
-  const onNavChange = useCallback(
-    (event: any) => {
-      const newUrl: string = event?.url || "";
-      setCurrentUrl(newUrl);
-      console.log("Navigation change:", newUrl);
-
-      // More comprehensive URL pattern matching for PayOS
-      if (
-        newUrl.includes("/payment/success") ||
-        newUrl.includes("success") ||
-        newUrl.includes("thanh-cong") ||
-        newUrl.includes("complete") ||
-        newUrl.includes("done")
-      ) {
-        console.log("Payment success detected, navigating...");
-        setShowFallback(false);
-        Toast.show({
-          type: "success",
-          text1: "Thanh toán thành công",
-          text2: "Đang chuyển về trang ví...",
-        });
-
-        // Use setTimeout to ensure WebView state is stable
-        setTimeout(() => {
-          try {
-            router.replace("/payment/success");
-          } catch (error) {
-            console.error("Navigation error:", error);
-            router.push("/payment/success");
-          }
-        }, 1500);
-      } else if (
-        newUrl.includes("/payment/failure") ||
-        newUrl.includes("failure") ||
-        newUrl.includes("cancel") ||
-        newUrl.includes("huy") ||
-        newUrl.includes("error")
-      ) {
-        console.log("Payment failure/cancel detected, navigating...");
-        setShowFallback(false);
-        Toast.show({
-          type: "info",
-          text1: "Thanh toán bị hủy",
-          text2: "Đang chuyển về trang ví...",
-        });
-
-        setTimeout(() => {
-          try {
-            router.replace("/payment/failure");
-          } catch (error) {
-            console.error("Navigation error:", error);
-            router.push("/payment/failure");
-          }
-        }, 1500);
-      }
-    },
-    [router]
+export default function CheckoutScreen() {
+  const { dressId, type = "SELL" } = useLocalSearchParams<{
+    dressId: string;
+    type: string;
+  }>();
+  const { user } = useAuth();
+  const [currentStep, setCurrentStep] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [dress, setDress] = useState<Dress | null>(null);
+  const [shopAccessories, setShopAccessories] = useState<Accessory[]>([]);
+  const [selectedAccessories, setSelectedAccessories] = useState<
+    AccessoryDetail[]
+  >([]);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [datePickerMode, setDatePickerMode] = useState<"delivery" | "return">(
+    "delivery"
   );
 
-  const onLoadStart = () => {
-    setLoading(true);
-    setWebViewError(false);
-    setShowFallback(false);
+  // Form data
+  const [orderData, setOrderData] = useState({
+    phone: user?.phone || "",
+    email: user?.email || "",
+    address: "",
+    dueDate: "",
+    returnDate: null,
+  });
+
+  const [measurements, setMeasurements] = useState<DressDetails>({
+    dressId: dressId || "",
+    height: 0,
+    weight: 0,
+    bust: 0,
+    waist: 0,
+    hip: 0,
+    armpit: 0,
+    bicep: 0,
+    neck: 0,
+    shoulderWidth: 0,
+    sleeveLength: 0,
+    backLength: 0,
+    lowerWaist: 0,
+    waistToFloor: 0,
+  });
+
+  const steps: CheckoutStep[] = [
+    {
+      id: "customer-info",
+      title: "Thông tin khách hàng",
+      description: "Xác nhận thông tin liên hệ và địa chỉ",
+      isCompleted: false,
+    },
+    {
+      id: "measurements",
+      title: "Số đo cơ thể",
+      description: "Nhập số đo để may váy vừa vặn",
+      isCompleted: false,
+    },
+    {
+      id: "accessories",
+      title: "Phụ kiện đi kèm",
+      description: "Chọn phụ kiện bổ sung cho váy",
+      isCompleted: false,
+    },
+    {
+      id: "confirmation",
+      title: "Xác nhận đơn hàng",
+      description: "Kiểm tra và xác nhận thông tin cuối cùng",
+      isCompleted: false,
+    },
+  ];
+
+  const loadDressDetails = useCallback(async () => {
+    try {
+      setLoading(true);
+      const dressData = await dressApi.getDressById(dressId);
+      setDress(dressData);
+
+      // Load accessories from the shop if dress has shop info
+      if (dressData.user?.shop?.id) {
+        await loadShopAccessories(dressData.user.shop.id);
+      }
+    } catch (error) {
+      console.error("Error loading dress details:", error);
+      Toast.show({
+        type: "error",
+        text1: "Lỗi",
+        text2: "Không thể tải thông tin váy",
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [dressId]);
+
+  useEffect(() => {
+    if (dressId) {
+      loadDressDetails();
+    }
+  }, [dressId, loadDressDetails]);
+
+  useEffect(() => {
+    if (user?.address) {
+      setOrderData((prev) => ({
+        ...prev,
+        address: user.address || "",
+      }));
+    }
+  }, [user]);
+
+  const loadShopAccessories = async (shopId: string) => {
+    try {
+      const response = await shopApi.getShopAccessories(shopId, 0, 50);
+      setShopAccessories(response.items || []);
+    } catch (error) {
+      console.error("Error loading shop accessories:", error);
+    }
   };
 
-  const onLoadEnd = () => {
-    setLoading(false);
+  // Calculate total price
+  const calculateTotalPrice = () => {
+    if (!dress) return 0;
+
+    let total = 0;
+
+    // Add dress price
+    if (type === "SELL" && dress.sellPrice) {
+      total += parseFloat(dress.sellPrice);
+    } else if (type === "RENT" && dress.rentalPrice) {
+      total += parseFloat(dress.rentalPrice);
+    }
+
+    // Add accessories price
+    selectedAccessories.forEach((selected) => {
+      const accessory = shopAccessories.find(
+        (a) => a.id === selected.accessoryId
+      );
+      if (accessory) {
+        if (type === "SELL" && accessory.sellPrice) {
+          total += parseFloat(accessory.sellPrice) * selected.quantity;
+        } else if (type === "RENT" && accessory.rentalPrice) {
+          total += parseFloat(accessory.rentalPrice) * selected.quantity;
+        }
+      }
+    });
+
+    return total;
   };
 
-  const onError = (error: any) => {
-    console.error("WebView error:", error);
-    setWebViewError(true);
-    setLoading(false);
-    Toast.show({
-      type: "error",
-      text1: "Lỗi tải trang thanh toán",
-      text2: "Vui lòng thử lại",
+  const toggleAccessory = (accessoryId: string) => {
+    setSelectedAccessories((prev) => {
+      const existing = prev.find((item) => item.accessoryId === accessoryId);
+      if (existing) {
+        return prev.filter((item) => item.accessoryId !== accessoryId);
+      } else {
+        return [...prev, { accessoryId, quantity: 1 }];
+      }
     });
   };
 
-  const onHttpError = (error: any) => {
-    console.error("HTTP error:", error);
-    if (error.nativeEvent.statusCode >= 400) {
-      setWebViewError(true);
-      setLoading(false);
+  const updateAccessoryQuantity = (accessoryId: string, quantity: number) => {
+    if (quantity <= 0) {
+      setSelectedAccessories((prev) =>
+        prev.filter((item) => item.accessoryId !== accessoryId)
+      );
+      return;
+    }
+
+    setSelectedAccessories((prev) =>
+      prev.map((item) =>
+        item.accessoryId === accessoryId ? { ...item, quantity } : item
+      )
+    );
+  };
+
+  const updateOrderData = (field: string, value: string) => {
+    setOrderData((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const updateMeasurement = (field: keyof DressDetails, value: number) => {
+    setMeasurements((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const validateStep = (stepIndex: number): boolean => {
+    switch (stepIndex) {
+      case 0: // Customer info
+        return !!(orderData.phone && orderData.email && orderData.address);
+      case 1: // Measurements
+        return !!(
+          measurements.height &&
+          measurements.bust &&
+          measurements.waist &&
+          measurements.hip
+        );
+      case 2: // Accessories (optional)
+        return true;
+      case 3: // Confirmation
+        return true;
+      default:
+        return false;
+    }
+  };
+
+  const nextStep = () => {
+    if (validateStep(currentStep)) {
+      if (currentStep < steps.length - 1) {
+        setCurrentStep(currentStep + 1);
+        // Mark current step as completed
+        steps[currentStep].isCompleted = true;
+      }
+    } else {
       Toast.show({
         type: "error",
-        text1: "Lỗi kết nối thanh toán",
-        text2: "Vui lòng kiểm tra kết nối mạng",
+        text1: "Thông tin không đầy đủ",
+        text2: "Vui lòng điền đầy đủ thông tin bắt buộc",
       });
     }
   };
 
-  const onMessage = (event: any) => {
+  const prevStep = () => {
+    if (currentStep > 0) {
+      setCurrentStep(currentStep - 1);
+    }
+  };
+
+  const handleDateSelect = (date: Date) => {
+    const formattedDate = date.toISOString().split("T")[0]; // YYYY-MM-DD format
+
+    if (datePickerMode === "delivery") {
+      updateOrderData("dueDate", formattedDate);
+    } else if (datePickerMode === "return") {
+      updateOrderData("returnDate", formattedDate);
+    }
+  };
+
+  const openDatePicker = (mode: "delivery" | "return") => {
+    setDatePickerMode(mode);
+    setShowDatePicker(true);
+  };
+
+  const handleCreateOrder = async () => {
     try {
-      const data = JSON.parse(event.nativeEvent.data);
-      console.log("WebView message:", data);
-
-      // Handle messages from PayOS iframe
-      if (data.type === "payment_success") {
-        setShowFallback(false);
-        Toast.show({
-          type: "success",
-          text1: "Thanh toán thành công",
-          text2: "Đang chuyển về trang ví...",
-        });
-        setTimeout(() => router.replace("/payment/success"), 1000);
-      } else if (data.type === "payment_failure") {
-        setShowFallback(false);
-        Toast.show({
-          type: "info",
-          text1: "Thanh toán thất bại",
-          text2: "Đang chuyển về trang ví...",
-        });
-        setTimeout(() => router.replace("/payment/failure"), 1000);
-      }
-    } catch {
-      console.log("Non-JSON message from WebView:", event.nativeEvent.data);
-    }
-  };
-
-  const handleBackToWallet = () => {
-    Toast.show({
-      type: "info",
-      text1: "Xác nhận hủy",
-      text2: "Bạn có chắc muốn hủy thanh toán này?",
-      onPress: () => {
-        Toast.show({
-          type: "info",
-          text1: "Xác nhận",
-          text2: "Nhấn lại để xác nhận hủy",
-          onPress: () => {
-            Toast.show({
-              type: "info",
-              text1: "Đã hủy thanh toán",
-              text2: "Chuyển về trang ví",
-            });
-            router.replace("/account/wallet");
-          },
-        });
-      },
-    });
-  };
-
-  const handleRefresh = () => {
-    if (webViewRef.current) {
-      webViewRef.current.reload();
-      setWebViewError(false);
       setLoading(true);
-      setShowFallback(false);
+
+      const orderRequest: CreateOrderRequest = {
+        newOrder: {
+          phone: orderData.phone,
+          email: orderData.email,
+          address: orderData.address,
+          dueDate: orderData.dueDate ?? undefined,
+          returnDate: type === "RENT" ? (orderData.returnDate ?? undefined) : "",
+          type: type as "SELL" | "RENT",
+        },
+        dressDetails: measurements,
+        accessoriesDetails: selectedAccessories,
+      };
+
+      const result = await orderApi.createOrder(orderRequest);
+
+      Toast.show({
+        type: "success",
+        text1: "Đặt hàng thành công!",
+        text2: `Mã đơn hàng: ${result.orderNumber}`,
+      });
+
+      // Navigate to order confirmation
+      router.push("/account/orders" as any);
+    } catch (error) {
+      console.error("Error creating order:", error);
+      Toast.show({
+        type: "error",
+        text1: "Lỗi đặt hàng",
+        text2: "Vui lòng thử lại sau",
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleManualSuccess = () => {
-    Toast.show({
-      type: "success",
-      text1: "Chuyển đến trang thành công",
-      text2: "Vui lòng xác nhận kết quả thanh toán",
-    });
-    router.replace("/payment/success");
-  };
+  const renderStepIndicator = () => (
+    <View className="mb-6">
+      <View className="flex-row items-center justify-between mb-4">
+        {steps.map((step, index) => (
+          <View key={step.id} className="flex-1 items-center">
+            <View
+              className={`w-8 h-8 rounded-full items-center justify-center ${
+                index <= currentStep ? "bg-primary-500" : "bg-gray-200"
+              }`}
+            >
+              {step.isCompleted ? (
+                <Ionicons name="checkmark" size={20} color="#FFFFFF" />
+              ) : (
+                <Text
+                  className={`text-sm font-semibold ${
+                    index <= currentStep ? "text-white" : "text-gray-500"
+                  }`}
+                >
+                  {index + 1}
+                </Text>
+              )}
+            </View>
+            <Text
+              className={`text-xs text-center mt-2 ${
+                index <= currentStep ? "text-primary-600" : "text-gray-400"
+              }`}
+            >
+              {step.title}
+            </Text>
+          </View>
+        ))}
+      </View>
 
-  const handleManualFailure = () => {
-    Toast.show({
-      type: "info",
-      text1: "Chuyển đến trang thất bại",
-      text2: "Vui lòng kiểm tra trạng thái thanh toán",
-    });
-    router.replace("/payment/failure");
-  };
+      {/* Progress bar */}
+      <View className="h-1 bg-gray-200 rounded-full">
+        <View
+          className="h-1 bg-primary-500 rounded-full transition-all duration-300"
+          style={{ width: `${((currentStep + 1) / steps.length) * 100}%` }}
+        />
+      </View>
+    </View>
+  );
 
-  if (!checkoutUrl) {
-    return (
-      <SafeAreaView className="flex-1 bg-white">
-        <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
-        <View className="flex-1 justify-center items-center px-6">
-          <Ionicons name="alert-circle" size={80} color="#EF4444" />
-          <Text className="text-xl font-semibold text-gray-400 mt-4 text-center">
-            Không có link thanh toán
+  const renderCustomerInfoStep = () => (
+    <Card className="mb-6">
+      <Text className="text-lg font-semibold text-gray-800 mb-4">
+        Thông tin khách hàng
+      </Text>
+
+      <View className="space-y-4">
+        <View>
+          <Text className="text-sm font-medium text-gray-700 mb-1">
+            Số điện thoại <Text className="text-red-500">*</Text>
           </Text>
-          <TouchableOpacity
-            className="bg-primary-500 rounded-xl py-3 px-6 mt-4"
-            onPress={() => router.replace("/account/wallet")}
-          >
-            <Text className="text-white font-semibold">Về trang ví</Text>
-          </TouchableOpacity>
+          <Input
+            value={orderData.phone}
+            onChangeText={(text: string) => updateOrderData("phone", text)}
+            placeholder="Nhập số điện thoại"
+            keyboardType="phone-pad"
+          />
+        </View>
+
+        <View>
+          <Text className="text-sm font-medium text-gray-700 mb-1">
+            Email <Text className="text-red-500">*</Text>
+          </Text>
+          <Input
+            value={orderData.email}
+            onChangeText={(text: string) => updateOrderData("email", text)}
+            placeholder="Nhập email"
+            keyboardType="email-address"
+          />
+        </View>
+
+        <View>
+          <Text className="text-sm font-medium text-gray-700 mb-1">
+            Địa chỉ giao hàng <Text className="text-red-500">*</Text>
+          </Text>
+          <Input
+            value={orderData.address}
+            onChangeText={(text: string) => updateOrderData("address", text)}
+            placeholder="Nhập địa chỉ chi tiết"
+            multiline
+            numberOfLines={3}
+          />
+          {user?.address && (
+            <View className="mt-2 p-3 bg-blue-50 rounded-lg border border-blue-200">
+              <Text className="text-sm font-medium text-blue-800 mb-2">
+                Địa chỉ từ hồ sơ:
+              </Text>
+              <Text className="text-sm text-blue-700">{user.address}</Text>
+              <TouchableOpacity
+                onPress={() => updateOrderData("address", user.address || "")}
+                className="mt-2"
+              >
+                <Text className="text-sm text-blue-600 font-medium">
+                  Sử dụng địa chỉ này
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+
+        <View className="flex-row space-x-3">
+          <View className="flex-1">
+            <Text className="text-sm font-medium text-gray-700 mb-1">
+              Ngày giao hàng
+            </Text>
+            <TouchableOpacity
+              onPress={() => openDatePicker("delivery")}
+              className="border border-gray-300 rounded-lg px-3 py-2 bg-white"
+            >
+              <Text
+                className={
+                  orderData.dueDate ? "text-gray-900" : "text-gray-500"
+                }
+              >
+                {orderData.dueDate || "Chọn ngày giao hàng"}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {type === "RENT" && (
+            <View className="flex-1">
+              <Text className="text-sm font-medium text-gray-700 mb-1">
+                Ngày trả hàng
+              </Text>
+              <TouchableOpacity
+                onPress={() => openDatePicker("return")}
+                className="border border-gray-300 rounded-lg px-3 py-2 bg-white"
+              >
+                <Text
+                  className={
+                    orderData.returnDate ? "text-gray-900" : "text-gray-500"
+                  }
+                >
+                  {orderData.returnDate || "Chọn ngày trả hàng"}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+
+        {/* Order Type Display */}
+        <View className="p-3 bg-gray-50 rounded-lg border border-gray-200">
+          <View className="flex-row items-center">
+            <Ionicons
+              name={type === "SELL" ? "shirt" : "repeat"}
+              size={20}
+              color={type === "SELL" ? "#E05C78" : "#10B981"}
+            />
+            <Text className="ml-2 text-sm font-medium text-gray-700">
+              Loại đơn hàng: {type === "SELL" ? "Mua váy" : "Thuê váy"}
+            </Text>
+          </View>
+        </View>
+      </View>
+    </Card>
+  );
+
+  const renderMeasurementsStep = () => (
+    <Card className="mb-6">
+      <Text className="text-lg font-semibold text-gray-800 mb-4">
+        Số đo cơ thể (cm)
+      </Text>
+
+      <View className="space-y-4">
+        <View className="flex-row space-x-3">
+          <View className="flex-1">
+            <Text className="text-sm font-medium text-gray-700 mb-1">
+              Chiều cao <Text className="text-red-500">*</Text>
+            </Text>
+            <Input
+              value={measurements.height.toString()}
+              onChangeText={(text: string) =>
+                updateMeasurement("height", Number(text) || 0)
+              }
+              placeholder="165"
+              keyboardType="numeric"
+            />
+          </View>
+          <View className="flex-1">
+            <Text className="text-sm font-medium text-gray-700 mb-1">
+              Cân nặng (kg)
+            </Text>
+            <Input
+              value={measurements.weight.toString()}
+              onChangeText={(text: string) =>
+                updateMeasurement("weight", Number(text) || 0)
+              }
+              placeholder="50"
+              keyboardType="numeric"
+            />
+          </View>
+        </View>
+
+        <View className="flex-row space-x-3">
+          <View className="flex-1">
+            <Text className="text-sm font-medium text-gray-700 mb-1">
+              Vòng ngực <Text className="text-red-500">*</Text>
+            </Text>
+            <Input
+              value={measurements.bust.toString()}
+              onChangeText={(text: string) =>
+                updateMeasurement("bust", Number(text) || 0)
+              }
+              placeholder="85"
+              keyboardType="numeric"
+            />
+          </View>
+          <View className="flex-1">
+            <Text className="text-sm font-medium text-gray-700 mb-1">
+              Vòng eo <Text className="text-red-500">*</Text>
+            </Text>
+            <Input
+              value={measurements.waist.toString()}
+              onChangeText={(text: string) =>
+                updateMeasurement("waist", Number(text) || 0)
+              }
+              placeholder="65"
+              keyboardType="numeric"
+            />
+          </View>
+        </View>
+
+        <View className="flex-row space-x-3">
+          <View className="flex-1">
+            <Text className="text-sm font-medium text-gray-700 mb-1">
+              Vòng mông <Text className="text-red-500">*</Text>
+            </Text>
+            <Input
+              value={measurements.hip.toString()}
+              onChangeText={(text: string) =>
+                updateMeasurement("hip", Number(text) || 0)
+              }
+              placeholder="90"
+              keyboardType="numeric"
+            />
+          </View>
+          <View className="flex-1">
+            <Text className="text-sm font-medium text-gray-700 mb-1">
+              Vòng cổ
+            </Text>
+            <Input
+              value={measurements.neck.toString()}
+              onChangeText={(text: string) =>
+                updateMeasurement("neck", Number(text) || 0)
+              }
+              placeholder="20"
+              keyboardType="numeric"
+            />
+          </View>
+        </View>
+
+        <View className="flex-row space-x-3">
+          <View className="flex-1">
+            <Text className="text-sm font-medium text-gray-700 mb-1">Vai</Text>
+            <Input
+              value={measurements.shoulderWidth.toString()}
+              onChangeText={(text: string) =>
+                updateMeasurement("shoulderWidth", Number(text) || 0)
+              }
+              placeholder="40"
+              keyboardType="numeric"
+            />
+          </View>
+          <View className="flex-1">
+            <Text className="text-sm font-medium text-gray-700 mb-1">
+              Tay áo
+            </Text>
+            <Input
+              value={measurements.sleeveLength.toString()}
+              onChangeText={(text: string) =>
+                updateMeasurement("sleeveLength", Number(text) || 0)
+              }
+              placeholder="40"
+              keyboardType="numeric"
+            />
+          </View>
+        </View>
+      </View>
+    </Card>
+  );
+
+  const renderAccessoriesStep = () => (
+    <Card className="mb-6">
+      <Text className="text-lg font-semibold text-gray-800 mb-4">
+        Phụ kiện đi kèm
+      </Text>
+
+      {shopAccessories.length === 0 ? (
+        <View className="py-8 items-center">
+          <Ionicons name="bag-outline" size={48} color="#CCCCCC" />
+          <Text className="text-gray-400 text-center mt-4">
+            Không có phụ kiện nào cho váy này
+          </Text>
+          <Text className="text-gray-400 text-center mt-2 text-sm">
+            Shop này chưa cung cấp phụ kiện
+          </Text>
+        </View>
+      ) : (
+        <View className="space-y-3">
+          {shopAccessories.map((accessory) => {
+            const isSelected = selectedAccessories.some(
+              (item) => item.accessoryId === accessory.id
+            );
+            const selectedItem = selectedAccessories.find(
+              (item) => item.accessoryId === accessory.id
+            );
+            const quantity = selectedItem?.quantity || 0;
+
+            return (
+              <View
+                key={accessory.id}
+                className={`p-3 rounded-lg border-2 ${
+                  isSelected
+                    ? "border-primary-500 bg-primary-50"
+                    : "border-gray-200 bg-white"
+                }`}
+              >
+                <View className="flex-row items-center justify-between">
+                  <View className="flex-1">
+                    <Text className="font-medium text-gray-800">
+                      {accessory.name}
+                    </Text>
+                    <Text className="text-sm text-gray-600 mt-1">
+                      {type === "SELL"
+                        ? formatVNDCustom(accessory.sellPrice, "₫")
+                        : formatVNDCustom(accessory.rentalPrice, "₫")}
+                    </Text>
+                  </View>
+
+                  <TouchableOpacity
+                    onPress={() => toggleAccessory(accessory.id)}
+                    className={`px-4 py-2 rounded-lg ${
+                      isSelected ? "bg-primary-500" : "bg-gray-200"
+                    }`}
+                  >
+                    <Text
+                      className={`font-medium ${
+                        isSelected ? "text-white" : "text-gray-700"
+                      }`}
+                    >
+                      {isSelected ? "Đã chọn" : "Chọn"}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                {isSelected && (
+                  <View className="mt-3 flex-row items-center justify-between">
+                    <Text className="text-sm text-gray-600">Số lượng:</Text>
+                    <View className="flex-row items-center space-x-3">
+                      <TouchableOpacity
+                        onPress={() =>
+                          updateAccessoryQuantity(accessory.id, quantity - 1)
+                        }
+                        className="w-8 h-8 rounded-full bg-gray-200 items-center justify-center"
+                      >
+                        <Ionicons name="remove" size={16} color="#666" />
+                      </TouchableOpacity>
+
+                      <Text className="text-lg font-medium text-gray-800 min-w-[30px] text-center">
+                        {quantity}
+                      </Text>
+
+                      <TouchableOpacity
+                        onPress={() =>
+                          updateAccessoryQuantity(accessory.id, quantity + 1)
+                        }
+                        className="w-8 h-8 rounded-full bg-primary-500 items-center justify-center"
+                      >
+                        <Ionicons name="add" size={16} color="#fff" />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                )}
+              </View>
+            );
+          })}
+        </View>
+      )}
+
+      {selectedAccessories.length > 0 && (
+        <View className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+          <Text className="text-sm font-medium text-blue-800 mb-2">
+            Phụ kiện đã chọn:
+          </Text>
+          {selectedAccessories.map((selected) => {
+            const accessory = shopAccessories.find(
+              (a) => a.id === selected.accessoryId
+            );
+            if (!accessory) return null;
+
+            const price =
+              type === "SELL" ? accessory.sellPrice : accessory.rentalPrice;
+            const totalPrice = parseFloat(price) * selected.quantity;
+
+            return (
+              <View
+                key={selected.accessoryId}
+                className="flex-row justify-between items-center"
+              >
+                <Text className="text-sm text-blue-700">
+                  {accessory.name} x{selected.quantity}
+                </Text>
+                <Text className="text-sm font-medium text-blue-800">
+                  {formatVNDCustom(totalPrice, "₫")}
+                </Text>
+              </View>
+            );
+          })}
+        </View>
+      )}
+    </Card>
+  );
+
+  const renderConfirmationStep = () => (
+    <Card className="mb-6">
+      <Text className="text-lg font-semibold text-gray-800 mb-4">
+        Xác nhận đơn hàng
+      </Text>
+
+      <View className="space-y-4">
+        {/* Dress Info */}
+        {dress && (
+          <View className="p-3 bg-gray-50 rounded-lg">
+            <Text className="font-semibold text-gray-800 mb-2">
+              Thông tin váy
+            </Text>
+            <Text className="text-gray-600">{dress.name}</Text>
+            <Text className="text-primary-600 font-semibold">
+              {type === "SELL"
+                ? formatVNDCustom(dress.sellPrice, "₫")
+                : formatVNDCustom(dress.rentalPrice, "₫")}
+            </Text>
+          </View>
+        )}
+
+        {/* Accessories Info */}
+        {selectedAccessories.length > 0 && (
+          <View className="p-3 bg-gray-50 rounded-lg">
+            <Text className="font-semibold text-gray-800 mb-2">
+              Phụ kiện đã chọn
+            </Text>
+            {selectedAccessories.map((selected) => {
+              const accessory = shopAccessories.find(
+                (a) => a.id === selected.accessoryId
+              );
+              if (!accessory) return null;
+
+              const price =
+                type === "SELL" ? accessory.sellPrice : accessory.rentalPrice;
+              const totalPrice = parseFloat(price) * selected.quantity;
+
+              return (
+                <View
+                  key={selected.accessoryId}
+                  className="flex-row justify-between items-center mb-1"
+                >
+                  <Text className="text-gray-600">
+                    {accessory.name} x{selected.quantity}
+                  </Text>
+                  <Text className="text-gray-800 font-medium">
+                    {formatVNDCustom(totalPrice, "₫")}
+                  </Text>
+                </View>
+              );
+            })}
+          </View>
+        )}
+
+        {/* Customer Info */}
+        <View className="p-3 bg-gray-50 rounded-lg">
+          <Text className="font-semibold text-gray-800 mb-2">
+            Thông tin khách hàng
+          </Text>
+          <Text className="text-gray-600">SĐT: {orderData.phone}</Text>
+          <Text className="text-gray-600">Email: {orderData.email}</Text>
+          <Text className="text-gray-600">Địa chỉ: {orderData.address}</Text>
+          {orderData.dueDate && (
+            <Text className="text-gray-600">
+              Ngày giao: {orderData.dueDate}
+            </Text>
+          )}
+          {type === "RENT" && orderData.returnDate && (
+            <Text className="text-gray-600">
+              Ngày trả: {orderData.returnDate}
+            </Text>
+          )}
+        </View>
+
+        {/* Order Type */}
+        <View className="p-3 bg-primary-50 rounded-lg border border-primary-200">
+          <Text className="font-semibold text-primary-800 mb-2">
+            Loại đơn hàng: {type === "SELL" ? "Mua váy" : "Thuê váy"}
+          </Text>
+          <Text className="text-primary-600">
+            {type === "SELL"
+              ? "Bạn sẽ sở hữu váy này vĩnh viễn"
+              : "Bạn sẽ thuê váy trong thời gian nhất định"}
+          </Text>
+        </View>
+
+        {/* Total */}
+        <View className="p-3 bg-primary-50 rounded-lg border border-primary-200">
+          <Text className="font-semibold text-primary-800 mb-2">Tổng cộng</Text>
+          <Text className="text-primary-600 font-bold text-lg">
+            {formatVNDCustom(calculateTotalPrice(), "₫")}
+          </Text>
+        </View>
+      </View>
+    </Card>
+  );
+
+  const renderCurrentStep = () => {
+    switch (currentStep) {
+      case 0:
+        return renderCustomerInfoStep();
+      case 1:
+        return renderMeasurementsStep();
+      case 2:
+        return renderAccessoriesStep();
+      case 3:
+        return renderConfirmationStep();
+      default:
+        return null;
+    }
+  };
+
+  const renderNavigationButtons = () => (
+    <View className="flex-row space-x-3 mt-6">
+      {currentStep > 0 && (
+        <View className="flex-1">
+          <Button
+            title="Quay lại"
+            onPress={prevStep}
+            variant="outline"
+            fullWidth
+          />
+        </View>
+      )}
+
+      <View className="flex-1">
+        {currentStep === steps.length - 1 ? (
+          <Button
+            title="Đặt hàng"
+            onPress={handleCreateOrder}
+            loading={loading}
+            fullWidth
+          />
+        ) : (
+          <Button title="Tiếp tục" onPress={nextStep} fullWidth />
+        )}
+      </View>
+    </View>
+  );
+
+  if (!dressId) {
+    return (
+      <SafeAreaView className="flex-1 bg-gray-50">
+        <LightStatusBar />
+        <View className="flex-1 items-center justify-center p-6">
+          <Ionicons name="alert-circle" size={64} color="#EF4444" />
+          <Text className="text-xl font-semibold text-gray-800 mt-4">
+            Không tìm thấy thông tin váy
+          </Text>
+          <Text className="text-gray-500 text-center mt-2">
+            Vui lòng quay lại trang chi tiết váy để đặt hàng
+          </Text>
+          <Button
+            title="Quay lại"
+            onPress={() => router.back()}
+            className="mt-6"
+          />
         </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+    <SafeAreaView className="flex-1 bg-gray-50">
+      <LightStatusBar />
 
       {/* Header */}
-      <View className="bg-white px-4 py-3 border-b border-gray-100">
-        <View className="flex-row items-center justify-between">
-          <TouchableOpacity
-            className="w-10 h-10 rounded-full bg-gray-100 items-center justify-center"
-            onPress={handleBackToWallet}
-          >
-            <Ionicons name="arrow-back" size={20} color="#374151" />
+      <View className="bg-white px-6 py-4 border-b border-gray-200">
+        <View className="flex-row items-center">
+          <TouchableOpacity onPress={() => router.back()} className="mr-4">
+            <Ionicons name="arrow-back" size={24} color="#374151" />
           </TouchableOpacity>
-          <Text className="text-lg font-semibold text-gray-800">
-            Thanh toán
+          <Text className="text-lg font-bold text-gray-900">
+            {type === "SELL" ? "Mua váy" : "Thuê váy"}
           </Text>
-          <TouchableOpacity
-            className="w-10 h-10 rounded-full bg-gray-100 items-center justify-center"
-            onPress={handleRefresh}
-          >
-            <Ionicons name="refresh" size={20} color="#374151" />
-          </TouchableOpacity>
         </View>
       </View>
 
-      <View className="flex-1">
-        {loading && !showFallback && (
-          <View className="absolute top-0 left-0 right-0 bottom-0 bg-white items-center justify-center z-10">
-            <ActivityIndicator size="large" color="#E05C78" />
-            <Text className="text-gray-600 mt-4">
-              Đang tải trang thanh toán...
-            </Text>
-          </View>
-        )}
+      <ScrollView className="flex-1 px-6 py-4">
+        {/* Step Indicator */}
+        {renderStepIndicator()}
 
-        {showFallback && (
-          <View className="absolute top-0 left-0 right-0 bottom-0 bg-white items-center justify-center z-10">
-            <View className="bg-yellow-50 rounded-2xl p-6 border border-yellow-200 mx-6">
-              <View className="items-center">
-                <Ionicons name="time-outline" size={48} color="#F59E0B" />
-                <Text className="text-lg font-semibold text-yellow-800 mt-4 text-center">
-                  Thanh toán đang xử lý
-                </Text>
-                <Text className="text-yellow-700 text-center mt-2 leading-5">
-                  Nếu bạn đã hoàn thành thanh toán, vui lòng chọn kết quả phù
-                  hợp bên dưới
-                </Text>
+        {/* Current Step Content */}
+        {renderCurrentStep()}
 
-                <View className="mt-6 w-full space-y-3">
-                  <TouchableOpacity
-                    className="bg-green-600 rounded-xl py-4 px-6 items-center"
-                    onPress={handleManualSuccess}
-                  >
-                    <Text className="text-white font-semibold">
-                      Thanh toán thành công
-                    </Text>
-                  </TouchableOpacity>
+        {/* Navigation Buttons */}
+        {renderNavigationButtons()}
+      </ScrollView>
 
-                  <TouchableOpacity
-                    className="bg-red-600 rounded-xl py-4 px-6 items-center"
-                    onPress={handleManualFailure}
-                  >
-                    <Text className="text-white font-semibold">
-                      Thanh toán thất bại
-                    </Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    className="bg-gray-200 rounded-xl py-4 px-6 items-center"
-                    onPress={handleRefresh}
-                  >
-                    <Text className="text-gray-700 font-medium">
-                      Tiếp tục chờ
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </View>
-          </View>
-        )}
-
-        {webViewError ? (
-          <View className="flex-1 justify-center items-center px-6">
-            <Ionicons name="wifi-outline" size={80} color="#EF4444" />
-            <Text className="text-xl font-semibold text-gray-400 mt-4 text-center">
-              Không thể tải trang thanh toán
-            </Text>
-            <Text className="text-gray-500 text-center mt-2">
-              Vui lòng kiểm tra kết nối mạng và thử lại
-            </Text>
-            <View className="flex-row mt-6 space-x-3">
-              <TouchableOpacity
-                className="bg-gray-200 rounded-xl px-6 py-3"
-                onPress={handleRefresh}
-              >
-                <Text className="text-gray-800 font-semibold">Thử lại</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                className="bg-primary-500 rounded-xl px-6 py-3"
-                onPress={() => router.replace("/account/wallet")}
-              >
-                <Text className="text-white font-semibold">Về ví</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        ) : (
-          <WebView
-            ref={webViewRef}
-            source={{ uri: checkoutUrl }}
-            onNavigationStateChange={onNavChange}
-            onLoadStart={onLoadStart}
-            onLoadEnd={onLoadEnd}
-            onError={onError}
-            onHttpError={onHttpError}
-            onMessage={onMessage}
-            startInLoadingState={false}
-            javaScriptEnabled={true}
-            domStorageEnabled={true}
-            allowsBackForwardNavigationGestures={false}
-            userAgent="Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1"
-            injectedJavaScript={`
-              // Listen for PayOS events
-              window.addEventListener('message', function(event) {
-                if (event.data && event.data.type) {
-                  window.ReactNativeWebView.postMessage(JSON.stringify(event.data));
-                }
-              });
-              
-              // Monitor URL changes
-              let currentUrl = window.location.href;
-              setInterval(function() {
-                if (window.location.href !== currentUrl) {
-                  currentUrl = window.location.href;
-                  window.ReactNativeWebView.postMessage(JSON.stringify({
-                    type: 'url_change',
-                    url: currentUrl
-                  }));
-                }
-              }, 1000);
-            `}
-          />
-        )}
-      </View>
+      {/* Date Picker Modal */}
+      <DatePicker
+        visible={showDatePicker}
+        onClose={() => setShowDatePicker(false)}
+        onConfirm={handleDateSelect}
+        title={
+          datePickerMode === "delivery"
+            ? "Chọn ngày giao hàng"
+            : "Chọn ngày trả hàng"
+        }
+        minimumDate={
+          datePickerMode === "return" && orderData.dueDate
+            ? new Date(orderData.dueDate)
+            : new Date()
+        }
+        initialDate={
+          datePickerMode === "return" && orderData.dueDate
+            ? new Date(orderData.dueDate)
+            : new Date()
+        }
+      />
     </SafeAreaView>
   );
 }

@@ -67,7 +67,7 @@ export default function Home() {
         setIsLoadingWallet(true);
         const res = await walletApi.getMyWallet();
         if (res?.item?.availableBalance != null) {
-          setWalletBalance(formatCurrency(res.item.availableBalance));
+          setWalletBalance(formatCurrency(String(res.item.availableBalance)));
         }
       } catch {
       } finally {

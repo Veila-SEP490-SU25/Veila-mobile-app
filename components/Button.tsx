@@ -205,11 +205,20 @@ export const DangerButton = (props: Omit<ButtonProps, "variant">) => (
 );
 
 // Icon buttons
+const getIconButtonStyle = (size: string, variant: string) => {
+  const sizeKey =
+    `iconButton${size.charAt(0).toUpperCase() + size.slice(1)}` as keyof typeof styles;
+  const variantKey =
+    `iconButton${variant.charAt(0).toUpperCase() + variant.slice(1)}` as keyof typeof styles;
+
+  return [styles.iconButton, styles[sizeKey], styles[variantKey]];
+};
+
 export const IconButton = ({
   icon,
-  onPress,
   size = "medium",
   variant = "primary",
+  onPress,
   disabled = false,
   style,
   ...props
@@ -219,11 +228,7 @@ export const IconButton = ({
   return (
     <TouchableOpacity
       style={[
-        styles.iconButton,
-        styles[`iconButton${size.charAt(0).toUpperCase() + size.slice(1)}`],
-        styles[
-          `iconButton${variant.charAt(0).toUpperCase() + variant.slice(1)}`
-        ],
+        ...getIconButtonStyle(size, variant),
         disabled && styles.iconButtonDisabled,
         style,
       ]}

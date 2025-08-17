@@ -9,21 +9,50 @@ import {
   View,
 } from "react-native";
 
-interface Blog {
+interface BlogPost {
   id: string;
   title: string;
   images: string[] | null;
   content?: string;
-  createdAt?: string;
+  publishedAt?: string;
+  author?: string;
+  summary?: string;
+  tags?: string[];
+  viewCount?: number;
+  user: {
+    shop: {
+      name: string;
+    };
+  };
+  category: {
+    name: string;
+  };
 }
 
 interface BlogListProps {
-  blogs: Blog[];
-  onBlogPress: (blog: Blog) => void;
+  blogs?: BlogPost[];
+  onBlogPress: (blog: BlogPost) => void;
 }
 
 export default function BlogList({ blogs, onBlogPress }: BlogListProps) {
-  const renderBlog = ({ item }: { item: Blog }) => (
+  // Add null check and default value
+  const safeBlogs = blogs || [];
+
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return "Gần đây";
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString("vi-VN", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      });
+    } catch {
+      return "Gần đây";
+    }
+  };
+
+  const renderBlog = ({ item }: { item: BlogPost }) => (
     <TouchableOpacity
       style={styles.blogCard}
       onPress={() => onBlogPress(item)}
@@ -43,26 +72,47 @@ export default function BlogList({ blogs, onBlogPress }: BlogListProps) {
           {item.title}
         </Text>
 
-        {item.content && (
+        {item.summary && (
           <Text style={styles.blogExcerpt} numberOfLines={2}>
-            {item.content}
+            {item.summary}
           </Text>
         )}
 
         <View style={styles.blogMeta}>
           <View style={styles.metaItem}>
             <Ionicons name="time-outline" size={12} color="#999999" />
-            <Text style={styles.metaText}>
-              {item.createdAt
-                ? new Date(item.createdAt).toLocaleDateString("vi-VN")
-                : "Gần đây"}
-            </Text>
+            <Text style={styles.metaText}>{formatDate(item.publishedAt)}</Text>
           </View>
 
-          <View style={styles.metaItem}>
-            <Ionicons name="eye-outline" size={12} color="#999999" />
-            <Text style={styles.metaText}>123 lượt xem</Text>
-          </View>
+          {item.viewCount && (
+            <View style={styles.metaItem}>
+              <Ionicons name="eye-outline" size={12} color="#999999" />
+              <Text style={styles.metaText}>
+                {item.viewCount.toLocaleString()} lượt xem
+              </Text>
+            </View>
+          )}
+        </View>
+
+        {/* Shop and Category Info */}
+        <View style={styles.blogFooter}>
+          {item.user?.shop?.name && (
+            <View style={styles.shopInfo}>
+              <Ionicons name="business-outline" size={12} color="#E05C78" />
+              <Text style={styles.shopText} numberOfLines={1}>
+                {item.user.shop.name}
+              </Text>
+            </View>
+          )}
+
+          {item.category?.name && (
+            <View style={styles.categoryInfo}>
+              <Ionicons name="pricetag-outline" size={12} color="#10B981" />
+              <Text style={styles.categoryText} numberOfLines={1}>
+                {item.category.name}
+              </Text>
+            </View>
+          )}
         </View>
       </View>
 
@@ -72,20 +122,36 @@ export default function BlogList({ blogs, onBlogPress }: BlogListProps) {
     </TouchableOpacity>
   );
 
+  if (safeBlogs.length === 0) {
+    return (
+      <View style={styles.emptyContainer}>
+        <Ionicons name="newspaper-outline" size={48} color="#CCCCCC" />
+        <Text style={styles.emptyTitle}>Không có bài viết nào</Text>
+        <Text style={styles.emptySubtitle}>Hãy quay lại sau</Text>
+      </View>
+    );
+  }
+
   return (
-    <FlatList
-      data={blogs}
-      renderItem={renderBlog}
-      keyExtractor={(item) => item.id}
-      showsVerticalScrollIndicator={false}
-      contentContainerStyle={styles.container}
-      scrollEnabled={false} // Disable scroll since it's inside another FlatList
-    />
+    <View style={styles.container}>
+      <FlatList
+        data={safeBlogs}
+        renderItem={renderBlog}
+        keyExtractor={(item) => item.id}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.listContainer}
+        scrollEnabled={false}
+        nestedScrollEnabled={false}
+      />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
+  },
+  listContainer: {
     paddingHorizontal: 4,
   },
   blogCard: {
@@ -143,5 +209,54 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     width: 24,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: 40,
+  },
+  emptyTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#666666",
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  emptySubtitle: {
+    fontSize: 14,
+    color: "#999999",
+  },
+  blogFooter: {
+    flexDirection: "row",
+    marginTop: 12,
+    alignItems: "center",
+  },
+  shopInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFFBEB",
+    borderRadius: 8,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    marginRight: 8,
+  },
+  shopText: {
+    fontSize: 12,
+    color: "#D97706",
+    marginLeft: 4,
+  },
+  categoryInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#ECFDF5",
+    borderRadius: 8,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+  },
+  categoryText: {
+    fontSize: 12,
+    color: "#065F46",
+    marginLeft: 4,
   },
 });

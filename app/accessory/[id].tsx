@@ -1,6 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
-import { StatusBar } from "expo-status-bar";
 import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -12,8 +11,10 @@ import {
   View,
 } from "react-native";
 import Toast from "react-native-toast-message";
+import { LightStatusBar } from "../../components/StatusBar";
 import { shopApi } from "../../services/apis/shop.api";
 import { Accessory } from "../../services/types";
+import { formatVNDCustom } from "../../utils/currency.util";
 
 export default function AccessoryDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -23,20 +24,12 @@ export default function AccessoryDetailScreen() {
 
   const loadAccessoryDetail = useCallback(async () => {
     try {
-      if (!id) return;
       setLoading(true);
-
-      const accessoryData = await shopApi.getAccessoryById(id);
-      setAccessory(accessoryData);
+      const response = await shopApi.getAccessoryById(id);
+      setAccessory(response);
     } catch (error) {
-      if (__DEV__) {
-        console.error("Error loading accessory detail:", error);
-      }
-      Toast.show({
-        type: "error",
-        text1: "Lỗi",
-        text2: "Không thể tải thông tin phụ kiện",
-      });
+      console.error("Error loading accessory detail:", error);
+      setAccessory(null);
     } finally {
       setLoading(false);
     }
@@ -46,15 +39,15 @@ export default function AccessoryDetailScreen() {
     loadAccessoryDetail();
   }, [loadAccessoryDetail]);
 
-  const handleFavorite = useCallback(() => {
+  const handleFavorite = () => {
     setIsFavorite(!isFavorite);
     Toast.show({
       type: "success",
       text1: isFavorite ? "Đã bỏ yêu thích" : "Đã thêm vào yêu thích",
     });
-  }, [isFavorite]);
+  };
 
-  const handleContact = useCallback(() => {
+  const handleContact = () => {
     Toast.show({
       type: "info",
       text1: "Liên hệ",
@@ -70,7 +63,7 @@ export default function AccessoryDetailScreen() {
         });
       },
     });
-  }, []);
+  };
 
   if (loading) {
     return (
@@ -91,7 +84,7 @@ export default function AccessoryDetailScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar style="light" />
+      <LightStatusBar />
 
       {/* Header */}
       <View style={styles.header}>
@@ -157,7 +150,9 @@ export default function AccessoryDetailScreen() {
                   <Ionicons name="shirt-outline" size={20} color="#E05C78" />
                   <Text style={styles.priceLabel}>Giá mua</Text>
                 </View>
-                <Text style={styles.priceValue}>{accessory.sellPrice}đ</Text>
+                <Text style={styles.priceValue}>
+                  {formatVNDCustom(accessory.sellPrice)}
+                </Text>
               </View>
             )}
 
@@ -167,7 +162,9 @@ export default function AccessoryDetailScreen() {
                   <Ionicons name="repeat-outline" size={20} color="#10B981" />
                   <Text style={styles.priceLabel}>Giá thuê</Text>
                 </View>
-                <Text style={styles.rentalValue}>{accessory.rentalPrice}đ</Text>
+                <Text style={styles.rentalValue}>
+                  {formatVNDCustom(accessory.rentalPrice)}
+                </Text>
               </View>
             )}
           </View>
@@ -194,7 +191,6 @@ export default function AccessoryDetailScreen() {
           </View>
         </View>
       </ScrollView>
-      <Toast />
     </View>
   );
 }

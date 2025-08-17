@@ -13,6 +13,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Toast from "react-native-toast-message";
+import Button from "../../components/Button";
 import { customRequestApi } from "../../services/apis/custom-request.api";
 import { CustomRequest } from "../../services/types";
 
@@ -320,21 +321,23 @@ export default function CustomRequestsScreen() {
         </View>
 
         <View className="flex-row space-x-2">
-          <TouchableOpacity
-            className="flex-1 bg-primary-500 rounded-xl py-2 items-center"
-            onPress={() =>
-              router.push(`/account/custom-requests/${item.id}` as any)
-            }
-          >
-            <Text className="text-white font-medium text-sm">Xem chi tiết</Text>
-          </TouchableOpacity>
+          <View className="flex-1">
+            <Button
+              title="Xem chi tiết"
+              onPress={() =>
+                router.push(`/account/custom-requests/${item.id}` as any)
+              }
+              size="small"
+            />
+          </View>
 
-          <TouchableOpacity
-            className="bg-red-500 rounded-xl py-2 px-4 items-center"
+          <Button
+            title="Xóa"
             onPress={() => handleDeleteRequest(item.id)}
-          >
-            <Ionicons name="trash-outline" size={16} color="#FFFFFF" />
-          </TouchableOpacity>
+            variant="danger"
+            size="small"
+            icon="trash-outline"
+          />
         </View>
       </View>
     </TouchableOpacity>
@@ -354,12 +357,10 @@ export default function CustomRequestsScreen() {
           : "Tạo yêu cầu đầu tiên để bắt đầu thiết kế váy cưới"}
       </Text>
       {!searchQuery && selectedFilter === "ALL" && selectedStatus === "ALL" && (
-        <TouchableOpacity
-          className="bg-primary-500 rounded-xl py-3 px-6 mt-6"
+        <Button
+          title="Tạo yêu cầu mới"
           onPress={() => router.push("/account/custom-requests/create" as any)}
-        >
-          <Text className="text-white font-semibold">Tạo yêu cầu mới</Text>
-        </TouchableOpacity>
+        />
       )}
     </View>
   );
@@ -454,7 +455,6 @@ export default function CustomRequestsScreen() {
           }
         />
       )}
-      <Toast />
     </SafeAreaView>
   );
 }

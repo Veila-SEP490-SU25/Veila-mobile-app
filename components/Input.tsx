@@ -177,7 +177,7 @@ const Input = forwardRef<TextInput, InputProps>(
         {label && (
           <View style={styles.labelContainer}>
             <Text style={[styles.label, disabled && styles.labelDisabled]}>
-              {label}
+              {String(label || "")}
             </Text>
             {required && <Text style={styles.required}>*</Text>}
           </View>
@@ -217,9 +217,9 @@ const Input = forwardRef<TextInput, InputProps>(
         {(error || helperText) && (
           <View style={styles.helperContainer}>
             {error ? (
-              <Text style={styles.errorText}>{error}</Text>
+              <Text style={styles.errorText}>{String(error || "")}</Text>
             ) : (
-              <Text style={styles.helperText}>{helperText}</Text>
+              <Text style={styles.helperText}>{String(helperText || "")}</Text>
             )}
           </View>
         )}

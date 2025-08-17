@@ -79,11 +79,13 @@ export default function TransactionDetailScreen() {
   };
 
   const formatCurrency = (amount: string) => {
-    const num = parseFloat(amount);
+    const numAmount = parseFloat(amount);
+    if (isNaN(numAmount)) return "0 ₫";
+
     return new Intl.NumberFormat("vi-VN", {
       style: "currency",
       currency: "VND",
-    }).format(num);
+    }).format(numAmount);
   };
 
   const formatDateTime = (dateString: string) => {

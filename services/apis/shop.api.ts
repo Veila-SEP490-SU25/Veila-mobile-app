@@ -30,7 +30,6 @@ const makeRequest = async (endpoint: string, options: RequestInit = {}) => {
 };
 
 export const shopApi = {
-  // Get all shops
   getShops: async (
     page: number = 0,
     size: number = 10,

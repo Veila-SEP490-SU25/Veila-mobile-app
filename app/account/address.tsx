@@ -1,8 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { router } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
   ScrollView,
   Text,
   TextInput,
@@ -11,10 +10,11 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Toast from "react-native-toast-message";
+import Button from "../../components/Button";
 import AddressDisplay from "../../components/profile/AddressDisplay";
 import AddressPicker from "../../components/profile/AddressPicker";
 import { useAuth } from "../../providers/auth.provider";
-import { IAddress } from "../../services/types";
+import { IAddress } from "../../services/types/location.type";
 import {
   createProfileUpdateFromAddress,
   parseAddressString,
@@ -32,8 +32,24 @@ interface Address {
 }
 
 const AddressScreen = () => {
-  const router = useRouter();
   const { user, updateUser } = useAuth();
+
+  // Helper function to convert IAddress to Address
+  const convertIAddressToAddress = (iAddress: IAddress): Partial<Address> => ({
+    province: iAddress.province,
+    district: iAddress.district,
+    ward: iAddress.ward,
+    streetAddress: iAddress.streetAddress,
+  });
+
+  // Helper function to convert Address to IAddress
+  const convertAddressToIAddress = (address: Address): IAddress => ({
+    province: address.province,
+    district: address.district,
+    ward: address.ward,
+    streetAddress: address.streetAddress,
+  });
+
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [isAdding, setIsAdding] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -46,11 +62,15 @@ const AddressScreen = () => {
     phone: "",
     streetAddress: "",
     address: {
+      id: "",
+      name: "",
+      phone: "",
       province: null,
       district: null,
       ward: null,
       streetAddress: "",
-    } as IAddress,
+      isDefault: false,
+    },
   });
 
   useEffect(() => {
@@ -106,7 +126,7 @@ const AddressScreen = () => {
               }
             : null,
           isDefault: true,
-        };
+        } as Address;
 
         setAddresses([existingAddress]);
       } else {
@@ -141,10 +161,14 @@ const AddressScreen = () => {
       phone: user?.phone || "",
       streetAddress: "",
       address: {
+        id: "",
+        name: "",
+        phone: "",
         province: null,
         district: null,
         ward: null,
         streetAddress: "",
+        isDefault: false,
       },
     });
   };
@@ -165,10 +189,14 @@ const AddressScreen = () => {
       phone: address.phone,
       streetAddress: address.streetAddress,
       address: {
+        id: address.id,
+        name: address.name,
+        phone: address.phone,
         province: address.province,
         district: address.district,
         ward: address.ward,
         streetAddress: address.streetAddress,
+        isDefault: address.isDefault,
       },
     });
   };
@@ -403,38 +431,31 @@ const AddressScreen = () => {
       </View>
 
       <View className="flex-row space-x-2">
-        <TouchableOpacity
+        <Button
+          title="Chỉnh sửa"
           onPress={() => handleEditAddress(address)}
-          className="flex-1 bg-blue-50 rounded-lg py-2 px-3 border border-blue-200"
-        >
-          <View className="flex-row items-center justify-center">
-            <Ionicons name="pencil" size={16} color="#3B82F6" />
-            <Text className="text-sm font-medium text-blue-600 ml-1">
-              Chỉnh sửa
-            </Text>
-          </View>
-        </TouchableOpacity>
+          variant="outline"
+          size="small"
+          icon="pencil"
+        />
 
         {!address.isDefault && (
-          <TouchableOpacity
+          <Button
+            title="Đặt mặc định"
             onPress={() => handleSetDefault(address.id)}
-            className="flex-1 bg-green-50 rounded-lg py-2 px-3 border border-green-200"
-          >
-            <View className="flex-row items-center justify-center">
-              <Ionicons name="star" size={16} color="#10B981" />
-              <Text className="text-sm font-medium text-green-600 ml-1">
-                Đặt mặc định
-              </Text>
-            </View>
-          </TouchableOpacity>
+            variant="outline"
+            size="small"
+            icon="star"
+          />
         )}
 
-        <TouchableOpacity
+        <Button
+          title="Xóa"
           onPress={() => handleDeleteAddress(address.id)}
-          className="bg-red-50 rounded-lg py-2 px-3 border border-red-200"
-        >
-          <Ionicons name="trash" size={16} color="#EF4444" />
-        </TouchableOpacity>
+          variant="danger"
+          size="small"
+          icon="trash"
+        />
       </View>
     </View>
   );
@@ -480,9 +501,15 @@ const AddressScreen = () => {
             Tỉnh/Thành phố <Text className="text-red-500">*</Text>
           </Text>
           <AddressPicker
-            value={formData.address}
-            onChange={(address) =>
-              setFormData((prev) => ({ ...prev, address }))
+            value={convertAddressToIAddress(formData.address)}
+            onChange={(iAddress) =>
+              setFormData((prev) => ({
+                ...prev,
+                address: {
+                  ...prev.address,
+                  ...convertIAddressToAddress(iAddress),
+                },
+              }))
             }
             label=""
             placeholder="Chọn tỉnh/thành phố"
@@ -518,27 +545,24 @@ const AddressScreen = () => {
       </View>
 
       <View className="flex-row space-x-2 mt-4">
-        <TouchableOpacity
-          onPress={handleCancel}
-          className="flex-1 bg-gray-100 rounded-lg py-3 border border-gray-300"
-          disabled={loading}
-        >
-          <Text className="text-center font-medium text-gray-700">Hủy</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={handleSave}
-          className="flex-1 bg-blue-600 rounded-lg py-3 flex-row items-center justify-center"
-          disabled={loading}
-        >
-          {loading ? (
-            <ActivityIndicator size="small" color="#FFFFFF" />
-          ) : (
-            <Ionicons name="checkmark" size={20} color="#FFFFFF" />
-          )}
-          <Text className="text-sm font-medium text-white ml-2">
-            {loading ? "Đang lưu..." : "Lưu"}
-          </Text>
-        </TouchableOpacity>
+        <View className="flex-1 mr-2">
+          <Button
+            title="Hủy"
+            onPress={handleCancel}
+            variant="outline"
+            disabled={loading}
+            fullWidth
+          />
+        </View>
+        <View className="flex-1 ml-2">
+          <Button
+            title={loading ? "Đang lưu..." : "Lưu"}
+            onPress={handleSave}
+            loading={loading}
+            disabled={loading}
+            fullWidth
+          />
+        </View>
       </View>
     </View>
   );
@@ -560,17 +584,14 @@ const AddressScreen = () => {
       <ScrollView className="flex-1 px-6 py-4">
         {/* Add New Address Button */}
         {!isAdding && !isEditing && (
-          <TouchableOpacity
-            className="bg-maroon-500 rounded-xl py-4 px-6 mb-6 shadow-sm"
+          <Button
+            title="Thêm địa chỉ mới"
             onPress={handleAddNew}
-          >
-            <View className="flex-row items-center justify-center">
-              <Ionicons name="add" size={20} color="#FFFFFF" />
-              <Text className="text-white font-semibold text-center ml-2">
-                Thêm địa chỉ mới
-              </Text>
-            </View>
-          </TouchableOpacity>
+            variant="primary"
+            size="large"
+            icon="add"
+            fullWidth
+          />
         )}
 
         {/* Address Form */}

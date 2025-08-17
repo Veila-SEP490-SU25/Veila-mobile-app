@@ -91,6 +91,13 @@ export default function ShopDetailScreen() {
         shopApi.getShopBlogs(id, 0, 20),
       ]);
 
+      console.log("🔍 Loaded data:", {
+        dresses: dresses.items?.length || 0,
+        accessories: accessories.items?.length || 0,
+        blogs: blogs.items?.length || 0,
+        blogsData: blogs.items,
+      });
+
       setProducts({
         dresses: dresses.items || [],
         rentalDresses: dresses.items?.filter((d) => d.isRentable) || [],
@@ -252,6 +259,7 @@ export default function ShopDetailScreen() {
                 shopId={id}
                 onDressPress={handleDressPress}
                 disableScroll={true}
+                mode="buy"
               />
             ) : (
               <View style={styles.emptyContainer}>
@@ -276,6 +284,7 @@ export default function ShopDetailScreen() {
                 shopId={id}
                 onDressPress={handleDressPress}
                 disableScroll={true}
+                mode="rent"
               />
             ) : (
               <View style={styles.emptyContainer}>
@@ -296,10 +305,7 @@ export default function ShopDetailScreen() {
               </Text>
             </View>
             {products.accessories.length > 0 ? (
-              <AccessoryGrid
-                accessories={products.accessories}
-                onAccessoryPress={handleAccessoryPress}
-              />
+              <AccessoryGrid accessories={products.accessories} />
             ) : (
               <View style={styles.emptyContainer}>
                 <Ionicons name="diamond-outline" size={48} color="#CCCCCC" />
@@ -473,6 +479,20 @@ export default function ShopDetailScreen() {
 
               {/* Action Buttons */}
               {renderActionButtons()}
+
+              {/* Test Accessory Selector Button */}
+              <TouchableOpacity
+                style={styles.testButton}
+                onPress={() =>
+                  router.push(
+                    `/accessory-selector?shopId=${id}&mode=buy` as any
+                  )
+                }
+                activeOpacity={0.8}
+              >
+                <Ionicons name="diamond-outline" size={20} color="#FFFFFF" />
+                <Text style={styles.testButtonText}>Test Chọn Phụ Kiện</Text>
+              </TouchableOpacity>
 
               {/* Contact Button */}
               <TouchableOpacity
@@ -782,5 +802,27 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#666666",
     marginTop: 10,
+  },
+  testButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#8B5CF6",
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 25,
+    shadowColor: "#8B5CF6",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+    marginTop: 10,
+    marginBottom: 20,
+  },
+  testButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#FFFFFF",
+    marginLeft: 8,
   },
 });
