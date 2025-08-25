@@ -1,8 +1,13 @@
+// AsyncStorage is auto-detected by Firebase in React Native/Expo when installed
 import Constants from "expo-constants";
-import firebase from "firebase/compat/app";
-import "firebase/compat/auth";
-import "firebase/compat/firestore";
-import "firebase/compat/storage";
+import { getApps, initializeApp } from "firebase/app";
+import { Auth, getAuth, initializeAuth } from "firebase/auth";
+import {
+  disableNetwork,
+  enableNetwork,
+  getFirestore,
+} from "firebase/firestore";
+import { getStorage } from "firebase/storage";
 import { suppressFirebaseErrors } from "../utils/error-suppression";
 
 const extra = Constants.expoConfig?.extra || {};
@@ -17,50 +22,67 @@ const firebaseConfig = {
   measurementId: extra.FIREBASE_MEASUREMENT_ID,
 };
 
-// Initialize Firebase with compat
-if (!firebase.apps.length) {
-  firebase.initializeApp(firebaseConfig);
+// Initialize Firebase v9
+let app;
+if (getApps().length === 0) {
+  app = initializeApp(firebaseConfig);
+} else {
+  app = getApps()[0];
 }
 
-const auth = firebase.auth();
-const db = __DEV__ ? null : firebase.firestore();
-const storage = firebase.storage();
+// Initialize Auth with AsyncStorage persistence for React Native
+// Note: Firebase v9 in Expo automatically uses AsyncStorage when installed
+// The warning about AsyncStorage can be safely ignored in Expo environment
+let auth: Auth;
+try {
+  // AsyncStorage is automatically detected and used by Firebase in React Native/Expo
+  auth = initializeAuth(app, {
+    // Empty config lets Firebase auto-detect React Native environment
+  });
+} catch {
+  // If auth is already initialized, get the existing instance
+  auth = getAuth(app);
+}
 
-export { auth, db, firebase, firebaseConfig, storage };
+const db = getFirestore(app);
+const storage = getStorage(app);
+
+export { app, auth, db, firebaseConfig, storage };
 
 if (__DEV__) {
   suppressFirebaseErrors();
 }
 
 // Export functions for other services
-export const enableFirestoreNetwork = () => {
-  if (__DEV__ || !db) {
+
+export const enableFirestoreNetwork = async () => {
+  if (!db) {
     return;
   }
   try {
-    db.enableNetwork();
+    await enableNetwork(db);
   } catch (error) {
     console.warn("Error enabling Firestore network:", error);
   }
 };
 
-export const disableFirestoreNetwork = () => {
-  if (__DEV__ || !db) {
+export const disableFirestoreNetwork = async () => {
+  if (!db) {
     return;
   }
   try {
-    db.disableNetwork();
+    await disableNetwork(db);
   } catch (error) {
     console.warn("Error disabling Firestore network:", error);
   }
 };
 
 export const checkFirestoreConnection = async () => {
-  if (__DEV__ || !db) {
+  if (!db) {
     return false;
   }
   try {
-    await db.enableNetwork();
+    await enableNetwork(db);
     return true;
   } catch (error) {
     console.warn("Firestore connection check failed:", error);

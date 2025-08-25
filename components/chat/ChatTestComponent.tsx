@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { ScrollView, Text, TouchableOpacity, View } from "react-native";
 import Toast from "react-native-toast-message";
 import { ChatService } from "../../services/chat.service";
+import FirebaseTestComponent from "./FirebaseTestComponent";
 
 export default function ChatTestComponent() {
   const [loading, setLoading] = useState(false);
@@ -40,7 +41,6 @@ export default function ChatTestComponent() {
   const testSendMessage = async () => {
     setLoading(true);
     try {
-      // First create a chat room if needed
       const chatRoomData = {
         customerId: "customer123",
         customerName: "Nguyễn Văn A",
@@ -54,7 +54,6 @@ export default function ChatTestComponent() {
 
       const roomId = await ChatService.createChatRoom(chatRoomData);
 
-      // Send a message
       const messageId = await ChatService.sendMessage(
         {
           chatRoomId: roomId,
@@ -155,6 +154,9 @@ export default function ChatTestComponent() {
     <>
       <ScrollView style={styles.container}>
         <Text style={styles.title}>Chat & Notification Test</Text>
+
+        {/* Firebase Connection Test */}
+        <FirebaseTestComponent />
 
         <View style={styles.buttonContainer}>
           <TouchableOpacity

@@ -1,15 +1,20 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import assets from "assets";
-import { AVPlaybackStatus, ResizeMode, Video } from "expo-av";
 import { router } from "expo-router";
+import { VideoView, useVideoPlayer } from "expo-video";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, StyleSheet, View } from "react-native";
 import { isAccessTokenValid } from "utils";
 
 export default function SplashIntroVideo() {
-  const videoRef = useRef<Video>(null);
+  const videoRef = useRef<VideoView>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [navigated, setNavigated] = useState(false);
+
+  const player = useVideoPlayer(assets.Videos.logoClip, (player) => {
+    player.loop = false;
+    player.play();
+  });
 
   const navigate = useCallback(async () => {
     if (navigated) return;
@@ -35,6 +40,27 @@ export default function SplashIntroVideo() {
     }
   }, [navigated]);
 
+  // Listen for video events
+  useEffect(() => {
+    const playToEndSubscription = player.addListener("playToEnd", () => {
+      navigate();
+    });
+
+    const statusChangeSubscription = player.addListener(
+      "statusChange",
+      (status) => {
+        if (status.status === "readyToPlay" && isLoading) {
+          setIsLoading(false);
+        }
+      }
+    );
+
+    return () => {
+      playToEndSubscription?.remove();
+      statusChangeSubscription?.remove();
+    };
+  }, [player, navigate, isLoading]);
+
   useEffect(() => {
     const fallback = setTimeout(() => {
       navigate();
@@ -51,22 +77,12 @@ export default function SplashIntroVideo() {
         </View>
       )}
 
-      <Video
+      <VideoView
         ref={videoRef}
-        source={assets.Videos.logoClip}
         style={styles.video}
-        resizeMode={ResizeMode.COVER}
-        shouldPlay
-        isLooping={false}
-        onLoadStart={() => setIsLoading(true)}
-        onReadyForDisplay={() => setIsLoading(false)}
-        onError={navigate}
-        onPlaybackStatusUpdate={(status: AVPlaybackStatus) => {
-          if (!status.isLoaded) return;
-          if (status.didJustFinish) {
-            navigate();
-          }
-        }}
+        player={player}
+        contentFit="cover"
+        allowsFullscreen={false}
       />
     </View>
   );

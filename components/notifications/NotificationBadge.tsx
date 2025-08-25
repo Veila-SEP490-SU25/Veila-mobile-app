@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { StyleSheet, Text, View } from "react-native";
-import NotificationService from "../../services/notification.service";
+import { useNotifications } from "../../hooks/useNotifications";
 
 interface NotificationBadgeProps {
   userId: string;
@@ -11,31 +11,7 @@ export default function NotificationBadge({
   userId,
   size = "medium",
 }: NotificationBadgeProps) {
-  const [unreadCount, setUnreadCount] = useState(0);
-
-  useEffect(() => {
-    const loadUnreadCount = async () => {
-      try {
-        const count = await NotificationService.getUnreadCount(userId);
-        setUnreadCount(count);
-      } catch (error) {
-        console.error("Error loading unread count:", error);
-      }
-    };
-
-    loadUnreadCount();
-
-    // Subscribe to real-time updates
-    const unsubscribe = NotificationService.subscribeToNotifications(
-      userId,
-      (notifications) => {
-        const count = notifications.filter((n) => !n.isRead).length;
-        setUnreadCount(count);
-      }
-    );
-
-    return () => unsubscribe();
-  }, [userId]);
+  const { unreadCount } = useNotifications(userId);
 
   if (unreadCount === 0) {
     return null;

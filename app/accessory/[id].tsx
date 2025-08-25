@@ -16,9 +16,21 @@ import { shopApi } from "../../services/apis/shop.api";
 import { Accessory } from "../../services/types";
 import { formatVNDCustom } from "../../utils/currency.util";
 
+interface AccessoryDetail extends Accessory {
+  description?: string;
+  ratingCount?: number;
+  feedbacks?: Array<{
+    id: string;
+    customer: { id: string; username: string; avatarUrl: string | null };
+    content: string;
+    rating: string;
+    images: string | null;
+  }>;
+}
+
 export default function AccessoryDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const [accessory, setAccessory] = useState<Accessory | null>(null);
+  const [accessory, setAccessory] = useState<AccessoryDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [isFavorite, setIsFavorite] = useState(false);
 
@@ -26,7 +38,15 @@ export default function AccessoryDetailScreen() {
     try {
       setLoading(true);
       const response = await shopApi.getAccessoryById(id);
-      setAccessory(response);
+
+      let accessoryData: AccessoryDetail;
+      if ("item" in response && response.item) {
+        accessoryData = response.item as AccessoryDetail;
+      } else {
+        accessoryData = response as AccessoryDetail;
+      }
+
+      setAccessory(accessoryData);
     } catch (error) {
       console.error("Error loading accessory detail:", error);
       setAccessory(null);
@@ -47,23 +67,23 @@ export default function AccessoryDetailScreen() {
     });
   };
 
-  const handleContact = () => {
-    Toast.show({
-      type: "info",
-      text1: "Liên hệ",
-      text2: "Bạn muốn liên hệ để mua hoặc thuê phụ kiện này?",
-      onPress: () => {
-        Toast.show({
-          type: "info",
-          text1: "Tùy chọn",
-          text2: "Chọn hành động liên hệ",
-          onPress: () => {
-            // TODO: Implement call and message functionality
-          },
-        });
-      },
-    });
-  };
+  // const handleContact = () => {
+  //   Toast.show({
+  //     type: "info",
+  //     text1: "Liên hệ",
+  //     text2: "Bạn muốn liên hệ để mua hoặc thuê phụ kiện này?",
+  //     onPress: () => {
+  //       Toast.show({
+  //         type: "info",
+  //         text1: "Tùy chọn",
+  //         text2: "Chọn hành động liên hệ",
+  //         onPress: () => {
+  //           // TODO: Implement call and message functionality
+  //         },
+  //       });
+  //     },
+  //   });
+  // };
 
   if (loading) {
     return (
@@ -83,22 +103,22 @@ export default function AccessoryDetailScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <View className="flex-1 bg-background-soft">
       <LightStatusBar />
 
       {/* Header */}
-      <View style={styles.header}>
+      <View className="flex-row items-center justify-between px-4 pt-20 pb-4 bg-primary-600">
         <TouchableOpacity
-          style={styles.backButton}
+          className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center"
           onPress={() => router.back()}
         >
           <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle} numberOfLines={1}>
+        <Text className="text-xl font-bold text-white flex-1 text-center mx-4">
           Chi tiết phụ kiện
         </Text>
         <TouchableOpacity
-          style={styles.favoriteButton}
+          className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center"
           onPress={handleFavorite}
         >
           <Ionicons
@@ -109,96 +129,125 @@ export default function AccessoryDetailScreen() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView
-        style={styles.scrollView}
-        showsVerticalScrollIndicator={false}
-      >
+      <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
         {/* Main Image */}
-        <View style={styles.imageContainer}>
+        <View className="relative h-72">
           <Image
             source={{
               uri:
                 accessory.images?.[0] ||
                 "https://via.placeholder.com/400x300?text=Phụ+kiện",
             }}
-            style={styles.mainImage}
+            className="w-full h-full"
             resizeMode="cover"
           />
-          <View style={styles.statusBadge}>
-            <Text style={styles.statusText}>
+          <View className="absolute top-4 right-4 bg-green-500 px-3 py-1 rounded-full">
+            <Text className="text-white text-xs font-semibold">
               {accessory.status === "AVAILABLE" ? "Có sẵn" : "Hết hàng"}
             </Text>
           </View>
         </View>
 
         {/* Accessory Info */}
-        <View style={styles.infoContainer}>
-          <Text style={styles.accessoryName}>{accessory.name}</Text>
+        <View className="p-5">
+          <Text className="text-2xl font-bold text-gray-800 text-center mb-4">
+            {accessory.name}
+          </Text>
 
-          <View style={styles.ratingContainer}>
+          <View className="flex-row items-center justify-center mb-6">
             <Ionicons name="star" size={20} color="#FFD700" />
-            <Text style={styles.ratingText}>{accessory.ratingAverage}</Text>
-            <Text style={styles.ratingLabel}>đánh giá</Text>
+            <Text className="text-lg font-semibold text-gray-800 ml-2">
+              {accessory.ratingAverage}
+            </Text>
+            <Text className="text-sm text-gray-500 ml-1">đánh giá</Text>
           </View>
 
-          <View style={styles.pricingSection}>
-            <Text style={styles.pricingTitle}>Giá cả</Text>
+          <View className="mb-8">
+            <Text className="text-lg font-semibold text-gray-800 mb-2">
+              Giá cả
+            </Text>
 
             {accessory.isSellable && (
-              <View style={styles.priceItem}>
-                <View style={styles.priceHeader}>
+              <View className="flex-row items-center justify-between bg-gray-50 p-3 rounded-lg mb-3">
+                <View className="flex-row items-center">
                   <Ionicons name="shirt-outline" size={20} color="#E05C78" />
-                  <Text style={styles.priceLabel}>Giá mua</Text>
+                  <Text className="text-base font-semibold text-gray-700 ml-2">
+                    Giá mua
+                  </Text>
                 </View>
-                <Text style={styles.priceValue}>
+                <Text className="text-xl font-bold text-primary-500">
                   {formatVNDCustom(accessory.sellPrice)}
                 </Text>
               </View>
             )}
 
             {accessory.isRentable && (
-              <View style={styles.priceItem}>
-                <View style={styles.priceHeader}>
+              <View className="flex-row items-center justify-between bg-gray-50 p-3 rounded-lg">
+                <View className="flex-row items-center">
                   <Ionicons name="repeat-outline" size={20} color="#10B981" />
-                  <Text style={styles.priceLabel}>Giá thuê</Text>
+                  <Text className="text-base font-semibold text-gray-700 ml-2">
+                    Giá thuê
+                  </Text>
                 </View>
-                <Text style={styles.rentalValue}>
+                <Text className="text-xl font-bold text-green-600">
                   {formatVNDCustom(accessory.rentalPrice)}
                 </Text>
               </View>
             )}
           </View>
 
-          {/* Action Buttons */}
-          <View style={styles.actionButtons}>
-            <TouchableOpacity
-              style={[styles.actionButton, styles.contactButton]}
-              onPress={handleContact}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="call" size={20} color="#FFFFFF" />
-              <Text style={styles.actionButtonText}>Liên hệ</Text>
-            </TouchableOpacity>
+          {/* Description */}
+          <Text className="text-lg font-semibold text-gray-800 mb-2">
+            Mô tả
+          </Text>
+          <Text className="text-sm text-gray-600 leading-6 mb-6">
+            {accessory.description || "Đang cập nhật"}
+          </Text>
 
-            <TouchableOpacity
-              style={[styles.actionButton, styles.chatButton]}
-              onPress={() => router.push("/_tab/chat" as any)}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="chatbubble-ellipses" size={20} color="#FFFFFF" />
-              <Text style={styles.actionButtonText}>Nhắn tin</Text>
-            </TouchableOpacity>
-          </View>
+          {/* Feedbacks Section */}
+          {accessory.feedbacks && accessory.feedbacks.length > 0 && (
+            <View className="bg-white p-4 rounded-lg shadow-lg mb-6">
+              <Text className="text-lg font-semibold text-gray-800 mb-4">
+                Đánh giá từ khách hàng
+              </Text>
+              {accessory.feedbacks.map((feedback) => (
+                <View key={feedback.id} className="mb-4">
+                  <Text className="text-sm text-gray-600 mb-1">
+                    {feedback.content}
+                  </Text>
+                  <Text className="text-xs text-gray-500">
+                    Rating: {feedback.rating}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          )}
+
+          {/* Shop Information */}
+          {accessory.user?.shop && (
+            <View className="bg-white p-4 rounded-lg shadow-lg mb-12">
+              <Text className="text-lg font-semibold text-gray-800 mb-4">
+                Thông tin cửa hàng
+              </Text>
+              <Text className="text-base font-medium text-gray-700 mb-1">
+                {accessory.user.shop.name}
+              </Text>
+              <Text className="text-sm text-gray-600">
+                {accessory.user.shop.address}
+              </Text>
+            </View>
+          )}
         </View>
       </ScrollView>
     </View>
   );
 }
 
+// Updated styles for a more professional look
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#F9FAFB",
   },
   loadingContainer: {
     flex: 1,
@@ -228,7 +277,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 50,
     paddingBottom: 16,
-    backgroundColor: "#E05C78",
+    backgroundColor: "#1F2937",
   },
   backButton: {
     width: 40,
@@ -239,8 +288,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: "600",
+    fontSize: 20,
+    fontWeight: "700",
     color: "#FFFFFF",
     flex: 1,
     textAlign: "center",
@@ -283,9 +332,9 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   accessoryName: {
-    fontSize: 24,
+    fontSize: 26,
     fontWeight: "700",
-    color: "#333333",
+    color: "#111827",
     marginBottom: 16,
     textAlign: "center",
   },
@@ -376,5 +425,73 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#FFFFFF",
     marginLeft: 8,
+  },
+  descriptionTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#374151",
+    marginBottom: 8,
+  },
+  descriptionText: {
+    fontSize: 14,
+    color: "#6B7280",
+    lineHeight: 22,
+    marginBottom: 16,
+  },
+  feedbackSection: {
+    marginTop: 20,
+    padding: 16,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  feedbackTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#111827",
+    marginBottom: 12,
+  },
+  feedbackItem: {
+    marginBottom: 12,
+  },
+  feedbackContent: {
+    fontSize: 14,
+    color: "#374151",
+    marginBottom: 4,
+  },
+  feedbackRating: {
+    fontSize: 12,
+    color: "#9CA3AF",
+  },
+  shopInfoSection: {
+    marginTop: 20,
+    padding: 16,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  shopTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#111827",
+    marginBottom: 12,
+  },
+  shopName: {
+    fontSize: 16,
+    fontWeight: "500",
+    color: "#374151",
+    marginBottom: 4,
+  },
+  shopAddress: {
+    fontSize: 14,
+    color: "#6B7280",
   },
 });

@@ -41,4 +41,10 @@ export const dressApi = {
   getDressById: async (id: string): Promise<Dress> => {
     return makeRequest(`/dresses/${id}`);
   },
+  toggleFavorite: async (id: string): Promise<void> => {
+    await makeRequest(`/dresses/${id}/favorites`, { method: "POST" });
+  },
+  getFavoriteDresses: async (): Promise<Dress[]> => {
+    return makeRequest(`/dresses/favorites`);
+  },
 };

@@ -81,6 +81,12 @@ export default function AccountLayout() {
           title: "Chỉnh sửa yêu cầu",
         }}
       />
+      <Stack.Screen
+        name="favorites"
+        options={{
+          title: "Yêu thích",
+        }}
+      />
     </Stack>
   );
 }

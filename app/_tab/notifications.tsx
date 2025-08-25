@@ -1,17 +1,17 @@
 import React from "react";
-import { StatusBar, StyleSheet, View } from "react-native";
+import { StatusBar, StyleSheet } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import NotificationList from "../../components/notifications/NotificationList";
+import { useAuth } from "../../providers/auth.provider";
 
 export default function Notifications() {
-  const currentUser = {
-    id: "user123",
-  };
+  const { user } = useAuth();
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={["top"]}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
-      <NotificationList userId={currentUser.id} />
-    </View>
+      <NotificationList userId={user?.id || "test-user-id"} />
+    </SafeAreaView>
   );
 }
 

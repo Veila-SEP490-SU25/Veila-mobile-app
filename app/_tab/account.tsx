@@ -14,6 +14,10 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { PhoneVerificationStatus, UserStatus } from "services/types";
 import { useAuth } from "../../providers/auth.provider";
+import { dressApi } from "../../services/apis/dress.api";
+import { shopApi } from "../../services/apis/shop.api";
+import { Dress } from "../../services/types/dress.type";
+import { Shop } from "../../services/types/shop.type";
 
 interface ProfileMenuItem {
   id: string;
@@ -31,6 +35,9 @@ export default function AccountScreen() {
   const router = useRouter();
   const [fadeAnim] = useState(new Animated.Value(0));
 
+  const [favoriteShops, setFavoriteShops] = useState<Shop[]>([]);
+  const [favoriteDresses, setFavoriteDresses] = useState<Dress[]>([]);
+
   useEffect(() => {
     Animated.timing(fadeAnim, {
       toValue: 1,
@@ -38,6 +45,35 @@ export default function AccountScreen() {
       useNativeDriver: true,
     }).start();
   }, [fadeAnim]);
+
+  useEffect(() => {
+    const fetchFavorites = async () => {
+      try {
+        const [shops, dresses] = await Promise.allSettled([
+          shopApi.getFavoriteShops(),
+          dressApi.getFavoriteDresses(),
+        ]);
+
+        setFavoriteShops(
+          shops.status === "fulfilled" && Array.isArray(shops.value)
+            ? shops.value
+            : []
+        );
+
+        setFavoriteDresses(
+          dresses.status === "fulfilled" && Array.isArray(dresses.value)
+            ? dresses.value
+            : []
+        );
+      } catch (error) {
+        console.error("Error fetching favorites:", error);
+        setFavoriteShops([]);
+        setFavoriteDresses([]);
+      }
+    };
+
+    fetchFavorites();
+  }, []);
 
   // Helper functions - moved before usage
   const getPhoneVerificationSubtitle = () => {
@@ -166,7 +202,7 @@ export default function AccountScreen() {
       title: "Sản phẩm yêu thích",
       subtitle: "Danh sách sản phẩm đã lưu",
       icon: "heart-outline",
-      onPress: () => console.log("Favorites pressed"),
+      onPress: () => router.push("/account/favorites" as any),
       showArrow: true,
       iconColor: "#EF4444",
     },
@@ -336,6 +372,20 @@ export default function AccountScreen() {
         <Animated.View style={[styles.menuSection, { opacity: fadeAnim }]}>
           <Text style={styles.sectionTitle}>Tài khoản & Dịch vụ</Text>
           {profileMenuItems.map(renderMenuItem)}
+        </Animated.View>
+
+        <Animated.View style={[styles.menuSection, { opacity: fadeAnim }]}>
+          <Text style={styles.sectionTitle}>Yêu thích</Text>
+          {favoriteShops.map((shop) => (
+            <View key={shop.id} style={styles.favoriteItem}>
+              <Text style={styles.favoriteTitle}>{shop.name}</Text>
+            </View>
+          ))}
+          {favoriteDresses.map((dress) => (
+            <View key={dress.id} style={styles.favoriteItem}>
+              <Text style={styles.favoriteTitle}>{dress.name}</Text>
+            </View>
+          ))}
         </Animated.View>
 
         <Animated.View style={[styles.menuSection, { opacity: fadeAnim }]}>
@@ -599,5 +649,16 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#E05C78",
     marginLeft: 8,
+  },
+  favoriteItem: {
+    paddingHorizontal: 25,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F3F4F6",
+  },
+  favoriteTitle: {
+    fontSize: 16,
+    fontWeight: "500",
+    color: "#333333",
   },
 });

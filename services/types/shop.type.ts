@@ -46,6 +46,7 @@ export interface Accessory {
   isRentable: boolean;
   ratingAverage: string;
   status: "AVAILABLE" | "UNAVAILABLE" | string;
+  user?: { shop?: Shop };
 }
 
 export interface AccessoryListResponse {

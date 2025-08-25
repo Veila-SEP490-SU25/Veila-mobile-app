@@ -11,7 +11,6 @@ import {
   View,
 } from "react-native";
 import Toast from "react-native-toast-message";
-import AccessoriesDebugger from "../../components/AccessoriesDebugger";
 import { useAuth } from "../../providers/auth.provider";
 import { dressApi } from "../../services/apis/dress.api";
 import { ChatService } from "../../services/chat.service";
@@ -25,11 +24,19 @@ interface DressDetail extends Dress {
   ratingCount?: number;
   feedbacks?: Array<{
     id: string;
-    customer: { username: string };
+    customer: { id: string; username: string; avatarUrl: string | null };
     content: string;
     rating: string;
-    images: string[] | null;
+    images: string | null;
   }>;
+  bust?: string | null;
+  waist?: string | null;
+  hip?: string | null;
+  material?: string | null;
+  color?: string | null;
+  length?: string | null;
+  neckline?: string | null;
+  sleeve?: string | null;
 }
 
 export default function DressDetailScreen() {
@@ -191,13 +198,24 @@ export default function DressDetailScreen() {
     }
   }, [shop, dress, user]);
 
-  const handleFavoritePress = useCallback(() => {
-    setIsFavorite(!isFavorite);
-    // TODO: Implement actual favorite logic with API
-    if (__DEV__) {
-      console.log("Toggle favorite:", !isFavorite);
+  const handleFavoritePress = useCallback(async () => {
+    try {
+      setIsFavorite(!isFavorite);
+      // Call the API to add/remove favorite
+      await dressApi.toggleFavorite(id as string);
+      Toast.show({
+        type: "success",
+        text1: isFavorite ? "Đã bỏ yêu thích" : "Đã thêm vào yêu thích",
+      });
+    } catch (error) {
+      console.error("Error toggling favorite:", error);
+      Toast.show({
+        type: "error",
+        text1: "Lỗi",
+        text2: "Không thể cập nhật yêu thích",
+      });
     }
-  }, [isFavorite]);
+  }, [id, isFavorite]);
 
   if (loading) {
     return (
@@ -237,7 +255,7 @@ export default function DressDetailScreen() {
           <Ionicons name="arrow-back" size={24} color="#E05C78" />
         </TouchableOpacity>
         <Text
-          className="text-xl font-[700] font-bold text-primary-600 flex-1 text-center mx-4"
+          className="text-xl  font-[700] font-bold text-primary-600 flex-1 text-center mx-4"
           numberOfLines={1}
         >
           Chi tiết váy cưới
@@ -318,14 +336,93 @@ export default function DressDetailScreen() {
           {/* Description */}
           {dress.description && (
             <View className="mb-6">
+              <Text className="text-lg font-bold text-primary-600 mb-2">
+                Mô tả váy cưới
+              </Text>
               <Text className="text-sm text-gray-600 leading-6">
                 {dress.description}
               </Text>
             </View>
           )}
 
+          <Text className="text-lg font-bold text-primary-600 mb-2">
+            Thông tin chi tiết
+          </Text>
+          {dress.bust ? (
+            <Text className="text-sm text-gray-600 leading-6">
+              Vòng ngực: {dress.bust}
+            </Text>
+          ) : (
+            <Text className="text-sm text-gray-600 leading-6">
+              Vòng ngực: Đang cập nhật
+            </Text>
+          )}
+          {dress.waist ? (
+            <Text className="text-sm text-gray-600 leading-6">
+              Vòng eo: {dress.waist}
+            </Text>
+          ) : (
+            <Text className="text-sm text-gray-600 leading-6">
+              Vòng eo: Đang cập nhật
+            </Text>
+          )}
+          {dress.hip ? (
+            <Text className="text-sm text-gray-600 leading-6">
+              Vòng hông: {dress.hip}
+            </Text>
+          ) : (
+            <Text className="text-sm text-gray-600 leading-6">
+              Vòng hông: Đang cập nhật
+            </Text>
+          )}
+          {dress.material ? (
+            <Text className="text-sm text-gray-600 leading-6">
+              Chất liệu: {dress.material}
+            </Text>
+          ) : (
+            <Text className="text-sm text-gray-600 leading-6">
+              Chất liệu: Đang cập nhật
+            </Text>
+          )}
+          {dress.color ? (
+            <Text className="text-sm text-gray-600 leading-6">
+              Màu sắc: {dress.color}
+            </Text>
+          ) : (
+            <Text className="text-sm text-gray-600 leading-6">
+              Màu sắc: Đang cập nhật
+            </Text>
+          )}
+          {dress.length ? (
+            <Text className="text-sm text-gray-600 leading-6">
+              Chiều dài: {dress.length}
+            </Text>
+          ) : (
+            <Text className="text-sm text-gray-600 leading-6">
+              Chiều dài: Đang cập nhật
+            </Text>
+          )}
+          {dress.neckline ? (
+            <Text className="text-sm text-gray-600 leading-6">
+              Cổ áo: {dress.neckline}
+            </Text>
+          ) : (
+            <Text className="text-sm text-gray-600 leading-6">
+              Cổ áo: Đang cập nhật
+            </Text>
+          )}
+          {dress.sleeve ? (
+            <Text className="text-sm text-gray-600 leading-6">
+              Tay áo: {dress.sleeve}
+            </Text>
+          ) : (
+            <Text className="text-sm text-gray-600 leading-6">
+              Tay áo: Đang cập nhật
+            </Text>
+          )}
+
           {/* Pricing Details - Moved Up */}
-          <View className="bg-gray-50 rounded-2xl p-4 mb-6">
+          <View className="bg-gray-50 rounded-2xl p-4 mb-6 mt-4">
             <Text className="text-lg font-bold text-gray-800 mb-3">
               Thông tin giá
             </Text>
@@ -360,7 +457,7 @@ export default function DressDetailScreen() {
           </View>
 
           {/* Action Buttons */}
-          <View className="flex-row space-x-3 mt-6">
+          <View className="flex-row space-x-3 mb-6">
             <TouchableOpacity
               className="flex-1 bg-primary-500 rounded-2xl py-4 items-center shadow-lg"
               onPress={() => handleOpenCheckout("SELL")}
@@ -380,13 +477,6 @@ export default function DressDetailScreen() {
             )}
           </View>
 
-          {/* Debug Section - Remove in production */}
-          <AccessoriesDebugger
-            dressId={dress?.id}
-            shopId={dress?.user?.shop?.id}
-          />
-
-          {/* Action Buttons - Chat and Custom Order */}
           <View className="mb-6">
             <Text className="text-lg font-bold text-gray-800 mb-3">
               Tương tác với shop

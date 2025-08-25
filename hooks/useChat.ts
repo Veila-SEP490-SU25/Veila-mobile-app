@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { ChatService } from "../services/chat.service";
-import { NotificationService } from "../services/notification.service";
+import NotificationService from "../services/notification.service";
 import { ChatRoom } from "../services/types";
 
 export const useChat = (userId: string, userType: "customer" | "shop") => {
@@ -9,6 +9,11 @@ export const useChat = (userId: string, userType: "customer" | "shop") => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!userId) {
+      setLoading(false);
+      return;
+    }
+
     const unsubscribe = ChatService.subscribeToChatRooms(
       userId,
       userType,

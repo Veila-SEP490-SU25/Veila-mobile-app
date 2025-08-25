@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { NotificationService } from "../services/notification.service";
+import NotificationService from "../services/notification.service";
 import { Notification, NotificationSettings } from "../services/types";
 
 export const useNotifications = (userId: string) => {
@@ -10,6 +10,11 @@ export const useNotifications = (userId: string) => {
   const [settings, setSettings] = useState<NotificationSettings | null>(null);
 
   useEffect(() => {
+    if (!userId) {
+      setLoading(false);
+      return;
+    }
+
     const unsubscribe = NotificationService.subscribeToNotifications(
       userId,
       (notifications) => {

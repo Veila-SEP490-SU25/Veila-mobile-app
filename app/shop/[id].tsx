@@ -18,11 +18,13 @@ import CategoryTabs, {
   CategoryType,
 } from "../../components/shopping/CategoryTabs";
 import DressGrid from "../../components/shopping/DressGrid";
+import { useAuth } from "../../providers/auth.provider";
 import { shopApi } from "../../services/apis/shop.api";
 import { Accessory, Dress, ShopDetail } from "../../services/types";
 
 export default function ShopDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const { user } = useAuth();
   const [shop, setShop] = useState<ShopDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] =
@@ -131,12 +133,7 @@ export default function ShopDetailScreen() {
   }, []);
 
   const handleAccessoryPress = useCallback((accessory: Accessory) => {
-    Toast.show({
-      type: "info",
-      text1: "Phụ kiện",
-      text2: `Bạn đã chọn: ${accessory.name}`,
-    });
-    // TODO: Navigate to accessory detail
+    router.push(`/accessory/${accessory.id}` as any);
   }, []);
 
   const handleBlogPress = useCallback((blog: any) => {
@@ -163,23 +160,70 @@ export default function ShopDetailScreen() {
     }
   }, [shop]);
 
-  const handleChat = useCallback(() => {
-    if (shop) {
-      router.push(`/chat/${shop.id}` as any);
+  const handleChat = useCallback(async () => {
+    try {
+      if (!shop) return;
+
+      if (!user) {
+        Toast.show({
+          type: "error",
+          text1: "Lỗi",
+          text2: "Vui lòng đăng nhập để chat",
+        });
+        return;
+      }
+
+      // Create or find existing chat room
+      const chatRoomData = {
+        customerId: user.id,
+        customerName:
+          `${user.firstName || ""} ${user.lastName || ""}`.trim() ||
+          "Khách hàng",
+        customerAvatar: user.avatarUrl,
+        shopId: shop.id,
+        shopName: shop.name,
+        shopAvatar: shop.images?.[0] || undefined,
+        unreadCount: 0,
+        isActive: true,
+      };
+
+      const { ChatService } = await import("../../services/chat.service");
+      const chatRoomId = await ChatService.createChatRoom(chatRoomData);
+
+      // Navigate to chat
+      router.push(`/chat/${chatRoomId}`);
+    } catch (error) {
+      console.error("Error creating chat room:", error);
+      Toast.show({
+        type: "error",
+        text1: "Lỗi",
+        text2: "Không thể tạo cuộc trò chuyện",
+      });
     }
-  }, [shop]);
+  }, [shop, user]);
 
   const handleCustomRequest = useCallback(() => {
     router.push(`/account/custom-requests/create?shopId=${id}` as any);
   }, [id]);
 
-  const handleFavorite = useCallback(() => {
-    setIsFavorite(!isFavorite);
-    Toast.show({
-      type: "success",
-      text1: isFavorite ? "Đã bỏ yêu thích" : "Đã thêm vào yêu thích",
-    });
-  }, [isFavorite]);
+  const handleFavorite = useCallback(async () => {
+    try {
+      setIsFavorite(!isFavorite);
+      // Call the API to add/remove favorite
+      await shopApi.toggleFavorite(id as string);
+      Toast.show({
+        type: "success",
+        text1: isFavorite ? "Đã bỏ yêu thích" : "Đã thêm vào yêu thích",
+      });
+    } catch (error) {
+      console.error("Error toggling favorite:", error);
+      Toast.show({
+        type: "error",
+        text1: "Lỗi",
+        text2: "Không thể cập nhật yêu thích",
+      });
+    }
+  }, [id, isFavorite]);
 
   const renderActionButtons = () => (
     <View style={styles.actionButtonsContainer}>
@@ -305,7 +349,10 @@ export default function ShopDetailScreen() {
               </Text>
             </View>
             {products.accessories.length > 0 ? (
-              <AccessoryGrid accessories={products.accessories} />
+              <AccessoryGrid
+                accessories={products.accessories}
+                onAccessorySelect={handleAccessoryPress}
+              />
             ) : (
               <View style={styles.emptyContainer}>
                 <Ionicons name="diamond-outline" size={48} color="#CCCCCC" />

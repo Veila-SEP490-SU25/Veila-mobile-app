@@ -69,9 +69,9 @@ const mockChatRooms: ChatRoom[] = [
 ];
 
 export class ChatService {
-  // Development mode check
+  // Development mode check - only return true if no Firebase config
   private static isDevelopmentMode() {
-    return __DEV__ || !db;
+    return !db;
   }
 
   // Connection management
@@ -567,29 +567,38 @@ export class ChatService {
         return;
       }
 
-      // Try with new index first
+      // Use simple query to avoid index requirements
       const q = query(
         collection(db, "messages"),
-        where("chatRoomId", "==", chatRoomId),
-        where("isRead", "==", false),
-        where("senderId", "!=", userId)
+        where("chatRoomId", "==", chatRoomId)
       );
 
       const querySnapshot = await getDocs(q);
 
       if (querySnapshot.empty) {
-        return; // No unread messages to mark
+        return; // No messages in chat room
       }
 
-      const updatePromises = querySnapshot.docs.map((doc) =>
-        updateDoc(doc.ref, { isRead: true })
-      );
+      // Filter and update unread messages manually
+      const updatePromises: Promise<void>[] = [];
+      let unreadCount = 0;
 
-      await Promise.all(updatePromises);
-      console.log(`Marked ${querySnapshot.docs.length} messages as read`);
+      querySnapshot.docs.forEach((doc) => {
+        const data = doc.data();
+        // Only mark as read if it's unread and not sent by current user
+        if (!data.isRead && data.senderId !== userId) {
+          updatePromises.push(updateDoc(doc.ref, { isRead: true }));
+          unreadCount++;
+        }
+      });
 
-      // Update chat room unread count
-      await this.updateChatRoomUnreadCount(chatRoomId, userId);
+      if (updatePromises.length > 0) {
+        await Promise.all(updatePromises);
+        console.log(`Marked ${unreadCount} messages as read`);
+
+        // Update chat room unread count
+        await this.updateChatRoomUnreadCount(chatRoomId, userId);
+      }
     } catch (error) {
       console.warn("Error marking messages as read:", error);
       // Don't throw error to avoid breaking the chat flow

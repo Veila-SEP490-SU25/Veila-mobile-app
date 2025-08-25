@@ -166,29 +166,31 @@ export default function OrderDetailScreen() {
             <View className="flex-row items-center space-x-3">
               <View
                 className="w-12 h-12 rounded-full items-center justify-center"
-                style={{ backgroundColor: getTypeColor(order.type) + "20" }}
+                style={{
+                  backgroundColor: getTypeColor(order.type || "BUY") + "20",
+                }}
               >
                 <Ionicons
-                  name={getTypeIcon(order.type) as any}
+                  name={getTypeIcon(order.type || "BUY") as any}
                   size={24}
-                  color={getTypeColor(order.type)}
+                  color={getTypeColor(order.type || "BUY")}
                 />
               </View>
               <View>
                 <Text className="text-lg font-bold text-gray-800">
-                  #{order.id.slice(0, 8)}
+                  #{order.id?.slice(0, 8) || "N/A"}
                 </Text>
                 <Text className="text-sm text-gray-600">
-                  {getTypeText(order.type)}
+                  {getTypeText(order.type || "BUY")}
                 </Text>
               </View>
             </View>
 
             <View
-              className={`px-4 py-2 rounded-full border ${getStatusColor(order.status)}`}
+              className={`px-4 py-2 rounded-full border ${getStatusColor(order.status || "PENDING")}`}
             >
               <Text className="text-sm font-medium">
-                {getStatusText(order.status)}
+                {getStatusText(order.status || "PENDING")}
               </Text>
             </View>
           </View>
@@ -196,10 +198,13 @@ export default function OrderDetailScreen() {
           {/* Order Summary */}
           <View className="p-4 bg-gray-50 rounded-lg">
             <Text className="text-lg font-bold text-gray-800 mb-2">
-              Tổng tiền: {formatVNDCustom(order.amount, "₫")}
+              Tổng tiền: {formatVNDCustom(order.amount || 0, "₫")}
             </Text>
             <Text className="text-sm text-gray-600">
-              Ngày đặt: {new Date(order.createdAt).toLocaleDateString("vi-VN")}
+              Ngày đặt:{" "}
+              {order.createdAt
+                ? new Date(order.createdAt).toLocaleDateString("vi-VN")
+                : "N/A"}
             </Text>
           </View>
         </Card>
@@ -216,20 +221,24 @@ export default function OrderDetailScreen() {
               </View>
               <View className="flex-1">
                 <Text className="font-medium text-gray-800">
-                  {order.shopName}
+                  {order.shopName || "N/A"}
                 </Text>
                 <Text className="text-sm text-gray-600">
-                  {order.shop.address}
+                  {order.shop?.address || "N/A"}
                 </Text>
               </View>
             </View>
             <View className="flex-row items-center space-x-2">
               <Ionicons name="call" size={16} color="#6B7280" />
-              <Text className="text-sm text-gray-600">{order.shop.phone}</Text>
+              <Text className="text-sm text-gray-600">
+                {order.shop?.phone || "N/A"}
+              </Text>
             </View>
             <View className="flex-row items-center space-x-2">
               <Ionicons name="mail" size={16} color="#6B7280" />
-              <Text className="text-sm text-gray-600">{order.shop.email}</Text>
+              <Text className="text-sm text-gray-600">
+                {order.shop?.email || "N/A"}
+              </Text>
             </View>
           </View>
         </Card>
@@ -243,21 +252,28 @@ export default function OrderDetailScreen() {
             <View className="flex-row items-center space-x-2">
               <Ionicons name="person" size={16} color="#6B7280" />
               <Text className="text-sm text-gray-600">
-                {order.customer.firstName} {order.customer.middleName}{" "}
-                {order.customer.lastName}
+                {order.customer?.firstName || ""}{" "}
+                {order.customer?.middleName || ""}{" "}
+                {order.customer?.lastName || ""}
               </Text>
             </View>
             <View className="flex-row items-center space-x-2">
               <Ionicons name="call" size={16} color="#6B7280" />
-              <Text className="text-sm text-gray-600">{order.phone}</Text>
+              <Text className="text-sm text-gray-600">
+                {order.phone || "N/A"}
+              </Text>
             </View>
             <View className="flex-row items-center space-x-2">
               <Ionicons name="mail" size={16} color="#6B7280" />
-              <Text className="text-sm text-gray-600">{order.email}</Text>
+              <Text className="text-sm text-gray-600">
+                {order.email || "N/A"}
+              </Text>
             </View>
             <View className="flex-row items-center space-x-2">
               <Ionicons name="location" size={16} color="#6B7280" />
-              <Text className="text-sm text-gray-600">{order.address}</Text>
+              <Text className="text-sm text-gray-600">
+                {order.address || "N/A"}
+              </Text>
             </View>
           </View>
         </Card>

@@ -1,8 +1,7 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { formatDistanceToNow } from "date-fns";
 import { vi } from "date-fns/locale";
-import { router } from "expo-router";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -14,56 +13,59 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import Toast from "react-native-toast-message";
 import { useNetworkStatus } from "../../hooks/useNetworkStatus";
-import { ChatService } from "../../services/chat.service";
+import { useChatContext } from "../../providers/chat.provider";
 import { ChatRoom } from "../../services/types";
 
 interface ChatListProps {
-  userId: string;
-  userType: "customer" | "shop";
-  onChatPress: (chatId: string) => void;
+  userId?: string;
+  userType?: "customer" | "shop";
+  onChatPress?: (chatId: string) => void;
 }
 
-export default function ChatList({ userType }: ChatListProps) {
-  const [chatRooms, setChatRooms] = useState<ChatRoom[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+export default function ChatList({
+  userType = "customer",
+  onChatPress,
+}: ChatListProps) {
+  const { chatRooms, loading: isLoading } = useChatContext();
 
   const { isOnline } = useNetworkStatus();
   const [navigationError, setNavigationError] = useState(false);
 
-  // Safe navigation handler with direct router usage
-  const handleChatPress = useCallback((chatRoom: ChatRoom) => {
-    try {
-      router.push(`/chat/${chatRoom.id}`);
-    } catch (error) {
-      if (__DEV__) {
-        console.error("Error opening chat:", error);
-      }
-      Toast.show({
-        type: "error",
-        text1: "Lỗi",
-        text2: "Không thể mở chat. Vui lòng thử lại.",
-      });
-    }
-  }, []);
-
-  useEffect(() => {
-    const loadChatRooms = async () => {
+  // Safe navigation handler using onChatPress prop or console.log fallback
+  const handleChatPress = useCallback(
+    (chatRoom: ChatRoom) => {
       try {
-        setIsLoading(true);
-        const rooms = await ChatService.getChatRooms(
-          "test-user-id",
-          "customer"
-        );
-        setChatRooms(rooms);
-      } catch (error) {
-        console.error("Error loading chat rooms:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+        if (onChatPress) {
+          onChatPress(chatRoom.id);
+        } else {
+          // Fallback: log the navigation attempt
+          console.log("Navigate to chat:", chatRoom.id);
 
-    loadChatRooms();
-  }, []);
+          // In development, show toast
+          if (__DEV__) {
+            Toast.show({
+              type: "info",
+              text1: "Chat Navigation",
+              text2: `Mở chat với ${chatRoom.shopName || chatRoom.customerName}`,
+            });
+          }
+        }
+      } catch (error) {
+        if (__DEV__) {
+          console.error("Error opening chat:", error);
+        }
+        setNavigationError(true);
+        Toast.show({
+          type: "error",
+          text1: "Lỗi",
+          text2: "Không thể mở chat. Vui lòng thử lại.",
+        });
+      }
+    },
+    [onChatPress]
+  );
+
+  // useEffect removed as useChat hook handles this
 
   // Render beautiful chat room item
   const renderChatRoom = ({ item }: { item: ChatRoom }) => {

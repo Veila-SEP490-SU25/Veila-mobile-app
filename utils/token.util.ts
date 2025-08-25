@@ -18,10 +18,46 @@ export function isTokenExpired(token: string): boolean {
   }
 }
 
+// Cache for token validation to avoid excessive checks
+let tokenValidCache: {
+  token: string;
+  isValid: boolean;
+  timestamp: number;
+} | null = null;
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
 export const isAccessTokenValid = async (): Promise<boolean> => {
   const token = await getAccessToken();
-  if (!token) return false;
-  return !isTokenExpired(token);
+  if (!token) {
+    console.log("Token hợp lệ: false (no token)");
+    return false;
+  }
+
+  // Check cache first
+  const now = Date.now();
+  if (
+    tokenValidCache &&
+    tokenValidCache.token === token &&
+    now - tokenValidCache.timestamp < CACHE_DURATION
+  ) {
+    // Use cached result, no console.log to avoid spam
+    return tokenValidCache.isValid;
+  }
+
+  // Validate token and update cache
+  const isValid = !isTokenExpired(token);
+  tokenValidCache = {
+    token,
+    isValid,
+    timestamp: now,
+  };
+
+  // Only log when token status changes or first check
+  if (!tokenValidCache || tokenValidCache.isValid !== isValid) {
+    console.log(`Token hợp lệ: ${isValid}`);
+  }
+
+  return isValid;
 };
 
 export const getAccessToken = async () => {

@@ -2,11 +2,10 @@ import { Ionicons } from "@expo/vector-icons";
 import { Tabs } from "expo-router";
 import { View } from "react-native";
 import NotificationBadge from "../../components/notifications/NotificationBadge";
+import { useAuth } from "../../providers/auth.provider";
 
 export default function TabLayout() {
-  const currentUser = {
-    id: "user123",
-  };
+  const { user } = useAuth();
 
   return (
     <Tabs
@@ -56,11 +55,11 @@ export default function TabLayout() {
 
           const icon = <Ionicons name={iconName} size={20} color={color} />;
 
-          if (route.name === "notifications") {
+          if (route.name === "notifications" && user?.id) {
             return (
               <View style={{ position: "relative" }}>
                 {icon}
-                <NotificationBadge userId={currentUser.id} size="small" />
+                <NotificationBadge userId={user.id} size="small" />
               </View>
             );
           }

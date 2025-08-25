@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { formatDistanceToNow } from "date-fns";
 import { vi } from "date-fns/locale";
 import { useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -11,7 +11,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import NotificationService from "../../services/notification.service";
+import { useNotifications } from "../../hooks/useNotifications";
 import { Notification } from "../../services/types";
 
 interface NotificationListProps {
@@ -19,26 +19,13 @@ interface NotificationListProps {
 }
 
 export default function NotificationList({ userId }: NotificationListProps) {
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { notifications, loading, markAsRead } = useNotifications(userId);
   const router = useRouter();
-
-  useEffect(() => {
-    const unsubscribe = NotificationService.subscribeToNotifications(
-      userId,
-      (notifications) => {
-        setNotifications(notifications);
-        setLoading(false);
-      }
-    );
-
-    return () => unsubscribe();
-  }, [userId]);
 
   const handleNotificationPress = async (notification: Notification) => {
     // Mark as read
     if (!notification.isRead) {
-      await NotificationService.markAsRead(notification.id);
+      await markAsRead(notification.id);
     }
 
     // Navigate based on notification type

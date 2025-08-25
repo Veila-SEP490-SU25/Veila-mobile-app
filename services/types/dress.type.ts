@@ -28,6 +28,15 @@ export interface Dress {
   status: DressStatus;
   user?: { shop?: DressShop };
   category?: DressCategory;
+  description?: string;
+  ratingCount?: number;
+  feedbacks?: Array<{
+    id: string;
+    customer: { id: string; username: string; avatarUrl: string | null };
+    content: string;
+    rating: string;
+    images: string | null;
+  }>;
 }
 
 export interface DressListResponse {

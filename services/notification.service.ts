@@ -5,7 +5,6 @@ import {
   getDocs,
   limit,
   onSnapshot,
-  orderBy,
   query,
   serverTimestamp,
   updateDoc,
@@ -26,7 +25,7 @@ export class NotificationService {
   }
 
   private isDevelopmentMode(): boolean {
-    return __DEV__ || !db;
+    return !db;
   }
 
   // Mock data for development
@@ -99,10 +98,10 @@ export class NotificationService {
     }
 
     try {
+      // Use simple query first to avoid index requirements
       const q = query(
         collection(db, "notifications"),
         where("userId", "==", userId),
-        orderBy("timestamp", "desc"),
         limit(50)
       );
 
@@ -124,6 +123,14 @@ export class NotificationService {
                 data: data.data || {},
               });
             });
+
+            // Sort manually to avoid index dependency
+            notifications.sort((a, b) => {
+              const dateA = a.timestamp || new Date(0);
+              const dateB = b.timestamp || new Date(0);
+              return dateB.getTime() - dateA.getTime();
+            });
+
             callback(notifications);
           } catch (error) {
             if (__DEV__) {
@@ -133,9 +140,8 @@ export class NotificationService {
           }
         },
         (error) => {
-          if (__DEV__) {
-            console.error("Error in notifications subscription:", error);
-          }
+          console.error("Error in notifications subscription:", error);
+          // Fallback with even simpler query
           callback([]);
         }
       );
@@ -232,6 +238,173 @@ export class NotificationService {
     } catch (error) {
       if (__DEV__) {
         console.error("Error creating notification:", error);
+      }
+      throw error;
+    }
+  }
+
+  async createChatNotification(
+    userId: string,
+    chatRoomId: string,
+    senderName: string,
+    message: string
+  ): Promise<string> {
+    return this.createNotification({
+      userId,
+      title: `Tin nhắn mới từ ${senderName}`,
+      body: message.length > 50 ? `${message.substring(0, 50)}...` : message,
+      type: "chat",
+      isRead: false,
+      data: { chatRoomId, senderName },
+    });
+  }
+
+  async createOrderNotification(
+    userId: string,
+    orderId: string,
+    title: string,
+    body: string
+  ): Promise<string> {
+    return this.createNotification({
+      userId,
+      title,
+      body,
+      type: "order",
+      isRead: false,
+      data: { orderId },
+    });
+  }
+
+  async createPromotionNotification(
+    userId: string,
+    title: string,
+    body: string,
+    data?: any
+  ): Promise<string> {
+    return this.createNotification({
+      userId,
+      title,
+      body,
+      type: "promotion",
+      isRead: false,
+      data: data || {},
+    });
+  }
+
+  async getNotificationSettings(userId: string): Promise<any> {
+    if (this.isDevelopmentMode()) {
+      return null;
+    }
+
+    if (!db) {
+      throw new Error("Firestore not available");
+    }
+
+    try {
+      const q = query(
+        collection(db, "notificationSettings"),
+        where("userId", "==", userId),
+        limit(1)
+      );
+      const snapshot = await getDocs(q);
+
+      if (!snapshot.empty) {
+        return { id: snapshot.docs[0].id, ...snapshot.docs[0].data() };
+      }
+      return null;
+    } catch (error) {
+      if (__DEV__) {
+        console.error("Error getting notification settings:", error);
+      }
+      throw error;
+    }
+  }
+
+  async createNotificationSettings(settings: any): Promise<string> {
+    if (this.isDevelopmentMode()) {
+      return "mock-settings-id";
+    }
+
+    if (!db) {
+      throw new Error("Firestore not available");
+    }
+
+    try {
+      const docRef = await addDoc(collection(db, "notificationSettings"), {
+        ...settings,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+      return docRef.id;
+    } catch (error) {
+      if (__DEV__) {
+        console.error("Error creating notification settings:", error);
+      }
+      throw error;
+    }
+  }
+
+  async updateNotificationSettings(
+    userId: string,
+    updates: any
+  ): Promise<void> {
+    if (this.isDevelopmentMode()) {
+      return;
+    }
+
+    if (!db) {
+      throw new Error("Firestore not available");
+    }
+
+    try {
+      const q = query(
+        collection(db, "notificationSettings"),
+        where("userId", "==", userId),
+        limit(1)
+      );
+      const snapshot = await getDocs(q);
+
+      if (!snapshot.empty) {
+        const docRef = doc(db, "notificationSettings", snapshot.docs[0].id);
+        await updateDoc(docRef, {
+          ...updates,
+          updatedAt: serverTimestamp(),
+        });
+      }
+    } catch (error) {
+      if (__DEV__) {
+        console.error("Error updating notification settings:", error);
+      }
+      throw error;
+    }
+  }
+
+  async markNotificationAsRead(notificationId: string): Promise<void> {
+    return this.markAsRead(notificationId);
+  }
+
+  async markAllNotificationsAsRead(userId: string): Promise<void> {
+    return this.markAllAsRead(userId);
+  }
+
+  async deleteNotification(notificationId: string): Promise<void> {
+    if (this.isDevelopmentMode()) {
+      return;
+    }
+
+    if (!db) {
+      throw new Error("Firestore not available");
+    }
+
+    try {
+      const notificationRef = doc(db, "notifications", notificationId);
+      await updateDoc(notificationRef, {
+        isDeleted: true,
+        deletedAt: serverTimestamp(),
+      });
+    } catch (error) {
+      if (__DEV__) {
+        console.error("Error deleting notification:", error);
       }
       throw error;
     }

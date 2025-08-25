@@ -4,6 +4,7 @@ import {
   CategoryListResponse,
   DressListResponse,
   ServiceListResponse,
+  Shop,
   ShopDetail,
   ShopListResponse,
 } from "../types";
@@ -104,5 +105,13 @@ export const shopApi = {
   // Get accessory detail
   getAccessoryById: async (id: string): Promise<any> => {
     return makeRequest(`/accessories/${id}`);
+  },
+
+  toggleFavorite: async (id: string): Promise<void> => {
+    await makeRequest(`/shops/${id}/favorites`, { method: "POST" });
+  },
+
+  getFavoriteShops: async (): Promise<Shop[]> => {
+    return makeRequest(`/shops/favorites`);
   },
 };

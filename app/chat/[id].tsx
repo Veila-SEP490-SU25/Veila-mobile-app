@@ -46,6 +46,8 @@ export default function ChatDetailScreen() {
   const [messageText, setMessageText] = useState("");
   const flatListRef = useRef<FlatList>(null);
 
+  // Remove debug logs
+
   // Validate navigation context
   useEffect(() => {
     if (!router) {
@@ -110,7 +112,47 @@ export default function ChatDetailScreen() {
         unsubscribe = ChatService.subscribeToMessages(
           chatRoomId,
           (newMessages) => {
-            setMessages(newMessages);
+            // If no messages, add test messages for UI testing
+            if (newMessages.length === 0 && __DEV__) {
+              const testMessages: ChatMessage[] = [
+                {
+                  id: "test-1",
+                  chatRoomId,
+                  senderId: "test-shop-id",
+                  senderName: "Kshlerin - Ziemann",
+                  content: "Chào bạn! Bạn cần tư vấn gì về váy cưới không?",
+                  timestamp: new Date(Date.now() - 300000), // 5 mins ago
+                  isRead: false,
+                  type: "text",
+                },
+                {
+                  id: "test-2",
+                  chatRoomId,
+                  senderId: user?.id || "test-customer",
+                  senderName: user?.firstName || "Khách hàng",
+                  content:
+                    "Xin chào shop! Tôi muốn xem váy cưới cho đám cưới tháng 12.",
+                  timestamp: new Date(Date.now() - 240000), // 4 mins ago
+                  isRead: true,
+                  type: "text",
+                },
+                {
+                  id: "test-3",
+                  chatRoomId,
+                  senderId: "test-shop-id",
+                  senderName: "Kshlerin - Ziemann",
+                  content:
+                    "Tuyệt vời! Chúng tôi có nhiều mẫu váy đẹp phù hợp cho mùa đông. Bạn có kích thước và phong cách yêu thích không?",
+                  timestamp: new Date(Date.now() - 180000), // 3 mins ago
+                  isRead: false,
+                  type: "text",
+                },
+              ];
+              setMessages(testMessages);
+            } else {
+              setMessages(newMessages);
+            }
+
             setLoading(false);
             setError(null);
           }
@@ -252,8 +294,8 @@ export default function ChatDetailScreen() {
         >
           {/* Avatar for other messages */}
           {!isOwnMessage && (
-            <View className="w-8 h-8 rounded-full bg-primary-100 items-center justify-center mr-2 mt-1">
-              <Text className="text-primary-600 font-semibold text-sm">
+            <View className="w-8 h-8 rounded-full bg-gray-300 items-center justify-center mr-2 mt-1">
+              <Text className="text-gray-700 font-semibold text-sm">
                 {item.senderName?.charAt(0)?.toUpperCase() || "S"}
               </Text>
             </View>
@@ -262,14 +304,14 @@ export default function ChatDetailScreen() {
           <View
             className={`max-w-[75%] rounded-2xl px-4 py-3 ${
               isOwnMessage
-                ? "bg-gradient-to-r from-primary-500 to-primary-600 rounded-br-md shadow-lg"
-                : "bg-white rounded-bl-md shadow-sm border border-gray-100"
+                ? "bg-blue-500 rounded-br-md shadow-lg"
+                : "bg-gray-100 rounded-bl-md shadow-sm border border-gray-200"
             }`}
           >
             {/* Sender name for other messages */}
             {!isOwnMessage && (
               <Text
-                className={`text-xs mb-2 font-semibold text-gray-600`}
+                className={`text-xs mb-2 font-semibold text-gray-700`}
                 numberOfLines={1}
               >
                 {item.senderName || "Shop"}
@@ -279,7 +321,7 @@ export default function ChatDetailScreen() {
             {/* Message content with proper text wrapping */}
             <Text
               className={`text-base leading-6 ${
-                isOwnMessage ? "text-white" : "text-gray-800"
+                isOwnMessage ? "text-white" : "text-gray-900"
               }`}
               style={{ textAlign: "left" }}
             >
@@ -290,7 +332,7 @@ export default function ChatDetailScreen() {
             <View className="flex-row items-center justify-between mt-3">
               <Text
                 className={`text-xs ${
-                  isOwnMessage ? "text-primary-100" : "text-gray-500"
+                  isOwnMessage ? "text-blue-100" : "text-gray-600"
                 }`}
               >
                 {messageTime}
@@ -311,8 +353,8 @@ export default function ChatDetailScreen() {
 
           {/* Avatar for own messages */}
           {isOwnMessage && (
-            <View className="w-8 h-8 rounded-full bg-primary-100 items-center justify-center ml-2 mt-1">
-              <Text className="text-primary-600 font-semibold text-sm">
+            <View className="w-8 h-8 rounded-full bg-blue-200 items-center justify-center ml-2 mt-1">
+              <Text className="text-blue-700 font-semibold text-sm">
                 {user?.firstName?.charAt(0)?.toUpperCase() || "U"}
               </Text>
             </View>
@@ -686,28 +728,32 @@ export default function ChatDetailScreen() {
           contentContainerStyle={{
             paddingHorizontal: 16,
             paddingVertical: 8,
-            flexGrow: 1,
+            flexGrow: messages.length === 0 ? 1 : 0,
           }}
           showsVerticalScrollIndicator={false}
-          inverted={false}
+          inverted={messages.length > 0}
           onContentSizeChange={() => {
             if (flatListRef.current && messages.length > 0) {
-              flatListRef.current.scrollToEnd({ animated: true });
+              setTimeout(() => {
+                flatListRef.current?.scrollToEnd({ animated: true });
+              }, 100);
             }
           }}
           onLayout={() => {
             if (flatListRef.current && messages.length > 0) {
-              flatListRef.current.scrollToEnd({ animated: false });
+              setTimeout(() => {
+                flatListRef.current?.scrollToEnd({ animated: false });
+              }, 100);
             }
           }}
           ListEmptyComponent={renderEmptyState}
           ListHeaderComponent={
-            messages.length > 0 ? renderTypingIndicator : null
+            messages.length === 0 ? renderTypingIndicator : null
           }
           ListFooterComponent={() => <View className="h-4" />}
-          removeClippedSubviews={true}
-          maxToRenderPerBatch={10}
-          windowSize={10}
+          removeClippedSubviews={false}
+          maxToRenderPerBatch={50}
+          windowSize={20}
         />
 
         {renderInput()}
