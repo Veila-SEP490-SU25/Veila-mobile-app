@@ -13,6 +13,9 @@ export default {
       supportsTablet: true,
       bundleIdentifier: "com.veila.app",
     },
+    android: {
+      package: "com.veila.app", // 👈 Thêm dòng này
+    },
     extra: {
       FIREBASE_API_KEY: process.env.FIREBASE_API_KEY,
       FIREBASE_AUTH_DOMAIN: process.env.FIREBASE_AUTH_DOMAIN,
