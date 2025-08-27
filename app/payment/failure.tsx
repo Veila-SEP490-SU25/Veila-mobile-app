@@ -15,7 +15,7 @@ export default function PaymentFailureScreen() {
       router.replace("/account/wallet");
     } catch (error) {
       console.error("Navigation error:", error);
-      // Fallback navigation
+
       router.push("/account/wallet");
     }
   };
@@ -25,7 +25,7 @@ export default function PaymentFailureScreen() {
       router.back();
     } catch (error) {
       console.error("Navigation error:", error);
-      // Fallback navigation
+
       router.push("/account/topup");
     }
   };
@@ -35,7 +35,7 @@ export default function PaymentFailureScreen() {
       router.push("/account/transactions");
     } catch (error) {
       console.error("Navigation error:", error);
-      // Fallback navigation
+
       router.push("/account/transactions");
     }
   };

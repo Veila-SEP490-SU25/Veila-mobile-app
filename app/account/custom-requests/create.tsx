@@ -58,12 +58,10 @@ export default function CreateCustomRequestScreen() {
     try {
       const response = await customRequestApi.createRequest(formData);
 
-      // Log response for debugging (only in development)
       if (__DEV__) {
         console.log("API Response:", response);
       }
 
-      // Check for successful status codes (200 OK or 201 Created)
       if (
         response &&
         (response.statusCode === 200 || response.statusCode === 201)
@@ -75,7 +73,7 @@ export default function CreateCustomRequestScreen() {
         });
         router.back();
       } else {
-        // Unexpected response format
+
         Toast.show({
           type: "error",
           text1: "Lỗi",
@@ -175,64 +173,6 @@ export default function CreateCustomRequestScreen() {
       </View>
     </View>
   );
-
-  // const renderDesignSection = () => (
-  //   <View className="bg-white rounded-2xl p-4 mb-6 shadow-soft">
-  //     <Text className="text-lg font-semibold text-gray-800 mb-4">
-  //       Thiết kế váy
-  //     </Text>
-
-  //     {renderInputField(
-  //       "Kiểu váy",
-  //       "dressStyle",
-  //       "Váy ngắn hoặc vạt trước ngắn vạt sau dài",
-  //       "default",
-  //       true
-  //     )}
-  //     {renderInputField(
-  //       "Kiểu cổ",
-  //       "curtainNeckline",
-  //       "Cổ tim, cổ tròn, cổ thuyền, cổ yếm, cúp ngực",
-  //       "default",
-  //       true
-  //     )}
-  //     {renderInputField(
-  //       "Kiểu tay",
-  //       "sleeveStyle",
-  //       "Không tay, hai dây, tay trần, tay ngắn",
-  //       "default",
-  //       true
-  //     )}
-  //     {renderInputField(
-  //       "Chất liệu",
-  //       "material",
-  //       "Kim sa, Đính kết pha lê/ngọc trai",
-  //       "default",
-  //       true
-  //     )}
-  //     {renderInputField(
-  //       "Màu sắc",
-  //       "color",
-  //       "Trắng tinh, trắng ngà (ivory), kem",
-  //       "default",
-  //       true
-  //     )}
-  //     {renderInputField(
-  //       "Chi tiết đặc biệt",
-  //       "specialElement",
-  //       "Đính kết pha lê, hoa văn 3D",
-  //       "default",
-  //       true
-  //     )}
-  //     {renderInputField(
-  //       "Mức độ hở",
-  //       "coverage",
-  //       "Mức độ hở lưng, xẻ ngực",
-  //       "default",
-  //       true
-  //     )}
-  //   </View>
-  // );
 
   return (
     <SafeAreaView className="flex-1 bg-gray-50">

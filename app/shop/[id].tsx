@@ -47,16 +47,14 @@ export default function ShopDetailScreen() {
       if (!id) return;
       setLoading(true);
 
-      // Load shop details
       const shopData = await shopApi.getShopById(id);
 
-      // Check if the response has the expected structure
       if (shopData && typeof shopData === "object") {
-        // If the response has an 'item' property (wrapped response)
+
         if ("item" in shopData && shopData.item) {
           setShop(shopData.item as ShopDetail);
         } else if ("id" in shopData && "name" in shopData) {
-          // If the response is directly the shop data
+
           const shopDetail: ShopDetail = {
             id: shopData.id as string,
             name: shopData.name as string,
@@ -86,7 +84,6 @@ export default function ShopDetailScreen() {
         return;
       }
 
-      // Load all products
       const [dresses, accessories, blogs] = await Promise.all([
         shopApi.getShopDresses(id, 0, 20),
         shopApi.getShopAccessories(id, 0, 20),
@@ -152,7 +149,7 @@ export default function ShopDetailScreen() {
             text1: "Tùy chọn",
             text2: "Chọn hành động liên hệ",
             onPress: () => {
-              // TODO: Implement call and message functionality
+
             },
           });
         },
@@ -173,7 +170,6 @@ export default function ShopDetailScreen() {
         return;
       }
 
-      // Create or find existing chat room
       const chatRoomData = {
         customerId: user.id,
         customerName:
@@ -190,7 +186,6 @@ export default function ShopDetailScreen() {
       const { ChatService } = await import("../../services/chat.service");
       const chatRoomId = await ChatService.createChatRoom(chatRoomData);
 
-      // Navigate to chat
       router.push(`/chat/${chatRoomId}`);
     } catch (error) {
       console.error("Error creating chat room:", error);
@@ -209,7 +204,7 @@ export default function ShopDetailScreen() {
   const handleFavorite = useCallback(async () => {
     try {
       setIsFavorite(!isFavorite);
-      // Call the API to add/remove favorite
+
       await shopApi.toggleFavorite(id as string);
       Toast.show({
         type: "success",

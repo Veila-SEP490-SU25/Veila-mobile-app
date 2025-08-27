@@ -105,9 +105,8 @@ export default function SideMenu({
   const slideAnim = useRef(new Animated.Value(-screenWidth)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
-  // Simple animation without complex callbacks
   useEffect(() => {
-    // Create animation once
+
     const openAnimation = Animated.parallel([
       Animated.timing(slideAnim, {
         toValue: 0,
@@ -120,18 +119,16 @@ export default function SideMenu({
         useNativeDriver: true,
       }),
     ]);
-    
-    // Start animation
+
     openAnimation.start();
-    
-    // Cleanup function
+
     return () => {
       openAnimation.stop();
     };
-  }, []); // Empty dependency array - run only once
+  }, []);
 
   const handleClose = () => {
-    // Create close animation
+
     const closeAnimation = Animated.parallel([
       Animated.timing(slideAnim, {
         toValue: -screenWidth,
@@ -144,8 +141,7 @@ export default function SideMenu({
         useNativeDriver: true,
       }),
     ]);
-    
-    // Start close animation
+
     closeAnimation.start(() => {
       onClose();
     });
@@ -153,7 +149,7 @@ export default function SideMenu({
 
   const handleNavigate = (route: string) => {
     handleClose();
-    // Simple timeout for navigation
+
     setTimeout(() => {
       navigate(route);
     }, 300);

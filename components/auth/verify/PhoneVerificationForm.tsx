@@ -33,14 +33,12 @@ export default function PhoneVerificationForm() {
   const [resendCountdown, setResendCountdown] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Update phoneNumber when user changes
   useEffect(() => {
     if (user?.phone) {
       setPhoneNumber(user.phone);
     }
   }, [user?.phone]);
 
-  // Cleanup timer on unmount
   useEffect(() => {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
@@ -61,7 +59,6 @@ export default function PhoneVerificationForm() {
     }, 1000);
   };
 
-  // Check if phone number has changed
   const hasPhoneChanged = user?.phone && phoneNumber !== user.phone;
 
   const getPhoneVerificationIcon = () => {

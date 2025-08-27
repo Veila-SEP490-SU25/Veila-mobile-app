@@ -40,7 +40,6 @@ export default function SplashIntroVideo() {
     }
   }, [navigated]);
 
-  // Listen for video events
   useEffect(() => {
     const playToEndSubscription = player.addListener("playToEnd", () => {
       navigate();

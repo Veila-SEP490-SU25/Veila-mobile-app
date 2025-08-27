@@ -3,7 +3,6 @@ import { router, useLocalSearchParams } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import { ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import Toast from "react-native-toast-message";
 import Button from "../../../components/Button";
 import Card from "../../../components/Card";
 import { LightStatusBar } from "../../../components/StatusBar";
@@ -12,6 +11,11 @@ import {
   orderApi,
 } from "../../../services/apis/order.api";
 import { formatVNDCustom } from "../../../utils/currency.util";
+import {
+  handleApiError,
+  showConfirm,
+  showMessage,
+} from "../../../utils/message.util";
 
 export default function OrderDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -24,12 +28,7 @@ export default function OrderDetailScreen() {
       const orderData = await orderApi.getOrderById(id);
       setOrder(orderData);
     } catch (error) {
-      console.error("Error loading order:", error);
-      Toast.show({
-        type: "error",
-        text1: "Lỗi",
-        text2: "Không thể tải thông tin đơn hàng",
-      });
+      handleApiError(error);
     } finally {
       setLoading(false);
     }
@@ -114,8 +113,18 @@ export default function OrderDetailScreen() {
     return (
       <SafeAreaView className="flex-1 bg-gray-50">
         <LightStatusBar />
-        <View className="flex-1 items-center justify-center">
-          <Text className="text-gray-600">Đang tải thông tin đơn hàng...</Text>
+        <View className="flex-1 items-center justify-center px-6">
+          <View className="bg-white p-8 rounded-2xl shadow-sm">
+            <View className="w-16 h-16 bg-primary-100 rounded-full items-center justify-center mx-auto mb-4">
+              <Ionicons name="time-outline" size={32} color="#E05C78" />
+            </View>
+            <Text className="text-lg font-semibold text-gray-800 text-center mb-2">
+              Đang tải đơn hàng
+            </Text>
+            <Text className="text-gray-600 text-center">
+              Vui lòng chờ trong giây lát...
+            </Text>
+          </View>
         </View>
       </SafeAreaView>
     );
@@ -125,19 +134,25 @@ export default function OrderDetailScreen() {
     return (
       <SafeAreaView className="flex-1 bg-gray-50">
         <LightStatusBar />
-        <View className="flex-1 items-center justify-center p-6">
-          <Ionicons name="alert-circle" size={64} color="#EF4444" />
-          <Text className="text-xl font-semibold text-gray-800 mt-4">
-            Không tìm thấy đơn hàng
-          </Text>
-          <Text className="text-gray-500 text-center mt-2">
-            Đơn hàng này có thể không tồn tại hoặc đã bị xóa
-          </Text>
-          <Button
-            title="Quay lại"
-            onPress={() => router.back()}
-            className="mt-6"
-          />
+        <View className="flex-1 items-center justify-center px-6">
+          <View className="bg-white p-8 rounded-2xl shadow-sm">
+            <View className="w-16 h-16 bg-red-100 rounded-full items-center justify-center mx-auto mb-4">
+              <Ionicons name="alert-circle-outline" size={32} color="#EF4444" />
+            </View>
+            <Text className="text-xl font-bold text-gray-800 text-center mb-2">
+              Không tìm thấy đơn hàng
+            </Text>
+            <Text className="text-gray-500 text-center mb-6">
+              Đơn hàng này có thể không tồn tại hoặc đã bị xóa
+            </Text>
+            <Button
+              title="Quay lại danh sách"
+              onPress={() => router.back()}
+              variant="primary"
+              icon="arrow-back"
+              fullWidth
+            />
+          </View>
         </View>
       </SafeAreaView>
     );
@@ -162,6 +177,7 @@ export default function OrderDetailScreen() {
       <ScrollView className="flex-1 px-6 py-4">
         {/* Order Header */}
         <Card className="mb-6">
+          {/* Order ID & Status */}
           <View className="flex-row items-center justify-between mb-4">
             <View className="flex-row items-center space-x-3">
               <View
@@ -196,16 +212,31 @@ export default function OrderDetailScreen() {
           </View>
 
           {/* Order Summary */}
-          <View className="p-4 bg-gray-50 rounded-lg">
-            <Text className="text-lg font-bold text-gray-800 mb-2">
-              Tổng tiền: {formatVNDCustom(order.amount || 0, "₫")}
-            </Text>
-            <Text className="text-sm text-gray-600">
-              Ngày đặt:{" "}
-              {order.createdAt
-                ? new Date(order.createdAt).toLocaleDateString("vi-VN")
-                : "N/A"}
-            </Text>
+          <View className="p-4 bg-gradient-to-r from-primary-50 to-pink-50 rounded-xl border border-primary-100">
+            <View className="flex-row items-center justify-between mb-2">
+              <Text className="text-lg font-bold text-gray-800">Tổng tiền</Text>
+              <View className="flex-row items-center">
+                <Ionicons name="cash-outline" size={20} color="#E05C78" />
+                <Text className="text-xl font-bold text-primary-600 ml-1">
+                  {formatVNDCustom(order.amount || 0, "₫")}
+                </Text>
+              </View>
+            </View>
+            <View className="flex-row items-center justify-between">
+              <Text className="text-sm text-gray-600">
+                Ngày đặt:{" "}
+                {order.createdAt
+                  ? new Date(order.createdAt).toLocaleDateString("vi-VN")
+                  : "N/A"}
+              </Text>
+              <View
+                className={`px-2 py-1 rounded-full ${getStatusColor(order.status || "PENDING")}`}
+              >
+                <Text className="text-xs font-medium">
+                  {getStatusText(order.status || "PENDING")}
+                </Text>
+              </View>
+            </View>
           </View>
         </Card>
 
@@ -317,10 +348,8 @@ export default function OrderDetailScreen() {
             <Button
               title="Hủy đơn hàng"
               onPress={() => {
-                Toast.show({
-                  type: "info",
-                  text1: "Hủy đơn hàng",
-                  text2: "Tính năng này sẽ được cập nhật sau",
+                showConfirm("CFM001", () => {
+                  showMessage("INF001", "Đơn hàng đã được hủy thành công");
                 });
               }}
               variant="danger"
@@ -332,14 +361,23 @@ export default function OrderDetailScreen() {
           <Button
             title="Liên hệ shop"
             onPress={() => {
-              Toast.show({
-                type: "info",
-                text1: "Liên hệ shop",
-                text2: "Tính năng này sẽ được cập nhật sau",
-              });
+              showMessage(
+                "INF002",
+                `Liên hệ với ${order.shop?.name || "shop"}`
+              );
             }}
             variant="outline"
             icon="chatbubble-outline"
+            fullWidth
+          />
+
+          <Button
+            title="Xem chi tiết sản phẩm"
+            onPress={() => {
+              showMessage("INF004", "Chuyển đến trang sản phẩm");
+            }}
+            variant="primary"
+            icon="eye-outline"
             fullWidth
           />
         </View>

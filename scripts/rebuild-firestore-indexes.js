@@ -6,7 +6,7 @@ const path = require("path");
 console.log("🔄 Force rebuilding all Firestore indexes...");
 
 try {
-  // Check if project is set, if not set it to veilastudio
+
   try {
     execSync("firebase use", {
       stdio: "pipe",
@@ -20,18 +20,16 @@ try {
     });
   }
 
-  // First, delete all existing indexes
   console.log("🗑️  Deleting existing indexes...");
   execSync("firebase firestore:indexes:delete --force", {
     stdio: "inherit",
     cwd: path.join(__dirname, ".."),
   });
 
-  // Wait a moment
   console.log("⏳ Waiting for indexes to be deleted...");
   setTimeout(() => {
     try {
-      // Deploy new indexes
+
       console.log("🚀 Deploying new indexes...");
       execSync("firebase deploy --only firestore:indexes", {
         stdio: "inherit",

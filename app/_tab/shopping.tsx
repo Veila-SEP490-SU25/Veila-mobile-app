@@ -195,7 +195,7 @@ export default function Shopping() {
             className="flex-1 items-center rounded-2xl py-4 px-3"
             style={{
               backgroundColor: "transparent",
-              // Gradient dùng expo-linear-gradient hoặc react-native-linear-gradient
+
             }}
           >
             <LinearGradient

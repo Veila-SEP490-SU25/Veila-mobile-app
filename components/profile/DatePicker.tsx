@@ -10,7 +10,7 @@ import {
 } from "react-native";
 
 interface DatePickerProps {
-  value: string; // Format: "YYYY-MM-DD"
+  value: string;
   onChange: (date: string) => void;
   label: string;
 }
@@ -29,7 +29,6 @@ export default function DatePicker({
   );
   const [selectedDay, setSelectedDay] = useState<number>(new Date().getDate());
 
-  // Parse current value
   React.useEffect(() => {
     if (value) {
       const [year, month, day] = value.split("-").map(Number);

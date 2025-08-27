@@ -143,7 +143,6 @@ export default function PullToRefresh({
   );
 }
 
-// Enhanced ScrollView with pull-to-refresh
 export const EnhancedScrollView = ({
   children,
   onRefresh,
@@ -171,7 +170,6 @@ export const EnhancedScrollView = ({
   );
 };
 
-// Enhanced FlatList with pull-to-refresh
 export const EnhancedFlatList = ({
   onRefresh,
   refreshing = false,

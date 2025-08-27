@@ -71,7 +71,6 @@ export default function CheckoutPopup({
     message?: string;
   }>({ status: "SUCCESS" });
 
-  // Form data
   const [orderData, setOrderData] = useState({
     phone: user?.phone || "",
     email: user?.email || "",
@@ -303,7 +302,6 @@ export default function CheckoutPopup({
     );
   };
 
-  // Enhanced validation states
   const [validationErrors, setValidationErrors] = useState<{
     [key: string]: string;
   }>({});
@@ -312,7 +310,6 @@ export default function CheckoutPopup({
   }>({});
   const [isFormDirty, setIsFormDirty] = useState(false);
 
-  // Auto-save form progress
   useEffect(() => {
     const formData = {
       currentStep,
@@ -322,24 +319,20 @@ export default function CheckoutPopup({
       timestamp: Date.now(),
     };
 
-    // Save to localStorage
     try {
       localStorage.setItem("checkoutFormProgress", JSON.stringify(formData));
     } catch (error) {
-      // Silently handle localStorage errors
+
     }
   }, [currentStep, measurements, orderData, selectedAccessories]);
 
-  // Enhanced field validation
   const validateField = (field: string, value: any): string | null => {
     switch (field) {
       case "phone":
         if (!value) return "Số điện thoại là bắt buộc";
 
-        // Remove all non-digit characters and check length
         const cleanPhone = value.replace(/\D/g, "");
 
-        // Handle different phone number formats
         if (cleanPhone.length < 9) {
           return "Số điện thoại quá ngắn (cần ít nhất 9 chữ số)";
         }
@@ -347,19 +340,16 @@ export default function CheckoutPopup({
           return "Số điện thoại quá dài (tối đa 11 chữ số)";
         }
 
-        // Check if it's a valid phone number pattern
         if (!/^[0-9]+$/.test(cleanPhone)) {
           return "Số điện thoại chỉ được chứa chữ số";
         }
 
-        // Special case for Vietnam phone numbers (without +84)
         if (cleanPhone.length === 10 && cleanPhone.startsWith("0")) {
-          return null; // Valid Vietnam phone number (0xxxxxxxxx)
+          return null;
         }
 
-        // General validation for 9-11 digits
         if (cleanPhone.length >= 9 && cleanPhone.length <= 11) {
-          return null; // Valid phone number
+          return null;
         }
 
         return "Số điện thoại không hợp lệ";
@@ -382,10 +372,9 @@ export default function CheckoutPopup({
         if (!value || value === "" || value === null)
           return "Ngày giao hàng là bắt buộc";
 
-        // Handle both string and Date formats
         let dueDate: Date;
         try {
-          // Create local date without timezone issues
+
           const [year, month, day] = String(value).split("-").map(Number);
           dueDate = new Date(year, month - 1, day, 0, 0, 0, 0);
 
@@ -404,24 +393,22 @@ export default function CheckoutPopup({
         return null;
 
       case "returnDate":
-        // For SELL orders, returnDate is not required
+
         if (type === "SELL") {
           return null;
         }
 
-        // For RENT orders, returnDate is required
         if (type === "RENT") {
           if (!value || value === "" || value === null) {
             return "Ngày trả hàng là bắt buộc cho đơn hàng thuê";
           }
 
-          // Validate returnDate format and logic
           if (orderData.dueDate) {
             let returnDate: Date;
             let dueDate: Date;
 
             try {
-              // Create local dates without timezone issues
+
               const [returnYear, returnMonth, returnDay] = String(value)
                 .split("-")
                 .map(Number);
@@ -459,7 +446,6 @@ export default function CheckoutPopup({
     }
   };
 
-  // Enhanced measurement validation
   const validateMeasurementField = (
     field: keyof DressDetails,
     value: number
@@ -468,7 +454,7 @@ export default function CheckoutPopup({
       keyof DressDetails,
       { min: number; max: number; unit: string }
     > = {
-      dressId: { min: 0, max: 0, unit: "" }, // Dummy for dressId
+      dressId: { min: 0, max: 0, unit: "" },
       height: { min: 100, max: 250, unit: "cm" },
       weight: { min: 20, max: 200, unit: "kg" },
       bust: { min: 50, max: 200, unit: "cm" },
@@ -494,16 +480,13 @@ export default function CheckoutPopup({
     return null;
   };
 
-  // Real-time validation for current step only
   const updateOrderData = (field: string, value: string | null) => {
     setOrderData((prev) => ({ ...prev, [field]: value }));
 
-    // Only validate if we're on the customer info step
     if (currentStep === 0) {
-      // Clear previous error
+
       setValidationErrors((prev) => ({ ...prev, [field]: "" }));
 
-      // Validate field
       const error = validateField(field, value);
       if (error) {
         setValidationErrors((prev) => ({ ...prev, [field]: error }));
@@ -516,15 +499,13 @@ export default function CheckoutPopup({
   const updateMeasurement = (field: keyof DressDetails, value: number) => {
     setMeasurements((prev) => ({ ...prev, [field]: value }));
 
-    // Only validate if we're on the measurements step
     if (currentStep === 1) {
-      // Clear previous error
+
       setValidationErrors((prev) => ({
         ...prev,
         [`measurement_${String(field)}`]: "",
       }));
 
-      // Validate measurement
       const error = validateMeasurementField(field, value);
       if (error) {
         setValidationErrors((prev) => ({
@@ -537,17 +518,15 @@ export default function CheckoutPopup({
     setIsFormDirty(true);
   };
 
-  // Always allow proceeding to next step
   const isCurrentStepValid = (): boolean => {
     return true;
   };
 
-  // Enhanced step validation
   const validateStep = (stepIndex: number): boolean => {
     const errors: { [key: string]: string } = {};
 
     switch (stepIndex) {
-      case 0: // Customer info
+      case 0:
         const phoneError = validateField("phone", orderData.phone);
         const emailError = validateField("email", orderData.email);
         const addressError = validateField("address", orderData.address);
@@ -564,7 +543,7 @@ export default function CheckoutPopup({
         if (returnDateError) errors.returnDate = returnDateError;
         break;
 
-      case 1: // Measurements
+      case 1:
         const requiredFields: (keyof DressDetails)[] = [
           "height",
           "bust",
@@ -588,10 +567,10 @@ export default function CheckoutPopup({
         });
         break;
 
-      case 2: // Accessories (optional)
+      case 2:
         break;
 
-      case 3: // Confirmation
+      case 3:
         break;
 
       default:
@@ -605,19 +584,18 @@ export default function CheckoutPopup({
     return isValid;
   };
 
-  // Clear validation errors when switching steps
   const clearStepErrors = (stepIndex: number) => {
     const errors = { ...validationErrors };
 
     switch (stepIndex) {
-      case 0: // Customer info
+      case 0:
         delete errors.phone;
         delete errors.email;
         delete errors.address;
         delete errors.dueDate;
         delete errors.returnDate;
         break;
-      case 1: // Measurements
+      case 1:
         Object.keys(errors).forEach((key) => {
           if (key.startsWith("measurement_")) {
             delete errors[key];
@@ -634,7 +612,6 @@ export default function CheckoutPopup({
       setCurrentStep(currentStep + 1);
       steps[currentStep].isCompleted = true;
 
-      // Show success message
       Toast.show({
         type: "success",
         text1: "Thành công!",
@@ -669,19 +646,16 @@ export default function CheckoutPopup({
     try {
       setLoading(true);
 
-      // Helper function to create local date without timezone issues
       const createLocalDate = (dateString: string): Date => {
         const [year, month, day] = dateString.split("-").map(Number);
         return new Date(year, month - 1, day, 0, 0, 0, 0);
       };
 
-      // Ensure all measurements are numbers
       const validatedMeasurements = {
         ...measurements,
         dressId: measurements.dressId || dressId,
       };
 
-      // Validate measurements
       Object.keys(validatedMeasurements).forEach((key) => {
         if (
           key !== "dressId" &&
@@ -700,8 +674,7 @@ export default function CheckoutPopup({
             ? createLocalDate(orderData.dueDate)
             : new Date(),
           type: type as "SELL" | "RENT",
-          // For SELL orders, returnDate can be null/undefined
-          // For RENT orders, returnDate is required
+
           ...(type === "RENT" &&
             orderData.returnDate && {
               returnDate: createLocalDate(orderData.returnDate),
@@ -711,12 +684,10 @@ export default function CheckoutPopup({
         accessoriesDetails: selectedAccessories,
       };
 
-      // Remove returnDate for SELL orders to avoid API validation errors
       if (type === "SELL") {
         delete (orderRequest.newOrder as any).returnDate;
       }
 
-      // Log payload for debugging
       console.log(
         "🚀 Sending order request:",
         JSON.stringify(orderRequest, null, 2)
@@ -742,7 +713,7 @@ export default function CheckoutPopup({
           errorMessage.includes("validation") ||
           errorMessage.includes("must be")
         ) {
-          // Show specific validation error from API
+
           Toast.show({
             type: "error",
             text1: "Lỗi thông tin",
@@ -760,7 +731,6 @@ export default function CheckoutPopup({
         return;
       }
 
-      // Success
       setCheckoutStatus({
         status: "SUCCESS",
         orderNumber: result.orderNumber || "ORDER_SUCCESS",
@@ -775,7 +745,6 @@ export default function CheckoutPopup({
         stack: error.stack,
       });
 
-      // Handle specific error types with detailed messages
       if (error.message && error.message.includes("status: 500")) {
         Toast.show({
           type: "error",
@@ -793,7 +762,6 @@ export default function CheckoutPopup({
         return;
       }
 
-      // Handle HTTP errors
       if (error.message && error.message.includes("HTTP error!")) {
         const statusMatch = error.message.match(/status: (\d+)/);
         const status = statusMatch ? statusMatch[1] : "unknown";
@@ -822,7 +790,6 @@ export default function CheckoutPopup({
         return;
       }
 
-      // Show specific error message from API if available
       if (error.message) {
         if (
           error.message.includes("insufficient") ||
@@ -861,7 +828,7 @@ export default function CheckoutPopup({
             visibilityTime: 5000,
           });
         } else {
-          // Show the specific error message from API
+
           setCheckoutStatus({
             status: "ERROR",
             message: error.message,
@@ -869,7 +836,7 @@ export default function CheckoutPopup({
           setShowStatusModal(true);
         }
       } else {
-        // Fallback for unknown errors
+
         setCheckoutStatus({
           status: "ERROR",
           message: "Đã có lỗi xảy ra. Vui lòng thử lại sau.",
@@ -973,7 +940,6 @@ export default function CheckoutPopup({
     }
   };
 
-  // Enhanced step indicator with validation status
   const renderStepIndicator = () => (
     <View style={styles.stepIndicatorContainer}>
       <View style={styles.stepIndicatorRow}>
@@ -1050,7 +1016,6 @@ export default function CheckoutPopup({
     </View>
   );
 
-  // Simple navigation buttons without validation
   const renderNavigationButtons = () => {
     const isLastStep = currentStep === steps.length - 1;
 
@@ -1100,7 +1065,6 @@ export default function CheckoutPopup({
     );
   };
 
-  // Enhanced close handler with confirmation
   const handleClose = () => {
     if (isFormDirty) {
       Toast.show({
@@ -1108,7 +1072,7 @@ export default function CheckoutPopup({
         text1: "Bạn có chắc muốn đóng?",
         text2: "Thông tin đã nhập sẽ bị mất",
         onPress: () => {
-          // Close directly since confirm() doesn't exist in React Native
+
           onClose();
         },
         visibilityTime: 3000,
@@ -1183,7 +1147,7 @@ export default function CheckoutPopup({
 }
 
 const styles = StyleSheet.create({
-  // Step Indicator Styles
+
   stepIndicatorContainer: {
     marginBottom: 16,
   },
@@ -1267,7 +1231,6 @@ const styles = StyleSheet.create({
     color: "#6B7280",
   },
 
-  // Navigation Styles
   navigationContainer: {
     gap: 12,
   },
@@ -1295,7 +1258,6 @@ const styles = StyleSheet.create({
     color: "#6B7280",
   },
 
-  // Modal Styles
   modalContainer: {
     flex: 1,
     backgroundColor: "#FFFFFF",

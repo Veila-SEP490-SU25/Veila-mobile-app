@@ -36,13 +36,12 @@ export interface IUser {
   images?: string;
   role: UserRole;
   status: UserStatus;
-  reputation?: number; // Optional, only for suppliers/admins
+  reputation?: number;
   isVerified: boolean;
   isIdentified: boolean;
   createdAt: string;
   updatedAt: string;
   deletedAt?: string;
 
-  // Computed fields for phone verification status
   phoneVerificationStatus?: PhoneVerificationStatus;
 }

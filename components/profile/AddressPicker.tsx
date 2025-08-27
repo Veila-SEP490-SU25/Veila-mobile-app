@@ -41,7 +41,7 @@ export default function AddressPicker({
   const [allDistricts, setAllDistricts] = useState<IDistrict[]>([]);
   const [allWards, setAllWards] = useState<IWard[]>([]);
   const [isInitialized, setIsInitialized] = useState(false);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -61,13 +61,13 @@ export default function AddressPicker({
       if (result.data && result.data.length > 0) {
         setAllProvinces(result.data);
       } else {
-        // No provinces found - show empty state instead of error
+
         setAllProvinces([]);
         setError(null);
       }
     } catch (error) {
       console.error("Error loading provinces:", error);
-      // Don't show error for empty data, just set empty array
+
       setAllProvinces([]);
       setError(null);
     } finally {
@@ -89,13 +89,13 @@ export default function AddressPicker({
         if (result.data && result.data.length > 0) {
           setAllDistricts(result.data);
         } else {
-          // No districts found - show empty state instead of error
+
           setAllDistricts([]);
           setError(null);
         }
       } catch (error) {
         console.error("Error loading districts:", error);
-        // Don't show error for empty data, just set empty array
+
         setAllDistricts([]);
         setError(null);
       } finally {
@@ -119,13 +119,13 @@ export default function AddressPicker({
         if (result.data && result.data.length > 0) {
           setAllWards(result.data);
         } else {
-          // No wards found - show empty state instead of error
+
           setAllWards([]);
           setError(null);
         }
       } catch (error) {
         console.error("Error loading wards:", error);
-        // Don't show error for empty data, just set empty array
+
         setError(null);
       } finally {
         setIsLoading(false);
@@ -134,7 +134,6 @@ export default function AddressPicker({
     [getWards]
   );
 
-  // Load provinces when modal opens
   useEffect(() => {
     if (showModal && !isInitialized) {
       loadAllProvinces();
@@ -142,7 +141,6 @@ export default function AddressPicker({
     }
   }, [showModal, isInitialized, loadAllProvinces]);
 
-  // Load districts when province is selected
   useEffect(() => {
     if (
       currentStep === "district" &&
@@ -153,7 +151,6 @@ export default function AddressPicker({
     }
   }, [currentStep, value.province, allDistricts.length, loadAllDistricts]);
 
-  // Load wards when district is selected
   useEffect(() => {
     if (currentStep === "ward" && value.district && allWards.length === 0) {
       loadAllWards(value.district.id);
@@ -169,8 +166,8 @@ export default function AddressPicker({
     });
     setCurrentStep("district");
     setSearchQuery("");
-    setAllDistricts([]); // Reset districts when new province is selected
-    setAllWards([]); // Reset wards
+    setAllDistricts([]);
+    setAllWards([]);
   };
 
   const handleDistrictSelect = (district: IDistrict) => {
@@ -181,7 +178,7 @@ export default function AddressPicker({
     });
     setCurrentStep("ward");
     setSearchQuery("");
-    setAllWards([]); // Reset wards when new district is selected
+    setAllWards([]);
   };
 
   const handleWardSelect = (ward: IWard) => {
@@ -348,7 +345,7 @@ export default function AddressPicker({
 
   const renderEmptyState = () => {
     if (getIsLoading()) {
-      return null; // Don't show empty state while loading
+      return null;
     }
 
     let message = "Không có dữ liệu để hiển thị";

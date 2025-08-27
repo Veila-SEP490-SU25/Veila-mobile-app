@@ -47,7 +47,6 @@ export default function CheckoutScreen() {
     "delivery"
   );
 
-  // Form data
   const [orderData, setOrderData] = useState({
     phone: user?.phone || "",
     email: user?.email || "",
@@ -106,7 +105,6 @@ export default function CheckoutScreen() {
       const dressData = await dressApi.getDressById(dressId);
       setDress(dressData);
 
-      // Load accessories from the shop if dress has shop info
       if (dressData.user?.shop?.id) {
         await loadShopAccessories(dressData.user.shop.id);
       }
@@ -146,20 +144,17 @@ export default function CheckoutScreen() {
     }
   };
 
-  // Calculate total price
   const calculateTotalPrice = () => {
     if (!dress) return 0;
 
     let total = 0;
 
-    // Add dress price
     if (type === "SELL" && dress.sellPrice) {
       total += parseFloat(dress.sellPrice);
     } else if (type === "RENT" && dress.rentalPrice) {
       total += parseFloat(dress.rentalPrice);
     }
 
-    // Add accessories price
     selectedAccessories.forEach((selected) => {
       const accessory = shopAccessories.find(
         (a) => a.id === selected.accessoryId
@@ -212,18 +207,18 @@ export default function CheckoutScreen() {
 
   const validateStep = (stepIndex: number): boolean => {
     switch (stepIndex) {
-      case 0: // Customer info
+      case 0:
         return !!(orderData.phone && orderData.email && orderData.address);
-      case 1: // Measurements
+      case 1:
         return !!(
           measurements.height &&
           measurements.bust &&
           measurements.waist &&
           measurements.hip
         );
-      case 2: // Accessories (optional)
+      case 2:
         return true;
-      case 3: // Confirmation
+      case 3:
         return true;
       default:
         return false;
@@ -234,7 +229,7 @@ export default function CheckoutScreen() {
     if (validateStep(currentStep)) {
       if (currentStep < steps.length - 1) {
         setCurrentStep(currentStep + 1);
-        // Mark current step as completed
+
         steps[currentStep].isCompleted = true;
       }
     } else {
@@ -253,7 +248,7 @@ export default function CheckoutScreen() {
   };
 
   const handleDateSelect = (date: Date) => {
-    const formattedDate = date.toISOString().split("T")[0]; // YYYY-MM-DD format
+    const formattedDate = date.toISOString().split("T")[0];
 
     if (datePickerMode === "delivery") {
       updateOrderData("dueDate", formattedDate);
@@ -292,7 +287,6 @@ export default function CheckoutScreen() {
         text2: `Mã đơn hàng: ${result.orderNumber}`,
       });
 
-      // Navigate to order confirmation
       router.push("/account/orders" as any);
     } catch (error) {
       console.error("Error creating order:", error);

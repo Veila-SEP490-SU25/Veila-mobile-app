@@ -9,12 +9,10 @@ const loginPath = path.join(__dirname, "../app/_auth/login.tsx");
 function switchToMockMode() {
   console.log("🔄 Chuyển sang Mock Mode...");
 
-  // Cập nhật config
   let configContent = fs.readFileSync(configPath, "utf8");
   configContent = configContent.replace(/USE_MOCK: false/, "USE_MOCK: true");
   fs.writeFileSync(configPath, configContent);
 
-  // Cập nhật login screen
   let loginContent = fs.readFileSync(loginPath, "utf8");
   loginContent = loginContent.replace(
     /import { GoogleOAuthButton } from "\.\.\/\.\.\/components\/auth\/login\/GoogleOAuthButton";/,
@@ -33,12 +31,10 @@ function switchToMockMode() {
 function switchToRealMode() {
   console.log("🔄 Chuyển sang Real Mode...");
 
-  // Cập nhật config
   let configContent = fs.readFileSync(configPath, "utf8");
   configContent = configContent.replace(/USE_MOCK: true/, "USE_MOCK: false");
   fs.writeFileSync(configPath, configContent);
 
-  // Cập nhật login screen
   let loginContent = fs.readFileSync(loginPath, "utf8");
   loginContent = loginContent.replace(
     /import { GoogleLoginButton } from "\.\.\/\.\.\/components\/auth\/login\/GoogleLoginButton";/,

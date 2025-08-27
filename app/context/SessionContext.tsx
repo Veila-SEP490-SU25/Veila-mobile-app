@@ -46,10 +46,9 @@ export default function SessionProvider({
         return;
       }
 
-      if (hasChecked.current) return; // Tránh check nhiều lần
+      if (hasChecked.current) return;
       hasChecked.current = true;
 
-      // Thêm delay nhỏ để tránh check quá sớm
       await new Promise((resolve) => setTimeout(resolve, 800));
 
       try {
@@ -74,7 +73,7 @@ export default function SessionProvider({
     setSessionExpired(false);
     hasChecked.current = false;
     delTokens();
-    // Thêm delay nhỏ để tránh xung đột
+
     setTimeout(() => {
       router.replace("/_auth/login");
     }, 100);

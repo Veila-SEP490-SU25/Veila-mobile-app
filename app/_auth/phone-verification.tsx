@@ -42,9 +42,7 @@ const PhoneVerificationScreen = () => {
         showsVerticalScrollIndicator={false}
         className="flex-1"
       >
-        {/* Header Section */}
         <View className="px-6 ">
-          {/* Back Button */}
           <TouchableOpacity
             onPress={() => router.back()}
             className="absolute top-4 left-4 z-10 w-10 h-10 rounded-full bg-gray-100 items-center justify-center"
@@ -87,9 +85,7 @@ const PhoneVerificationScreen = () => {
           </Suspense>
         </View>
 
-        {/* Security Features */}
         <View className="px-10 pb-6 gap-y-3">
-          {/* Project Verification */}
           <View className="bg-gradient-to-r from-purple-50 to-violet-50 rounded-xl p-4 border border-purple-200 shadow-sm">
             <View className="flex-row items-start">
               <View className="bg-purple-100 rounded-full p-2 mr-3">
@@ -107,7 +103,6 @@ const PhoneVerificationScreen = () => {
             </View>
           </View>
 
-          {/* Business Security */}
           <View className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-4 border border-green-200 shadow-sm">
             <View className="flex-row items-start">
               <View className="bg-green-100 rounded-full p-2 mr-3">
@@ -125,7 +120,6 @@ const PhoneVerificationScreen = () => {
             </View>
           </View>
 
-          {/* Process Info */}
           <View className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-4 border border-blue-200 shadow-sm">
             <View className="flex-row items-start">
               <View className="bg-blue-100 rounded-full p-2 mr-3">
@@ -142,7 +136,6 @@ const PhoneVerificationScreen = () => {
             </View>
           </View>
 
-          {/* Change Phone Warning */}
           {user?.phone && (
             <View className="bg-gradient-to-r from-orange-50 to-amber-50 rounded-xl p-4 border border-orange-200 shadow-sm">
               <View className="flex-row items-start">

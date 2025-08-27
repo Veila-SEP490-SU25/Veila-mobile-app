@@ -31,17 +31,15 @@ export default function ChatList({
   const { isOnline } = useNetworkStatus();
   const [navigationError, setNavigationError] = useState(false);
 
-  // Safe navigation handler using onChatPress prop or console.log fallback
   const handleChatPress = useCallback(
     (chatRoom: ChatRoom) => {
       try {
         if (onChatPress) {
           onChatPress(chatRoom.id);
         } else {
-          // Fallback: log the navigation attempt
+
           console.log("Navigate to chat:", chatRoom.id);
 
-          // In development, show toast
           if (__DEV__) {
             Toast.show({
               type: "info",
@@ -65,9 +63,6 @@ export default function ChatList({
     [onChatPress]
   );
 
-  // useEffect removed as useChat hook handles this
-
-  // Render beautiful chat room item
   const renderChatRoom = ({ item }: { item: ChatRoom }) => {
     const otherPartyName =
       userType === "customer" ? item.shopName : item.customerName;
@@ -201,7 +196,6 @@ export default function ChatList({
     );
   };
 
-  // Beautiful loading state
   if (isLoading) {
     return (
       <SafeAreaView className="flex-1 bg-gray-50" edges={["top"]}>
@@ -236,7 +230,6 @@ export default function ChatList({
     );
   }
 
-  // Beautiful empty state
   if (chatRooms.length === 0) {
     return (
       <SafeAreaView className="flex-1 bg-gray-50" edges={["top"]}>
@@ -312,7 +305,6 @@ export default function ChatList({
     );
   }
 
-  // Main chat list with beautiful design
   return (
     <SafeAreaView className="flex-1 bg-gray-50" edges={["top"]}>
       {/* Header */}

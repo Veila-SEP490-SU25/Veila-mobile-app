@@ -21,14 +21,7 @@ const categories: Category[] = [
     color: "#E05C78",
     onPress: () => router.push("/_tab/shopping" as any),
   },
-  // {
-  //   id: "consultation",
-  //   title: "Tư vấn cá nhân",
-  //   subtitle: "Chuyên gia tư vấn",
-  //   icon: "person-circle",
-  //   color: "#8B5CF6",
-  //   onPress: () => console.log("Consultation pressed"),
-  // },
+
   {
     id: "stores",
     title: "Cửa hàng",
@@ -37,22 +30,6 @@ const categories: Category[] = [
     color: "#06B6D4",
     onPress: () => router.push("/shop" as any),
   },
-  // {
-  //   id: "custom",
-  //   title: "Đặt may",
-  //   subtitle: "Thiết kế riêng",
-  //   icon: "cut",
-  //   color: "#10B981",
-  //   onPress: () => console.log("Custom pressed"),
-  // },
-  // {
-  //   id: "rent",
-  //   title: "Thuê váy",
-  //   subtitle: "Tiết kiệm chi phí",
-  //   icon: "shirt",
-  //   color: "#F59E0B",
-  //   onPress: () => console.log("Rent pressed"),
-  // },
 
   {
     id: "blog",

@@ -16,7 +16,6 @@ import {
 import { checkFirestoreConnection, db } from "./firebase";
 import { ChatMessage, ChatRoom, SendMessageRequest } from "./types";
 
-// Mock data for development
 const mockChatRooms: ChatRoom[] = [
   {
     id: "1",
@@ -69,12 +68,11 @@ const mockChatRooms: ChatRoom[] = [
 ];
 
 export class ChatService {
-  // Development mode check - only return true if no Firebase config
+
   private static isDevelopmentMode() {
     return !db;
   }
 
-  // Connection management
   static async ensureConnection() {
     if (this.isDevelopmentMode()) {
       console.log("Development mode: Firestore connection not required");
@@ -94,13 +92,12 @@ export class ChatService {
     }
   }
 
-  // Find existing chat room between customer and shop
   static async findExistingChatRoom(
     customerId: string,
     shopId: string
   ): Promise<string | null> {
     if (this.isDevelopmentMode()) {
-      // Return first mock chat room in development
+
       return mockChatRooms[0]?.id || null;
     }
 
@@ -133,7 +130,7 @@ export class ChatService {
     chatRoom: Omit<ChatRoom, "id" | "createdAt" | "updatedAt">
   ): Promise<string> {
     if (this.isDevelopmentMode()) {
-      // Return mock chat room ID in development
+
       console.log("Development mode: Mock chat room created");
       return "mock-chat-room-1";
     }
@@ -143,7 +140,6 @@ export class ChatService {
         throw new Error("Firestore not available");
       }
 
-      // Validate required fields
       if (
         !chatRoom.customerId ||
         !chatRoom.shopId ||
@@ -153,7 +149,6 @@ export class ChatService {
         throw new Error("Missing required chat room information");
       }
 
-      // Check if chat room already exists
       const existingChatRoomId = await this.findExistingChatRoom(
         chatRoom.customerId,
         chatRoom.shopId
@@ -164,7 +159,6 @@ export class ChatService {
         return existingChatRoomId;
       }
 
-      // Prepare chat room data, removing undefined fields
       const chatRoomData: any = {
         customerId: chatRoom.customerId,
         customerName: chatRoom.customerName,
@@ -178,7 +172,6 @@ export class ChatService {
         lastMessageTime: null,
       };
 
-      // Only add optional fields if they have values
       if (chatRoom.customerAvatar) {
         chatRoomData.customerAvatar = chatRoom.customerAvatar;
       }
@@ -186,7 +179,6 @@ export class ChatService {
         chatRoomData.shopAvatar = chatRoom.shopAvatar;
       }
 
-      // Create new chat room
       const chatRoomRef = await addDoc(
         collection(db, "chatRooms"),
         chatRoomData
@@ -205,7 +197,7 @@ export class ChatService {
     userType: "customer" | "shop"
   ): Promise<ChatRoom[]> {
     if (this.isDevelopmentMode()) {
-      // Return mock data in development
+
       console.log("Development mode: Returning mock chat rooms");
       return mockChatRooms;
     }
@@ -233,7 +225,7 @@ export class ChatService {
       })) as ChatRoom[];
     } catch (error: any) {
       console.warn("Firestore index not ready, using fallback query");
-      // Fallback: if index doesn't exist, get without ordering
+
       try {
         if (!db) {
           console.warn("Firestore not available for fallback");
@@ -255,7 +247,6 @@ export class ChatService {
           lastMessageTime: doc.data().lastMessageTime?.toDate(),
         })) as ChatRoom[];
 
-        // Sort manually
         return chatRooms.sort((a, b) => {
           const dateA = a.updatedAt || a.createdAt || new Date(0);
           const dateB = b.updatedAt || b.createdAt || new Date(0);
@@ -274,11 +265,10 @@ export class ChatService {
     callback: (chatRooms: ChatRoom[]) => void
   ) {
     if (this.isDevelopmentMode()) {
-      // In development, return mock data immediately
+
       console.log("Development mode: Mock chat rooms subscription");
       callback(mockChatRooms);
 
-      // Return a no-op unsubscribe function
       return () => {
         console.log("Development mode: Mock subscription unsubscribed");
       };
@@ -292,7 +282,6 @@ export class ChatService {
 
       const field = userType === "customer" ? "customerId" : "shopId";
 
-      // Use simple query first to avoid index issues
       const q = query(collection(db, "chatRooms"), where(field, "==", userId));
 
       return onSnapshot(
@@ -307,7 +296,6 @@ export class ChatService {
               lastMessageTime: doc.data().lastMessageTime?.toDate(),
             })) as ChatRoom[];
 
-            // Sort manually to avoid index dependency
             const sortedChatRooms = chatRooms.sort((a, b) => {
               const dateA = a.updatedAt || a.createdAt || new Date(0);
               const dateB = b.updatedAt || b.createdAt || new Date(0);
@@ -323,12 +311,11 @@ export class ChatService {
         (error: any) => {
           console.warn("Error in chat rooms subscription:", error);
 
-          // Handle specific error types gracefully
           if (error.code === "failed-precondition") {
             console.warn(
               "Firestore index not ready, using fallback subscription"
             );
-            // Already using simple query, so just return empty array
+
             callback([]);
           } else if (error.code === "unavailable") {
             console.warn("Firestore unavailable, using offline mode");
@@ -341,7 +328,7 @@ export class ChatService {
       );
     } catch (error) {
       console.warn("Error setting up chat rooms subscription:", error);
-      // Return a no-op function to prevent errors
+
       return () => {};
     }
   }
@@ -364,7 +351,6 @@ export class ChatService {
         throw new Error("Firestore not available");
       }
 
-      // Prepare message data, removing undefined fields
       const message: Omit<ChatMessage, "id"> = {
         chatRoomId: messageData.chatRoomId,
         senderId: senderInfo.senderId,
@@ -375,7 +361,6 @@ export class ChatService {
         type: messageData.type,
       };
 
-      // Only add optional fields if they have values
       if (senderInfo.senderAvatar) {
         message.senderAvatar = senderInfo.senderAvatar;
       }
@@ -391,7 +376,6 @@ export class ChatService {
 
       const messageRef = await addDoc(collection(db, "messages"), message);
 
-      // Update chat room with last message info
       await this.updateChatRoomLastMessage(messageData.chatRoomId, {
         content: messageData.content,
         timestamp: message.timestamp,
@@ -421,7 +405,6 @@ export class ChatService {
         return [];
       }
 
-      // Try with ordering first
       const q = query(
         collection(db, "messages"),
         where("chatRoomId", "==", chatRoomId),
@@ -436,7 +419,6 @@ export class ChatService {
         timestamp: doc.data().timestamp?.toDate() || new Date(),
       })) as ChatMessage[];
 
-      // Reverse to show newest first
       return messages.reverse();
     } catch (error: any) {
       console.warn(
@@ -444,7 +426,6 @@ export class ChatService {
         error as any
       );
 
-      // Fallback: get without ordering
       try {
         if (!db) {
           console.warn("Firestore not available for fallback");
@@ -464,7 +445,6 @@ export class ChatService {
           timestamp: doc.data().timestamp?.toDate() || new Date(),
         })) as ChatMessage[];
 
-        // Sort manually by timestamp
         return messages.sort((a, b) => {
           const dateA = a.timestamp || new Date(0);
           const dateB = b.timestamp || new Date(0);
@@ -497,7 +477,6 @@ export class ChatService {
         return () => {};
       }
 
-      // Use simple query to avoid index issues
       const q = query(
         collection(db, "messages"),
         where("chatRoomId", "==", chatRoomId),
@@ -514,7 +493,6 @@ export class ChatService {
               timestamp: doc.data().timestamp?.toDate() || new Date(),
             })) as ChatMessage[];
 
-            // Sort manually to avoid index dependency
             const sortedMessages = messages.sort((a, b) => {
               const dateA = a.timestamp || new Date(0);
               const dateB = b.timestamp || new Date(0);
@@ -530,7 +508,6 @@ export class ChatService {
         (error) => {
           console.warn("Error in messages subscription:", error);
 
-          // Handle errors gracefully
           if (error.code === "failed-precondition") {
             console.warn(
               "Firestore index not ready, using fallback subscription"
@@ -547,7 +524,7 @@ export class ChatService {
       );
     } catch (error) {
       console.warn("Error setting up messages subscription:", error);
-      // Return a no-op function to prevent errors
+
       return () => {};
     }
   }
@@ -567,7 +544,6 @@ export class ChatService {
         return;
       }
 
-      // Use simple query to avoid index requirements
       const q = query(
         collection(db, "messages"),
         where("chatRoomId", "==", chatRoomId)
@@ -576,16 +552,15 @@ export class ChatService {
       const querySnapshot = await getDocs(q);
 
       if (querySnapshot.empty) {
-        return; // No messages in chat room
+        return;
       }
 
-      // Filter and update unread messages manually
       const updatePromises: Promise<void>[] = [];
       let unreadCount = 0;
 
       querySnapshot.docs.forEach((doc) => {
         const data = doc.data();
-        // Only mark as read if it's unread and not sent by current user
+
         if (!data.isRead && data.senderId !== userId) {
           updatePromises.push(updateDoc(doc.ref, { isRead: true }));
           unreadCount++;
@@ -596,13 +571,11 @@ export class ChatService {
         await Promise.all(updatePromises);
         console.log(`Marked ${unreadCount} messages as read`);
 
-        // Update chat room unread count
         await this.updateChatRoomUnreadCount(chatRoomId, userId);
       }
     } catch (error) {
       console.warn("Error marking messages as read:", error);
-      // Don't throw error to avoid breaking the chat flow
-      // This is a non-critical operation
+
     }
   }
 
@@ -624,7 +597,7 @@ export class ChatService {
       const chatRoomDoc = await getDoc(chatRoomRef);
 
       if (chatRoomDoc.exists()) {
-        // Reset unread count to 0 when user reads messages
+
         await updateDoc(chatRoomRef, {
           unreadCount: 0,
           updatedAt: serverTimestamp(),
@@ -634,8 +607,7 @@ export class ChatService {
       }
     } catch (error) {
       console.warn("Error updating chat room unread count:", error);
-      // Don't throw error to avoid breaking the chat flow
-      // This is a non-critical operation
+
     }
   }
 
@@ -660,12 +632,10 @@ export class ChatService {
 
       const chatRoomRef = doc(db, "chatRooms", chatRoomId);
 
-      // Get current chat room data to determine unread count
       const chatRoomDoc = await getDoc(chatRoomRef);
       if (chatRoomDoc.exists()) {
         const chatRoomData = chatRoomDoc.data();
 
-        // Increment unread count for new messages
         const currentUnreadCount = chatRoomData.unreadCount || 0;
 
         const updateData: any = {
@@ -684,8 +654,7 @@ export class ChatService {
       }
     } catch (error) {
       console.warn("Error updating chat room last message:", error);
-      // Don't throw error to avoid breaking the message flow
-      // This is a non-critical operation
+
     }
   }
 
@@ -740,7 +709,6 @@ export class ChatService {
         return;
       }
 
-      // Filter out undefined fields
       const cleanUpdates: any = {};
       Object.entries(updates).forEach(([key, value]) => {
         if (value !== undefined && value !== null) {
@@ -748,7 +716,6 @@ export class ChatService {
         }
       });
 
-      // Always add updatedAt
       cleanUpdates.updatedAt = serverTimestamp();
 
       const chatRoomRef = doc(db, "chatRooms", chatRoomId);
@@ -775,7 +742,6 @@ export class ChatService {
 
       console.log("Deleting chat room and all messages:", chatRoomId);
 
-      // Delete all messages in the chat room
       const q = query(
         collection(db, "messages"),
         where("chatRoomId", "==", chatRoomId)
@@ -790,7 +756,6 @@ export class ChatService {
         console.log(`Deleted ${querySnapshot.docs.length} messages`);
       }
 
-      // Delete the chat room
       await deleteDoc(doc(db, "chatRooms", chatRoomId));
       console.log("Chat room deleted successfully:", chatRoomId);
     } catch (error) {

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import NotificationService from "../services/notification.service";
 import { Notification, NotificationSettings } from "../services/types";
 
@@ -8,6 +8,7 @@ export const useNotifications = (userId: string) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [settings, setSettings] = useState<NotificationSettings | null>(null);
+  const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
     if (!userId) {
@@ -15,25 +16,40 @@ export const useNotifications = (userId: string) => {
       return;
     }
 
+    const initializeNotifications = async () => {
+      try {
+
+        await NotificationService.initialize(userId);
+        setIsInitialized(true);
+
+        await NotificationService.updateBadgeCount(userId);
+      } catch (error) {
+
+      }
+    };
+
     const unsubscribe = NotificationService.subscribeToNotifications(
       userId,
-      (notifications) => {
+      async (notifications) => {
         setNotifications(notifications);
-        setUnreadCount(notifications.filter((n) => !n.isRead).length);
+        const newUnreadCount = notifications.filter((n) => !n.isRead).length;
+        setUnreadCount(newUnreadCount);
         setLoading(false);
         setError(null);
+
+        await NotificationService.updateBadgeCount(userId);
       }
     );
 
-    // Load notification settings
     const loadSettings = async () => {
       try {
-        const userSettings =
-          await NotificationService.getNotificationSettings(userId);
+        const userSettings = await NotificationService.getNotificationSettings(
+          userId
+        );
         if (userSettings) {
           setSettings(userSettings);
         } else {
-          // Create default settings
+
           const defaultSettings: NotificationSettings = {
             userId,
             chatNotifications: true,
@@ -51,28 +67,36 @@ export const useNotifications = (userId: string) => {
       }
     };
 
+    initializeNotifications();
     loadSettings();
 
     return () => unsubscribe();
   }, [userId]);
 
-  const markAsRead = async (notificationId: string) => {
-    try {
-      await NotificationService.markNotificationAsRead(notificationId);
-    } catch (err) {
-      setError("Không thể đánh dấu thông báo đã đọc");
-      throw err;
-    }
-  };
+  const markAsRead = useCallback(
+    async (notificationId: string) => {
+      try {
+        await NotificationService.markNotificationAsRead(notificationId);
 
-  const markAllAsRead = async () => {
+        await NotificationService.updateBadgeCount(userId);
+      } catch (err) {
+        setError("Không thể đánh dấu thông báo đã đọc");
+        throw err;
+      }
+    },
+    [userId]
+  );
+
+  const markAllAsRead = useCallback(async () => {
     try {
       await NotificationService.markAllNotificationsAsRead(userId);
+
+      await NotificationService.clearBadge();
     } catch (err) {
       setError("Không thể đánh dấu tất cả thông báo đã đọc");
       throw err;
     }
-  };
+  }, [userId]);
 
   const deleteNotification = async (notificationId: string) => {
     try {
@@ -144,12 +168,29 @@ export const useNotifications = (userId: string) => {
     }
   };
 
+  const getFCMToken = useCallback(async () => {
+    return await NotificationService.getFCMToken();
+  }, []);
+
+  const refreshFCMToken = useCallback(async () => {
+    return await NotificationService.refreshFCMToken();
+  }, []);
+
+  const refresh = useCallback(async () => {
+    try {
+      await NotificationService.updateBadgeCount(userId);
+    } catch (error) {
+
+    }
+  }, [userId]);
+
   return {
     notifications,
     unreadCount,
     loading,
     error,
     settings,
+    isInitialized,
     markAsRead,
     markAllAsRead,
     deleteNotification,
@@ -157,5 +198,8 @@ export const useNotifications = (userId: string) => {
     createChatNotification,
     createOrderNotification,
     createPromotionNotification,
+    getFCMToken,
+    refreshFCMToken,
+    refresh,
   };
 };

@@ -105,7 +105,6 @@ export default function EmptyState({
   );
 }
 
-// Specialized EmptyState components for common use cases
 export const EmptySearchState = ({
   query,
   onClearSearch,

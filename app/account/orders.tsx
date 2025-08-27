@@ -32,11 +32,9 @@ export default function OrdersScreen() {
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
 
-  // Filter states
   const [selectedType, setSelectedType] = useState<OrderType>("ALL");
   const [selectedStatus, setSelectedStatus] = useState<OrderStatus>("ALL");
 
-  // Cancel order state
   const [cancellingOrderId, setCancellingOrderId] = useState<string | null>(
     null
   );
@@ -66,7 +64,6 @@ export default function OrdersScreen() {
         console.log("📦 Orders count:", result.items?.length || 0);
         console.log("🔢 Has next page:", result.hasNextPage);
 
-        // If API returns no data, use fallback data for testing
         if (!result.items || result.items.length === 0) {
           console.log("⚠️ No data from API, using fallback data");
           const fallbackData: CustomerOrderResponse[] = [
@@ -176,24 +173,23 @@ export default function OrdersScreen() {
           setOrders(result.items || []);
           setFilteredOrders(result.items || []);
         } else {
-          // Merge orders and remove duplicates by ID
+
           const newOrders = result.items || [];
           setOrders((prev) => {
             const merged = [...(prev || []), ...newOrders];
-            // Remove duplicates by ID, keeping the latest version
+
             const uniqueOrders = merged.reduce((acc, order) => {
               const existingIndex = acc.findIndex((o) => o.id === order.id);
               if (existingIndex >= 0) {
-                // Replace existing order with newer version
+
                 acc[existingIndex] = order;
               } else {
-                // Add new order
+
                 acc.push(order);
               }
               return acc;
             }, [] as CustomerOrderResponse[]);
 
-            // Apply current filters immediately
             const filtered = applyFilters(
               uniqueOrders,
               selectedType,
@@ -227,12 +223,10 @@ export default function OrdersScreen() {
   ) => {
     let filtered = ordersToFilter;
 
-    // Filter by type
     if (type !== "ALL") {
       filtered = filtered.filter((order) => order.type === type);
     }
 
-    // Filter by status
     if (status !== "ALL") {
       filtered = filtered.filter((order) => order.status === status);
     }
@@ -249,7 +243,6 @@ export default function OrdersScreen() {
     loadOrders();
   }, [loadOrders]);
 
-  // Filter orders when type or status changes
   useEffect(() => {
     filterOrders();
   }, [filterOrders]);
@@ -266,13 +259,11 @@ export default function OrdersScreen() {
     }
   }, [hasMore, loading, loadOrders]);
 
-  // Handle cancel order
   const handleCancelOrder = useCallback(
     async (orderId: string, status: string) => {
       try {
         setCancellingOrderId(orderId);
 
-        // Confirm cancellation
         Alert.alert("Xác nhận hủy đơn", "Bạn có chắc muốn hủy đơn hàng này?", [
           {
             text: "Hủy",
@@ -284,7 +275,7 @@ export default function OrdersScreen() {
           {
             text: "Đồng ý",
             onPress: async () => {
-              // Call API to cancel order
+
               await orderApi.cancelOrder(orderId, status);
 
               Toast.show({
@@ -293,7 +284,6 @@ export default function OrdersScreen() {
                 text2: "Đã hủy đơn hàng thành công",
               });
 
-              // Update local state immediately - change status to CANCELLED
               setOrders((prev) =>
                 prev.map((order) =>
                   order.id === orderId
@@ -302,7 +292,6 @@ export default function OrdersScreen() {
                 )
               );
 
-              // Force re-filter to update UI
               setTimeout(() => {
                 filterOrders();
               }, 100);

@@ -22,9 +22,9 @@ const makeRequest = async (endpoint: string, options: RequestInit = {}) => {
 export type DressQuery = {
   page?: number;
   size?: number;
-  sort?: string; // e.g., name:asc
-  filter?: string; // e.g., name:like:áo
-  mode?: "buy" | "rent"; // optional filter client-side or server may support
+  sort?: string;
+  filter?: string;
+  mode?: "buy" | "rent";
 };
 
 export const dressApi = {

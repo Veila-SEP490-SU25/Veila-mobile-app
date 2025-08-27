@@ -97,7 +97,7 @@ export default function EditCustomRequestScreen() {
   };
 
   const handleSubmit = async () => {
-    // Validation
+
     if (!formData.title?.trim()) {
       Toast.show({
         type: "error",
@@ -213,64 +213,6 @@ export default function EditCustomRequestScreen() {
       </View>
     </View>
   );
-
-  // const renderDesignSection = () => (
-  //   <View className="bg-white rounded-2xl p-4 mb-6 shadow-soft">
-  //     <Text className="text-lg font-semibold text-gray-800 mb-4">
-  //       Thiết kế váy
-  //     </Text>
-
-  //     {renderInputField(
-  //       "Kiểu váy",
-  //       "dressStyle",
-  //       "Váy ngắn hoặc vạt trước ngắn vạt sau dài",
-  //       "default",
-  //       true
-  //     )}
-  //     {renderInputField(
-  //       "Kiểu cổ",
-  //       "curtainNeckline",
-  //       "Cổ tim, cổ tròn, cổ thuyền, cổ yếm, cúp ngực",
-  //       "default",
-  //       true
-  //     )}
-  //     {renderInputField(
-  //       "Kiểu tay",
-  //       "sleeveStyle",
-  //       "Không tay, hai dây, tay trần, tay ngắn",
-  //       "default",
-  //       true
-  //     )}
-  //     {renderInputField(
-  //       "Chất liệu",
-  //       "material",
-  //       "Kim sa, Đính kết pha lê/ngọc trai",
-  //       "default",
-  //       true
-  //     )}
-  //     {renderInputField(
-  //       "Màu sắc",
-  //       "color",
-  //       "Trắng tinh, trắng ngà (ivory), kem",
-  //       "default",
-  //       true
-  //     )}
-  //     {renderInputField(
-  //       "Chi tiết đặc biệt",
-  //       "specialElement",
-  //       "Đính kết pha lê, hoa văn 3D",
-  //       "default",
-  //       true
-  //     )}
-  //     {renderInputField(
-  //       "Mức độ hở",
-  //       "coverage",
-  //       "Mức độ hở lưng, xẻ ngực",
-  //       "default",
-  //       true
-  //     )}
-  //   </View>
-  // );
 
   if (loading) {
     return (

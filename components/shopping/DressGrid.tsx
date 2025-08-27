@@ -22,7 +22,7 @@ interface DressGridProps {
   shopId?: string;
   onDressPress: (dress: Dress) => void;
   disableScroll?: boolean;
-  mode?: Mode; // Add mode prop
+  mode?: Mode;
 }
 
 type Mode = "buy" | "rent";
@@ -39,17 +39,16 @@ export default function DressGrid({
   shopId,
   onDressPress,
   disableScroll = false,
-  mode: initialMode = "buy", // Accept initial mode from props
+  mode: initialMode = "buy",
 }: DressGridProps) {
   const [dresses, setDresses] = useState<Dress[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [hasMore, setHasMore] = useState(true);
-  const [mode, setMode] = useState<Mode>(initialMode); // Use initial mode from props
+  const [mode, setMode] = useState<Mode>(initialMode);
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
 
-  // Filter state
   const [showFilters, setShowFilters] = useState(false);
   const [filterOptions, setFilterOptions] = useState<FilterOptions>({
     name: "",
@@ -59,7 +58,6 @@ export default function DressGrid({
     mode: "buy",
   });
 
-  // Debounce search
   useEffect(() => {
     const t = setTimeout(() => {
       setDebouncedSearchQuery(searchQuery);
@@ -92,7 +90,6 @@ export default function DressGrid({
 
         let newDresses = newResponse.items;
 
-        // Filter by mode (buy/rent)
         if (mode === "buy") {
           newDresses = newDresses.filter((d) => d.isSellable);
         } else if (mode === "rent") {
@@ -139,7 +136,6 @@ export default function DressGrid({
     loadDresses(0, true);
   }, [loadDresses]);
 
-  // Reset page on sort/mode change
   useEffect(() => {
     setFilterOptions((prev) => ({ ...prev, page: 0 }));
     loadDresses(0, true);

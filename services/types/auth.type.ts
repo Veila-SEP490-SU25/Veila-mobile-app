@@ -66,7 +66,6 @@ export interface IChangePassword {
   confirmPassword: string;
 }
 
-// Firebase Phone Auth interfaces
 export interface IPhoneVerification {
   phone: string;
   verificationId?: string;
@@ -85,7 +84,6 @@ export interface IFirebasePhoneAuth {
   code: string;
 }
 
-// API Response types
 export interface IApiResponse<T> {
   message: string;
   statusCode: number;

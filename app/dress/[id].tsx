@@ -10,15 +10,18 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import Toast from "react-native-toast-message";
 import { useAuth } from "../../providers/auth.provider";
 import { dressApi } from "../../services/apis/dress.api";
 import { ChatService } from "../../services/chat.service";
 import { Dress } from "../../services/types/dress.type";
 import { getTokens } from "../../utils";
 import { formatVNDCustom } from "../../utils/currency.util";
+import {
+  showMessage,
+  showOrderSuccess,
+  showWalletError,
+} from "../../utils/message.util";
 
-// Extended Dress interface for the new data structure
 interface DressDetail extends Dress {
   description?: string;
   ratingCount?: number;
@@ -41,7 +44,7 @@ interface DressDetail extends Dress {
 
 export default function DressDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { user } = useAuth(); // Get user from AuthProvider
+  const { user } = useAuth();
   const [dress, setDress] = useState<DressDetail | null>(null);
   const [shop, setShop] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
@@ -66,7 +69,6 @@ export default function DressDetailScreen() {
 
       setDress(dressData);
 
-      // Lấy shop từ dữ liệu dress (user.shop)
       if (dressData?.user?.shop) {
         setShop(dressData.user.shop);
       }
@@ -92,49 +94,28 @@ export default function DressDetailScreen() {
   }, []);
 
   const handleCheckoutSuccess = useCallback((orderNumber: string) => {
-    // Handle different checkout statuses
+
     if (orderNumber === "INSUFFICIENT_BALANCE") {
-      // Navigate to wallet/topup page
-      Toast.show({
-        type: "info",
-        text1: "Chuyển hướng",
-        text2: "Đang chuyển đến trang nạp tiền...",
-      });
+
+      showWalletError();
 
       setTimeout(() => {
         router.push("/account/wallet" as any);
       }, 1500);
     } else if (orderNumber === "VIEW_WALLET") {
-      // Navigate to wallet page
-      Toast.show({
-        type: "info",
-        text1: "Chuyển hướng",
-        text2: "Đang chuyển đến trang ví...",
-      });
 
       setTimeout(() => {
         router.push("/account/wallet" as any);
       }, 1500);
     } else if (orderNumber === "UNKNOWN_STATUS") {
-      // Navigate to orders page to check status
-      Toast.show({
-        type: "info",
-        text1: "Chuyển hướng",
-        text2: "Đang chuyển đến trang đơn hàng...",
-      });
 
       setTimeout(() => {
         router.push("/account/orders" as any);
       }, 1500);
     } else {
-      // Normal success - show success message and navigate
-      Toast.show({
-        type: "success",
-        text1: "Đặt hàng thành công!",
-        text2: `Mã đơn hàng: ${orderNumber}`,
-      });
 
-      // Navigate to order confirmation or orders page
+      showOrderSuccess();
+
       setTimeout(() => {
         router.push("/account/orders" as any);
       }, 2000);
@@ -146,53 +127,33 @@ export default function DressDetailScreen() {
       setChatLoading(true);
 
       if (!shop?.id || !dress?.id) {
-        Toast.show({
-          type: "error",
-          text1: "Lỗi",
-          text2: "Không thể tìm thấy thông tin shop hoặc váy cưới",
-        });
+        showMessage("ERM006");
         return;
       }
 
       const { accessToken } = await getTokens();
       if (!accessToken) {
-        Toast.show({
-          type: "error",
-          text1: "Lỗi",
-          text2: "Vui lòng đăng nhập để nhắn tin",
-        });
+        showMessage("SSM001");
         return;
       }
 
-      // Tạo hoặc tham gia chat room với shop
       const chatRoomId = await ChatService.createChatRoom({
         shopId: shop.id,
         shopName: shop.name,
-        customerId: user?.id || "current-user-id", // Use user.id from AuthProvider
-        customerName: user?.firstName || "Khách hàng", // Use user.firstName from AuthProvider
+        customerId: user?.id || "current-user-id",
+        customerName: user?.firstName || "Khách hàng",
         unreadCount: 0,
         isActive: true,
       });
 
       if (chatRoomId) {
-        // Navigate đến chat room
+
         router.push(`/chat/${chatRoomId}` as any);
       } else {
-        Toast.show({
-          type: "error",
-          text1: "Lỗi",
-          text2: "Không thể tạo phòng chat. Vui lòng thử lại.",
-        });
+        showMessage("ERM006");
       }
-    } catch (error) {
-      if (__DEV__) {
-        console.error("Error creating chat room:", error);
-      }
-      Toast.show({
-        type: "error",
-        text1: "Lỗi",
-        text2: "Không thể kết nối chat. Vui lòng thử lại.",
-      });
+    } catch {
+      showMessage("ERM006");
     } finally {
       setChatLoading(false);
     }
@@ -201,19 +162,13 @@ export default function DressDetailScreen() {
   const handleFavoritePress = useCallback(async () => {
     try {
       setIsFavorite(!isFavorite);
-      // Call the API to add/remove favorite
+
       await dressApi.toggleFavorite(id as string);
-      Toast.show({
-        type: "success",
-        text1: isFavorite ? "Đã bỏ yêu thích" : "Đã thêm vào yêu thích",
-      });
-    } catch (error) {
-      console.error("Error toggling favorite:", error);
-      Toast.show({
-        type: "error",
-        text1: "Lỗi",
-        text2: "Không thể cập nhật yêu thích",
-      });
+
+    } catch {
+      showMessage("ERM006");
+
+      setIsFavorite(isFavorite);
     }
   }, [id, isFavorite]);
 

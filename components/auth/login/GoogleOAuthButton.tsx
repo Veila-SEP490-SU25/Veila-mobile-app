@@ -20,7 +20,7 @@ export const GoogleOAuthButton = () => {
   const handleGoogleSignIn = React.useCallback(
     async (idToken: string) => {
       try {
-        // Lấy thông tin user từ Google
+
         const response = await fetch(
           "https://www.googleapis.com/userinfo/v2/me",
           {
@@ -29,7 +29,6 @@ export const GoogleOAuthButton = () => {
         );
         const userInfo = await response.json();
 
-        // Gọi API backend với thông tin user
         await googleLogin({
           email: userInfo.email,
           fullname: userInfo.name,

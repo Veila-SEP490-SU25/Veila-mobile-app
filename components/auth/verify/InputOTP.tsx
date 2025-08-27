@@ -71,12 +71,11 @@ const InputOTP: React.FC<InputOTPProps> = ({
     const numericText = text.replace(/[^0-9]/g, "");
 
     if (numericText.length > 0) {
-      // Update current slot
+
       const newValue = value.split("");
       newValue[index] = numericText[0];
       onChange(newValue.join("").slice(0, maxLength));
 
-      // Move to next slot if available
       if (index < maxLength - 1) {
         setFocusedIndex(index + 1);
         inputRefs.current[index + 1]?.focus();
@@ -86,7 +85,7 @@ const InputOTP: React.FC<InputOTPProps> = ({
 
   const handleKeyPress = (e: any, index: number) => {
     if (e.nativeEvent.key === "Backspace" && !value[index] && index > 0) {
-      // Move to previous slot on backspace
+
       setFocusedIndex(index - 1);
       inputRefs.current[index - 1]?.focus();
     }

@@ -14,15 +14,15 @@ export const toastConfig = {
         backgroundColor: "#FFFFFF",
         borderLeftWidth: 0,
         minHeight: 56,
-        width: width - 80, // Thu hẹp 2 bên
-        marginHorizontal: 40, // Tăng margin
+        width: width - 80,
+        marginHorizontal: 40,
         shadowColor: "#000000",
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.1,
         shadowRadius: 8,
         elevation: 6,
-        borderWidth: 1.5, // Tăng độ dày viền
-        borderColor: "#E5E7EB", // Viền xám nhạt
+        borderWidth: 1.5,
+        borderColor: "#E5E7EB",
       }}
       text1Style={{
         fontSize: 14,
@@ -50,15 +50,15 @@ export const toastConfig = {
         backgroundColor: "#FFFFFF",
         borderLeftWidth: 0,
         minHeight: 56,
-        width: width - 80, // Thu hẹp 2 bên
-        marginHorizontal: 40, // Tăng margin
+        width: width - 80,
+        marginHorizontal: 40,
         shadowColor: "#000000",
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.1,
         shadowRadius: 8,
         elevation: 6,
-        borderWidth: 1.5, // Tăng độ dày viền
-        borderColor: "#E5E7EB", // Viền xám nhạt
+        borderWidth: 1.5,
+        borderColor: "#E5E7EB",
       }}
       text1Style={{
         fontSize: 14,
@@ -86,15 +86,15 @@ export const toastConfig = {
         backgroundColor: "#FFFFFF",
         borderLeftWidth: 0,
         minHeight: 56,
-        width: width - 80, // Thu hẹp 2 bên
-        marginHorizontal: 40, // Tăng margin
+        width: width - 80,
+        marginHorizontal: 40,
         shadowColor: "#000000",
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.1,
         shadowRadius: 8,
         elevation: 6,
-        borderWidth: 1.5, // Tăng độ dày viền
-        borderColor: "#E5E7EB", // Viền xám nhạt
+        borderWidth: 1.5,
+        borderColor: "#E5E7EB",
       }}
       text1Style={{
         fontSize: 14,
@@ -122,15 +122,15 @@ export const toastConfig = {
         backgroundColor: "#FFFFFF",
         borderLeftWidth: 0,
         minHeight: 56,
-        width: width - 80, // Thu hẹp 2 bên
-        marginHorizontal: 40, // Tăng margin
+        width: width - 80,
+        marginHorizontal: 40,
         shadowColor: "#000000",
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.1,
         shadowRadius: 8,
         elevation: 6,
-        borderWidth: 1.5, // Tăng độ dày viền
-        borderColor: "#E5E7EB", // Viền xám nhạt
+        borderWidth: 1.5,
+        borderColor: "#E5E7EB",
       }}
       text1Style={{
         fontSize: 14,

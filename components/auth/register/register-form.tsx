@@ -89,7 +89,7 @@ export const RegisterForm = () => {
   ]);
 
   const handleTermsPress = () => {
-    // TODO: Navigate to terms page
+
     Toast.show({
       type: "info",
       text1: "Điều khoản và dịch vụ",

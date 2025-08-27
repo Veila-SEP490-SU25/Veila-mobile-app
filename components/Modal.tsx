@@ -50,7 +50,7 @@ export default function Modal({
 
   useEffect(() => {
     if (visible) {
-      // Animate in
+
       Animated.parallel([
         Animated.timing(fadeAnim, {
           toValue: 1,
@@ -64,7 +64,7 @@ export default function Modal({
         }),
       ]).start();
     } else {
-      // Animate out
+
       Animated.parallel([
         Animated.timing(fadeAnim, {
           toValue: 0,
@@ -265,7 +265,6 @@ export default function Modal({
   );
 }
 
-// Specialized modal components for common use cases
 export const ConfirmModal = ({
   title = "Xác nhận",
   message,
@@ -461,7 +460,7 @@ const styles = StyleSheet.create({
   content: {
     padding: 20,
   },
-  // Confirm Modal Styles
+
   confirmContent: {
     alignItems: "center",
   },
@@ -489,9 +488,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
   },
-  // Action Sheet Styles
+
   actionSheetContent: {
-    paddingBottom: 34, // Safe area for bottom
+    paddingBottom: 34,
   },
   actionItem: {
     flexDirection: "row",

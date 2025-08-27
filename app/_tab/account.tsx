@@ -75,7 +75,6 @@ export default function AccountScreen() {
     fetchFavorites();
   }, []);
 
-  // Helper functions - moved before usage
   const getPhoneVerificationSubtitle = () => {
     if (!user?.phone) {
       return "Chưa có số điện thoại";
@@ -95,18 +94,18 @@ export default function AccountScreen() {
 
   const getPhoneVerificationColor = () => {
     if (!user?.phone) {
-      return "#9CA3AF"; // Gray
+      return "#9CA3AF";
     }
 
     switch (user.phoneVerificationStatus) {
       case PhoneVerificationStatus.Verified:
-        return "#10B981"; // Green
+        return "#10B981";
       case PhoneVerificationStatus.Pending:
-        return "#F59E0B"; // Yellow
+        return "#F59E0B";
       case PhoneVerificationStatus.Failed:
-        return "#EF4444"; // Red
+        return "#EF4444";
       default:
-        return "#6B7280"; // Gray
+        return "#6B7280";
     }
   };
 

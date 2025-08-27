@@ -10,7 +10,7 @@ export const useAppNavigation = () => {
       }
     } catch (error) {
       console.warn("Navigation error:", error);
-      // Fallback
+
       setTimeout(() => {
         try {
           if (route.startsWith("/")) {

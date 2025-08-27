@@ -67,24 +67,6 @@ export default function AccessoryDetailScreen() {
     });
   };
 
-  // const handleContact = () => {
-  //   Toast.show({
-  //     type: "info",
-  //     text1: "Liên hệ",
-  //     text2: "Bạn muốn liên hệ để mua hoặc thuê phụ kiện này?",
-  //     onPress: () => {
-  //       Toast.show({
-  //         type: "info",
-  //         text1: "Tùy chọn",
-  //         text2: "Chọn hành động liên hệ",
-  //         onPress: () => {
-  //           // TODO: Implement call and message functionality
-  //         },
-  //       });
-  //     },
-  //   });
-  // };
-
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -243,7 +225,6 @@ export default function AccessoryDetailScreen() {
   );
 }
 
-// Updated styles for a more professional look
 const styles = StyleSheet.create({
   container: {
     flex: 1,

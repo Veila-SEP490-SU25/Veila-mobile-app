@@ -6,7 +6,7 @@ const path = require("path");
 console.log("🔍 Finding Firebase project for Veila...");
 
 try {
-  // Check if already logged in
+
   try {
     execSync("firebase projects:list", {
       stdio: "pipe",
@@ -21,7 +21,6 @@ try {
     });
   }
 
-  // List available projects
   console.log("\n📋 Available Firebase projects:");
   const projectsOutput = execSync("firebase projects:list", {
     encoding: "utf8",
@@ -30,12 +29,11 @@ try {
 
   console.log(projectsOutput);
 
-  // Parse projects to find Veila-related ones
   const lines = projectsOutput.split("\n").filter((line) => line.trim());
   const projects = [];
 
   for (const line of lines) {
-    if (line.includes("│") || line.includes("─")) continue; // Skip separator lines
+    if (line.includes("│") || line.includes("─")) continue;
 
     const parts = line.split(/\s+/).filter((part) => part.trim());
     if (parts.length >= 2) {
@@ -47,7 +45,6 @@ try {
 
   console.log("\n🔍 Searching for Veila-related projects...");
 
-  // Look for Veila projects
   const veilaProjects = projects.filter(
     (project) =>
       project.name.toLowerCase().includes("veila") ||
@@ -62,7 +59,6 @@ try {
       console.log(`${index + 1}. ${project.name} (${project.id})`);
     });
 
-    // Use the first one
     const selectedProject = veilaProjects[0];
     console.log(
       `\n🎯 Using project: ${selectedProject.name} (${selectedProject.id})`

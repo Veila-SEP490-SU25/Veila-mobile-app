@@ -10,7 +10,6 @@ const path = require("path");
 
 console.log("🔍 Kiểm tra Firebase Console Configuration Status...\n");
 
-// Colors for console output
 const colors = {
   red: "\x1b[31m",
   green: "\x1b[32m",
@@ -24,7 +23,6 @@ const log = (color, message) => {
   console.log(`${color}${message}${colors.reset}`);
 };
 
-// 1. Kiểm tra app.json configuration
 log(colors.blue, "1️⃣ Kiểm tra app.json configuration:");
 try {
   const appJson = JSON.parse(fs.readFileSync("app.json", "utf8"));
@@ -41,7 +39,6 @@ try {
   log(colors.red, `   ❌ Không thể đọc app.json: ${error.message}`);
 }
 
-// 2. Kiểm tra environment variables
 log(colors.blue, "\n2️⃣ Kiểm tra Firebase Environment Variables:");
 try {
   if (fs.existsSync(".env")) {
@@ -79,13 +76,11 @@ try {
   log(colors.red, `   ❌ Không thể đọc .env: ${error.message}`);
 }
 
-// 3. Kiểm tra iOS project và GoogleService-Info.plist
 log(colors.blue, "\n3️⃣ Kiểm tra iOS Project Configuration:");
 const iosProjectPath = path.join(__dirname, "..", "ios");
 if (fs.existsSync(iosProjectPath)) {
   log(colors.green, "   ✅ iOS project tồn tại");
 
-  // Kiểm tra GoogleService-Info.plist
   const googleServicePath = path.join(
     iosProjectPath,
     "Veila",
@@ -94,7 +89,6 @@ if (fs.existsSync(iosProjectPath)) {
   if (fs.existsSync(googleServicePath)) {
     log(colors.green, "   ✅ GoogleService-Info.plist tồn tại");
 
-    // Kiểm tra nội dung file
     try {
       const plistContent = fs.readFileSync(googleServicePath, "utf8");
       const hasBundleId = plistContent.includes("com.veila.app");
@@ -132,7 +126,6 @@ if (fs.existsSync(iosProjectPath)) {
   log(colors.yellow, "   💡 Chạy: npx expo prebuild để tạo iOS project");
 }
 
-// 4. Kiểm tra package.json dependencies
 log(colors.blue, "\n4️⃣ Kiểm tra Firebase Dependencies:");
 try {
   const packageJson = JSON.parse(fs.readFileSync("package.json", "utf8"));
@@ -156,7 +149,6 @@ try {
   log(colors.red, `   ❌ Không thể đọc package.json: ${error.message}`);
 }
 
-// 5. Tóm tắt vấn đề và hướng dẫn fix
 log(colors.yellow, "\n🔧 TÓM TẮT VẤN ĐỀ:");
 log(colors.red, "   ❌ Lỗi: auth/invalid-app-credential");
 log(colors.red, "   ❌ Nguyên nhân: Firebase Console chưa được cấu hình đúng");

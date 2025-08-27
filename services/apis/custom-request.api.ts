@@ -20,10 +20,8 @@ const makeRequest = async (endpoint: string, options: RequestInit = {}) => {
     },
   });
 
-  // Parse response first
   const responseData = await response.json();
 
-  // Log response for debugging (only in development)
   if (__DEV__) {
     console.log(`API ${options.method || "GET"} ${endpoint}:`, {
       status: response.status,
@@ -32,19 +30,17 @@ const makeRequest = async (endpoint: string, options: RequestInit = {}) => {
     });
   }
 
-  // Consider 2xx status codes as successful (including 201 Created)
   if (response.status >= 200 && response.status < 300) {
     return responseData;
   }
 
-  // Throw error for non-success status codes
   const errorMessage =
     responseData?.message || `HTTP error! status: ${response.status}`;
   throw new Error(errorMessage);
 };
 
 export const customRequestApi = {
-  // Get all custom requests for current user with search and filter
+
   getMyRequests: async (
     page: number = 0,
     size: number = 10,
@@ -64,12 +60,10 @@ export const customRequestApi = {
     return makeRequest(url);
   },
 
-  // Get custom request detail by ID
   getRequestById: async (id: string): Promise<CustomRequestResponse> => {
     return makeRequest(`/requests/${id}/me`);
   },
 
-  // Create new custom request
   createRequest: async (
     data: CustomRequestCreate
   ): Promise<CustomRequestResponse> => {
@@ -79,7 +73,6 @@ export const customRequestApi = {
     });
   },
 
-  // Update custom request
   updateRequest: async (
     id: string,
     data: CustomRequestUpdate
@@ -90,7 +83,6 @@ export const customRequestApi = {
     });
   },
 
-  // Delete custom request
   deleteRequest: async (
     id: string
   ): Promise<{ message: string; statusCode: number }> => {

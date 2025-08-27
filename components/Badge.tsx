@@ -231,7 +231,6 @@ export default function Badge({
   return badgeContent;
 }
 
-// Specialized badge components for common use cases
 export const StatusBadge = ({
   status,
   ...props

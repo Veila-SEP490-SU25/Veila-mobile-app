@@ -40,9 +40,8 @@ export const baseQueryWithRefresh: BaseQueryFn<
 > = async (args, api, extraOptions) => {
   let result = await baseQuery(args, api, extraOptions);
 
-  // Kiểm tra nếu có lỗi 401 (Unauthorized) và không phải là request refresh token
   if (result.error && result.error.status === 401 && !isRefreshing) {
-    // Kiểm tra để tránh vòng lặp vô hạn
+
     const isRefreshRequest =
       typeof args === "object" && args.url === "/auth/refresh-token";
 
@@ -51,11 +50,10 @@ export const baseQueryWithRefresh: BaseQueryFn<
       return result;
     }
 
-    // Nếu đang có refresh promise, đợi nó hoàn thành
     if (refreshPromise) {
       console.log("Đang đợi refresh token hoàn thành...");
       await refreshPromise;
-      // Thử lại request ban đầu
+
       result = await baseQuery(args, api, extraOptions);
       return result;
     }
@@ -63,10 +61,9 @@ export const baseQueryWithRefresh: BaseQueryFn<
     isRefreshing = true;
     console.log("Bắt đầu refresh token từ base query...");
 
-    // Tạo promise mới cho refresh token
     refreshPromise = (async () => {
       try {
-        // Lấy refresh token từ AsyncStorage
+
         const refreshToken = await AsyncStorage.getItem("refreshToken");
 
         if (!refreshToken) {
@@ -76,7 +73,6 @@ export const baseQueryWithRefresh: BaseQueryFn<
 
         console.log("Đang thử refresh token từ base query...");
 
-        // Gọi API refresh token
         const refreshResult = await baseQuery(
           {
             url: "/auth/refresh-token",
@@ -104,7 +100,6 @@ export const baseQueryWithRefresh: BaseQueryFn<
             "Refresh token thành công từ base query, đang lưu token mới"
           );
 
-          // Lưu token mới
           await setTokens(
             refreshData.item.accessToken,
             refreshData.item.refreshToken
@@ -127,7 +122,7 @@ export const baseQueryWithRefresh: BaseQueryFn<
       const refreshSuccess = await refreshPromise;
 
       if (refreshSuccess) {
-        // Thử lại request ban đầu với token mới
+
         console.log("Đang thử lại request ban đầu...");
         result = await baseQuery(args, api, extraOptions);
 

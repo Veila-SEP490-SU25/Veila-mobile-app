@@ -122,7 +122,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    paddingBottom: 34, // Safe area
+    paddingBottom: 34,
   },
   header: {
     flexDirection: "row",

@@ -35,7 +35,7 @@ interface BlogListProps {
 }
 
 export default function BlogList({ blogs, onBlogPress }: BlogListProps) {
-  // Add null check and default value
+
   const safeBlogs = blogs || [];
 
   const formatDate = (dateString?: string) => {

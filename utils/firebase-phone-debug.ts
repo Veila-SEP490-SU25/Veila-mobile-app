@@ -8,24 +8,20 @@ export const debugFirebasePhoneAuth = () => {
   console.log("🔍 Firebase Phone Auth Debug:");
   console.log("================================");
 
-  // Check Firebase Auth status
   console.log(`✅ Firebase Auth initialized: ${!!auth}`);
   if (auth) {
     console.log(`✅ Auth config:`, {
       apiKey: auth.config?.apiKey ? "Set" : "Missing",
       authDomain: auth.config?.authDomain ? "Set" : "Missing",
-      // projectId removed because it does not exist on type 'Config'
+
     });
   }
 
-  // Check FirebasePhoneAuthService status
   const serviceStatus = FirebasePhoneAuthService.getFirebaseStatus();
   console.log(`✅ Service status:`, serviceStatus);
 
-  // Check if we're in development or production
   console.log(`🌍 Environment: ${__DEV__ ? "Development" : "Production"}`);
 
-  // Check platform
   const platform = require("expo-constants").expoConfig?.platform || "Unknown";
   console.log(`📱 Platform: ${platform}`);
 
@@ -48,22 +44,19 @@ export const testFirebasePhoneAuth = async (
   console.log(`📱 Test phone: ${testPhone}`);
 
   try {
-    // Check if service is ready
+
     if (!FirebasePhoneAuthService.isFirebaseReady()) {
       console.error("❌ Firebase Phone Auth service not ready");
       return false;
     }
 
-    // Test phone validation
     const isValid = FirebasePhoneAuthService.validateVietnamesePhone(testPhone);
     console.log(`✅ Phone validation: ${isValid ? "Valid" : "Invalid"}`);
 
-    // Test phone formatting
     const formatted =
       FirebasePhoneAuthService.formatPhoneToInternational(testPhone);
     console.log(`✅ Phone formatting: ${testPhone} → ${formatted}`);
 
-    // Test rate limiting
     const rateLimit = FirebasePhoneAuthService.checkRateLimit();
     console.log(
       `✅ Rate limit check: ${rateLimit.canSend ? "Can send" : `Wait ${rateLimit.remainingTime}s`}`

@@ -15,7 +15,6 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import Toast from "react-native-toast-message";
 import { useAuth } from "../../providers/auth.provider";
 import {
   transactionApi,
@@ -23,6 +22,7 @@ import {
 } from "../../services/apis/transaction.api";
 import { walletApi } from "../../services/apis/wallet.api";
 import { Wallet } from "../../services/types";
+import { showMessage } from "../../utils/message.util";
 
 export default function WalletScreen() {
   const [wallet, setWallet] = useState<Wallet | null>(null);
@@ -41,12 +41,7 @@ export default function WalletScreen() {
         setWallet(response.item);
       }
     } catch (error) {
-      console.error("Error loading wallet:", error);
-      Toast.show({
-        type: "error",
-        text1: "Lỗi",
-        text2: "Không thể tải thông tin ví",
-      });
+      showMessage("ERM006");
     } finally {
       setLoading(false);
     }
@@ -117,11 +112,7 @@ export default function WalletScreen() {
 
   const handleTopup = () => {
     if (!user?.isIdentified) {
-      Toast.show({
-        type: "warning",
-        text1: "Cần xác thực số điện thoại",
-        text2: "Vui lòng xác thực số điện thoại trước khi nạp tiền",
-      });
+      showMessage("ERM008");
       return;
     }
     router.push("/account/topup");
@@ -129,14 +120,10 @@ export default function WalletScreen() {
 
   const handleWithdraw = () => {
     if (!user?.isIdentified) {
-      Toast.show({
-        type: "warning",
-        text1: "Cần xác thực số điện thoại",
-        text2: "Vui lòng xác thực số điện thoại trước khi rút tiền",
-      });
+      showMessage("ERM008");
       return;
     }
-    Toast.show({ type: "info", text1: "Tính năng đang phát triển" });
+    showMessage("SSM002");
   };
 
   const getTransactionDescription = (item: TransactionItem) => {

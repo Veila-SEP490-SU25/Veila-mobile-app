@@ -23,12 +23,11 @@ export default function NotificationList({ userId }: NotificationListProps) {
   const router = useRouter();
 
   const handleNotificationPress = async (notification: Notification) => {
-    // Mark as read
+
     if (!notification.isRead) {
       await markAsRead(notification.id);
     }
 
-    // Navigate based on notification type
     if (notification.type === "chat" && notification.data?.chatRoomId) {
       router.push(`/chat/${notification.data.chatRoomId}` as any);
     } else if (notification.type === "order" && notification.data?.orderId) {

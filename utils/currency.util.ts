@@ -14,7 +14,6 @@ export const formatVND = (
 ): string => {
   const { showSymbol = true, compact = false, decimalPlaces = 0 } = options;
 
-  // Convert to number and handle invalid values
   let numAmount: number;
   if (typeof amount === "string") {
     numAmount = parseFloat(amount);
@@ -26,7 +25,6 @@ export const formatVND = (
     return showSymbol ? "Liên hệ" : "0";
   }
 
-  // Format with Vietnamese locale
   const formatter = new Intl.NumberFormat("vi-VN", {
     style: "currency",
     currency: "VND",
@@ -125,10 +123,8 @@ export const formatVNDCustom = (
 export const parseVND = (currencyString: string): number => {
   if (!currencyString) return 0;
 
-  // Remove all non-numeric characters except decimal point
   const cleaned = currencyString.replace(/[^\d.,]/g, "");
 
-  // Handle Vietnamese number format (comma as decimal separator)
   const normalized = cleaned.replace(/\./g, "").replace(/,/g, ".");
 
   const parsed = parseFloat(normalized);
@@ -173,7 +169,6 @@ export const getCurrencyDisplayOptions = (amount: string | number) => {
     };
   }
 
-  // For large amounts, use compact notation
   if (numAmount >= 1000000) {
     return {
       showSymbol: true,
@@ -183,7 +178,6 @@ export const getCurrencyDisplayOptions = (amount: string | number) => {
     };
   }
 
-  // For medium amounts, use standard notation
   if (numAmount >= 1000) {
     return {
       showSymbol: true,
@@ -193,7 +187,6 @@ export const getCurrencyDisplayOptions = (amount: string | number) => {
     };
   }
 
-  // For small amounts, show decimal places
   return {
     showSymbol: true,
     compact: false,

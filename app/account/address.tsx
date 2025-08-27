@@ -34,7 +34,6 @@ interface Address {
 const AddressScreen = () => {
   const { user, updateUser } = useAuth();
 
-  // Helper function to convert IAddress to Address
   const convertIAddressToAddress = (iAddress: IAddress): Partial<Address> => ({
     province: iAddress.province,
     district: iAddress.district,
@@ -42,7 +41,6 @@ const AddressScreen = () => {
     streetAddress: iAddress.streetAddress,
   });
 
-  // Helper function to convert Address to IAddress
   const convertAddressToIAddress = (address: Address): IAddress => ({
     province: address.province,
     district: address.district,
@@ -56,7 +54,6 @@ const AddressScreen = () => {
   const [editingAddress, setEditingAddress] = useState<Address | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // Form state
   const [formData, setFormData] = useState({
     name: "",
     phone: "",
@@ -74,7 +71,7 @@ const AddressScreen = () => {
   });
 
   useEffect(() => {
-    // Initialize with user data
+
     if (user) {
       setFormData((prev) => ({
         ...prev,
@@ -85,17 +82,15 @@ const AddressScreen = () => {
       }));
     }
 
-    // Load existing addresses from user data
     loadAddresses();
   }, [user]);
 
   const loadAddresses = () => {
     if (!user) return;
 
-    // Parse user's address if it exists
     const userAddress = user.address;
     if (userAddress) {
-      // Parse the address string using utility function
+
       const parsedAddress = parseAddressString(userAddress);
 
       if (parsedAddress.province) {
@@ -130,7 +125,7 @@ const AddressScreen = () => {
 
         setAddresses([existingAddress]);
       } else {
-        // If address format is not as expected, create a simple address
+
         const existingAddress: Address = {
           id: "1",
           name:
@@ -147,7 +142,7 @@ const AddressScreen = () => {
         setAddresses([existingAddress]);
       }
     } else {
-      // No existing address
+
       setAddresses([]);
     }
   };
@@ -271,9 +266,9 @@ const AddressScreen = () => {
 
     setLoading(true);
     try {
-      // Update user profile with address information
+
       if (updateUser) {
-        // Create complete profile update with address
+
         const profileUpdate = createProfileUpdateFromAddress(formData.address, {
           firstName: user?.firstName || "",
           lastName: user?.lastName || "",
@@ -282,7 +277,7 @@ const AddressScreen = () => {
         const success = await updateUser(profileUpdate);
 
         if (success) {
-          // Create full address string for display
+
           const newAddress: Address = {
             id: editingAddress?.id || Date.now().toString(),
             name: formData.name.trim(),
@@ -291,11 +286,11 @@ const AddressScreen = () => {
             province: formData.address.province!,
             district: formData.address.district!,
             ward: formData.address.ward!,
-            isDefault: addresses.length === 0, // First address is default
+            isDefault: addresses.length === 0,
           };
 
           if (isEditing && editingAddress) {
-            // Update existing address
+
             setAddresses((prev) =>
               prev.map((addr) =>
                 addr.id === editingAddress.id ? newAddress : addr
@@ -307,7 +302,7 @@ const AddressScreen = () => {
               text2: "Địa chỉ đã được cập nhật",
             });
           } else {
-            // Add new address
+
             setAddresses((prev) => [...prev, newAddress]);
             Toast.show({
               type: "success",
@@ -325,7 +320,7 @@ const AddressScreen = () => {
           });
         }
       } else {
-        // Fallback to local state if updateUser is not available
+
         const newAddress: Address = {
           id: editingAddress?.id || Date.now().toString(),
           name: formData.name.trim(),

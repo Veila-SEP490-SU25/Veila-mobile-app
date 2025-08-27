@@ -45,7 +45,6 @@ const AboutVeilaScreen = () => {
   return (
     <SafeAreaView className="flex-1 bg-white">
       <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Header */}
         <View className="bg-gradient-to-b from-pink-50 to-white px-6 pt-4 pb-6">
           <TouchableOpacity
             onPress={() => router.back()}
@@ -69,7 +68,6 @@ const AboutVeilaScreen = () => {
           </View>
         </View>
 
-        {/* Company Description */}
         <View className="px-6 py-6">
           <View className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-4 border border-blue-200 mb-6">
             <Text className="text-sm text-blue-800 leading-6 text-center">
@@ -99,7 +97,6 @@ const AboutVeilaScreen = () => {
             </View>
           </View>
 
-          {/* Features */}
           <View className="mb-6">
             <Text className="text-lg font-bold text-gray-900 mb-4 text-center">
               Tính năng nổi bật
@@ -135,7 +132,6 @@ const AboutVeilaScreen = () => {
             </View>
           </View>
 
-          {/* Contact Info */}
           <View className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-4 border border-green-200 mb-6">
             <Text className="text-sm font-semibold text-green-800 mb-3 text-center">
               Thông tin liên hệ
@@ -160,7 +156,6 @@ const AboutVeilaScreen = () => {
             </View>
           </View>
 
-          {/* Version Info */}
           <View className="bg-gray-50 rounded-xl p-4 border border-gray-200">
             <Text className="text-xs text-gray-500 text-center">
               Phiên bản 1.0.0

@@ -62,7 +62,7 @@ export default function CustomRequestDetailScreen() {
       text1: "Xác nhận xóa",
       text2: "Bạn có chắc chắn muốn xóa yêu cầu này?",
       onPress: () => {
-        // Show confirmation dialog
+
         Toast.show({
           type: "info",
           text1: "Xác nhận",
@@ -100,13 +100,6 @@ export default function CustomRequestDetailScreen() {
       {children}
     </View>
   );
-
-  // const renderInfoRow = (label: string, value: string | number) => (
-  //   <View className="flex-row justify-between items-center py-2 border-b border-gray-100">
-  //     <Text className="text-gray-600 flex-1">{label}</Text>
-  //     <Text className="text-gray-800 font-medium text-right ml-4">{value}</Text>
-  //   </View>
-  // );
 
   const renderMeasurementGrid = () => (
     <View className="space-y-2">

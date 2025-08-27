@@ -230,7 +230,6 @@ const Input = forwardRef<TextInput, InputProps>(
 
 Input.displayName = "Input";
 
-// Specialized input components for common use cases
 export const TextInputField = (props: Omit<InputProps, "variant">) => (
   <Input variant="default" {...props} />
 );

@@ -13,7 +13,7 @@ import { formatVNDCustom } from "../../utils/currency.util";
 interface Accessory {
   id: string;
   name: string;
-  images: string[] | null; // Fix: should be string[] | null, not string
+  images: string[] | null;
   sellPrice: string;
   rentalPrice: string;
   isSellable: boolean;
@@ -115,7 +115,6 @@ export default function AccessorySelector({
     return selectedAccessories.filter((item) => item.isSelected);
   };
 
-  // Notify parent component when selection changes
   React.useEffect(() => {
     const selectedItems = selectedAccessories.filter((item) => item.isSelected);
     onSelectionChange(selectedItems);

@@ -2,32 +2,29 @@ import { auth, firebase } from "./firebase";
 
 export class FirebasePhoneAuthService {
   private static lastRequestTime: number = 0;
-  private static readonly RATE_LIMIT_INTERVAL = 60000; // 60 seconds
+  private static readonly RATE_LIMIT_INTERVAL = 60000;
 
   static async sendVerificationCode(phoneNumber: string): Promise<any> {
-    // Rate limiting check
+
     const now = Date.now();
     if (this.lastRequestTime && now - this.lastRequestTime < 60000) {
       throw new Error("Vui lòng đợi 1 phút trước khi gửi lại mã xác thực");
     }
 
-    // Phone number validation
     if (!phoneNumber || phoneNumber.length < 10) {
       throw new Error("Số điện thoại không hợp lệ");
     }
 
     try {
-      // Check Firebase connection
+
       if (!firebase.apps.length) {
         throw new Error("Firebase chưa được khởi tạo. Vui lòng restart app.");
       }
 
-      // Use native phone auth (no reCAPTCHA needed)
       const phoneProvider = new firebase.auth.PhoneAuthProvider();
 
-      // For iOS Simulator, we'll use a mock approach
       if (__DEV__) {
-        // Simulate successful SMS sending
+
         await new Promise((resolve) => setTimeout(resolve, 2000));
 
         const mockVerificationId = `mock_verification_${Date.now()}`;
@@ -42,11 +39,6 @@ export class FirebasePhoneAuthService {
         };
       }
 
-      // For production, use real Firebase Phone Auth
-      // Pass `null` as the second argument to satisfy the method signature (required by Firebase JS SDK)
-      // For native (React Native) Firebase Phone Auth, the second argument must be an ApplicationVerifier.
-      // However, on React Native, reCAPTCHA is not required, so we can use a dummy verifier.
-      // We'll create a minimal ApplicationVerifier to satisfy the type requirement.
       const dummyVerifier = {
         type: "recaptcha",
         verify: () => Promise.resolve(""),
@@ -118,12 +110,11 @@ export class FirebasePhoneAuthService {
 
   static async verifyCode(verificationId: string, code: string): Promise<any> {
     try {
-      // For mock mode in development
+
       if (verificationId.startsWith("mock_verification_")) {
-        // Simulate verification delay
+
         await new Promise((resolve) => setTimeout(resolve, 1500));
 
-        // Mock verification logic
         if (code === "123456") {
           return {
             success: true,
@@ -139,7 +130,6 @@ export class FirebasePhoneAuthService {
         }
       }
 
-      // For production, use real Firebase verification
       const credential = firebase.auth.PhoneAuthProvider.credential(
         verificationId,
         code

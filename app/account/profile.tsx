@@ -13,18 +13,18 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import Toast from "react-native-toast-message";
 import AddressPicker from "../../components/profile/AddressPicker";
 import { useAuth } from "../../providers/auth.provider";
 import { IAddress, IUpdateProfile } from "../../services/types";
 import { createProfileUpdateFromAddress } from "../../utils/address.util";
+import { showMessage } from "../../utils/message.util";
 
 export default function ProfileScreen() {
   const router = useRouter();
   const { user, refreshUser, updateUser } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
-  // Form state
+
   const [formData, setFormData] = useState({
     firstName: "",
     middleName: "",
@@ -59,17 +59,13 @@ export default function ProfileScreen() {
 
   const handleSave = async () => {
     if (!formData.firstName.trim() || !formData.lastName.trim()) {
-      Toast.show({
-        type: "error",
-        text1: "Lỗi",
-        text2: "Vui lòng nhập họ và tên",
-      });
+      showMessage("ERM007");
       return;
     }
 
     setLoading(true);
     try {
-      // Update profile information
+
       const profileData: IUpdateProfile = {
         firstName: formData.firstName.trim(),
         middleName: formData.middleName.trim() || undefined,
@@ -78,14 +74,13 @@ export default function ProfileScreen() {
 
       const profileSuccess = await updateUser(profileData);
 
-      // Update address information if address is selected
       let addressSuccess = true;
       if (
         formData.address.province &&
         formData.address.district &&
         formData.address.ward
       ) {
-        // Create complete profile update with address
+
         const addressUpdate = createProfileUpdateFromAddress(formData.address, {
           firstName: formData.firstName.trim(),
           lastName: formData.lastName.trim(),
@@ -96,31 +91,18 @@ export default function ProfileScreen() {
       }
 
       if (profileSuccess && addressSuccess) {
-        Toast.show({
-          type: "success",
-          text1: "Thành công",
-          text2: "Hồ sơ đã được cập nhật",
-        });
+        showMessage("SUC004");
 
         setIsEditing(false);
-        // Refresh user data to get the latest information
+
         if (refreshUser) {
           await refreshUser();
         }
       } else {
-        Toast.show({
-          type: "warning",
-          text1: "Cảnh báo",
-          text2: "Một số thông tin không thể cập nhật. Vui lòng thử lại.",
-        });
+        showMessage("WRN001");
       }
-    } catch (error) {
-      console.error("Error updating profile:", error);
-      Toast.show({
-        type: "error",
-        text1: "Lỗi",
-        text2: "Không thể cập nhật hồ sơ. Vui lòng thử lại.",
-      });
+    } catch {
+      showMessage("ERM006");
     } finally {
       setLoading(false);
     }
@@ -128,7 +110,7 @@ export default function ProfileScreen() {
 
   const handleCancel = () => {
     setIsEditing(false);
-    // Reset form to original user data
+
     if (user) {
       setFormData({
         firstName: user.firstName || "",
@@ -144,13 +126,6 @@ export default function ProfileScreen() {
         },
       });
     }
-  };
-
-  const getFullName = () => {
-    const parts = [user?.firstName, user?.middleName, user?.lastName].filter(
-      Boolean
-    );
-    return parts.join(" ") || "Người dùng";
   };
 
   const getInitials = () => {

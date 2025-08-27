@@ -48,7 +48,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
 
     const unsubscribe = ChatService.subscribeToChatRooms(
       userId,
-      "customer", // Default to customer for now
+      "customer",
       (rooms) => {
         setChatRooms(rooms);
         setLoading(false);

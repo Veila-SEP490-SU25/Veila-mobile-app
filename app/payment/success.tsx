@@ -11,7 +11,7 @@ import {
 
 export default function PaymentSuccessScreen() {
   useEffect(() => {
-    // Auto-navigate to wallet after 5 seconds
+
     const timer = setTimeout(() => {
       router.replace("/account/wallet");
     }, 5000);
@@ -24,7 +24,7 @@ export default function PaymentSuccessScreen() {
       router.replace("/account/wallet");
     } catch (error) {
       console.error("Navigation error:", error);
-      // Fallback navigation
+
       router.push("/account/wallet");
     }
   };
@@ -34,7 +34,7 @@ export default function PaymentSuccessScreen() {
       router.push("/account/transactions");
     } catch (error) {
       console.error("Navigation error:", error);
-      // Fallback navigation
+
       router.push("/account/transactions");
     }
   };

@@ -8,7 +8,6 @@ import React, {
   useRef,
   useState,
 } from "react";
-import Toast from "react-native-toast-message";
 import {
   delTokens,
   getAccessToken,
@@ -26,7 +25,6 @@ import {
   useLogoutMutation,
   useRefreshTokenMutation,
   useRequestOtpMutation,
-  useUpdateAddressMutation,
   useUpdateProfileMutation,
   useVerifyOtpMutation,
 } from "../services/apis";
@@ -39,6 +37,7 @@ import {
   IVerifyOtp,
   PhoneVerificationStatus,
 } from "../services/types";
+import { showLoginError, showMessage } from "../utils/message.util";
 
 type AuthContextType = {
   login: (body: ILogin) => Promise<void>;
@@ -80,16 +79,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [getMe, { isFetching: isGetMeLoading }] = useLazyGetMeQuery();
   const [refreshTokenMutation] = useRefreshTokenMutation();
   const [updateProfileMutation] = useUpdateProfileMutation();
-  const [updateAddressMutation] = useUpdateAddressMutation();
 
   const saveTokens = async (accessToken: string, refreshToken: string) => {
     await setAccessToken(accessToken);
     await setRefreshToken(refreshToken);
   };
 
-  // Helper function to convert API response to IUser
   const convertApiResponseToUser = (apiUser: any): IUser => {
-    // Determine phone verification status based on phone and isIdentified
+
     let phoneVerificationStatus: PhoneVerificationStatus =
       PhoneVerificationStatus.NotVerified;
 
@@ -114,8 +111,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       address: apiUser.address,
       birthDate: apiUser.birthDate,
       images: apiUser.images,
-      role: apiUser.role as any, // Cast to UserRole enum
-      status: apiUser.status as any, // Cast to UserStatus enum
+      role: apiUser.role as any,
+      status: apiUser.status as any,
       reputation: apiUser.reputation,
       isVerified: apiUser.isVerified,
       isIdentified: apiUser.isIdentified,
@@ -131,18 +128,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       try {
         let response;
 
-        // Check if this is an address update
         if ("provinceId" in data || "districtId" in data || "wardId" in data) {
-          // For address updates, we need to construct the full address string
-          // and preserve existing profile information
+
           const addressData: IUpdateProfile = {
             firstName: user?.firstName || "",
             lastName: user?.lastName || "",
-            address: data.fullAddress || data.streetAddress || "", // Use fullAddress or streetAddress as the full address
+            address: data.fullAddress || data.streetAddress || "",
           };
           response = await updateProfileMutation(addressData).unwrap();
         } else {
-          // Update profile
+
           response = await updateProfileMutation(
             data as IUpdateProfile
           ).unwrap();
@@ -153,23 +148,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           setUser(updatedUser);
           await setToLocalStorage("user", updatedUser);
 
-          Toast.show({
-            type: "success",
-            text1: "Thành công",
-            text2: "Thông tin đã được cập nhật",
-          });
+          showMessage("SUC004");
 
           return true;
         } else {
           throw new Error(response.message || "Failed to update user");
         }
-      } catch (error) {
-        console.error("Error updating user:", error);
-        Toast.show({
-          type: "error",
-          text1: "Lỗi",
-          text2: "Không thể cập nhật thông tin. Vui lòng thử lại.",
-        });
+      } catch {
+        showMessage("ERM006");
         return false;
       }
     },
@@ -178,7 +164,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const handleLogout = useCallback(async () => {
     try {
-      // Thử gọi API logout nếu có token
+
       const token = await getAccessToken();
       if (token) {
         await logoutMutation().unwrap();
@@ -188,17 +174,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         console.log("Lỗi logout API:", error);
       }
     } finally {
-      // Luôn clear local state và tokens
+
       setUser(null);
       setIsAuthenticated(false);
       hasRefreshed.current = false;
       await delTokens();
-      resetSession(); // Reset session context
-      // Thêm delay nhỏ để tránh xung đột
+      resetSession();
+
       setTimeout(() => {
         router.replace("/_auth/login");
       }, 100);
-      Toast.show({ type: "success", text1: "Đăng xuất thành công" });
+
     }
   }, [logoutMutation, router, resetSession]);
 
@@ -249,15 +235,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     async (body: ILogin) => {
       try {
         setIsAuthenticating(true);
-        const { item, statusCode, message } =
-          await loginMutation(body).unwrap();
+        const { item, statusCode } = await loginMutation(body).unwrap();
 
         if (statusCode === 200) {
           const { accessToken, refreshToken } = item;
           await saveTokens(accessToken, refreshToken);
           await fetchUser();
           resetSession();
-          Toast.show({ type: "success", text1: "Đăng nhập thành công" });
+
           router.replace("/_tab/home");
         } else if (statusCode === 401) {
           const { item: otpUserId } = await requestOtpMutation({
@@ -268,18 +253,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             params: { userId: otpUserId, email: body.email },
           });
         } else {
-          Toast.show({
-            type: "error",
-            text1: "Đăng nhập thất bại",
-            text2: message,
-          });
+          showLoginError();
         }
       } catch {
-        Toast.show({
-          type: "error",
-          text1: "Lỗi đăng nhập",
-          text2: "Vui lòng thử lại sau",
-        });
+        showLoginError();
       } finally {
         setIsAuthenticating(false);
       }
@@ -291,29 +268,20 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     async (body: IGoogleLogin) => {
       try {
         setIsAuthenticating(true);
-        const { item, statusCode, message } =
-          await googleLoginMutation(body).unwrap();
+        const { item, statusCode } = await googleLoginMutation(body).unwrap();
 
         if (statusCode === 200) {
           const { accessToken, refreshToken } = item;
           await saveTokens(accessToken, refreshToken);
           await fetchUser();
           resetSession();
-          Toast.show({ type: "success", text1: "Đăng nhập Google thành công" });
+
           router.replace("/_tab/home");
         } else {
-          Toast.show({
-            type: "error",
-            text1: "Đăng nhập Google thất bại",
-            text2: message,
-          });
+          showLoginError();
         }
       } catch {
-        Toast.show({
-          type: "error",
-          text1: "Lỗi đăng nhập Google",
-          text2: "Vui lòng thử lại sau",
-        });
+        showLoginError();
       } finally {
         setIsAuthenticating(false);
       }
@@ -325,29 +293,20 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     async (body: IVerifyOtp) => {
       try {
         setIsAuthenticating(true);
-        const { item, statusCode, message } =
-          await verifyOtpMutation(body).unwrap();
+        const { item, statusCode } = await verifyOtpMutation(body).unwrap();
 
         if (statusCode === 200) {
           const { accessToken, refreshToken } = item;
           await saveTokens(accessToken, refreshToken);
           await fetchUser();
           resetSession();
-          Toast.show({ type: "success", text1: "Xác thực thành công" });
+
           router.replace("/_tab/home");
         } else {
-          Toast.show({
-            type: "error",
-            text1: "Xác thực thất bại",
-            text2: message,
-          });
+          showMessage("ERM003");
         }
       } catch {
-        Toast.show({
-          type: "error",
-          text1: "Lỗi xác thực",
-          text2: "Vui lòng thử lại sau",
-        });
+        showMessage("ERM003");
       } finally {
         setIsAuthenticating(false);
       }
@@ -369,7 +328,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           }
           hasRefreshed.current = true;
           try {
-            // Thử refresh token
+
             const refreshToken = await getRefreshToken();
             if (refreshToken) {
               const refreshResult = await refreshTokenMutation({
@@ -389,14 +348,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                   console.log("Refresh token thất bại trong AuthProvider");
                 }
                 await delTokens();
-                // Không redirect ngay, để SessionContext xử lý
+
               }
             } else {
               if (__DEV__) {
                 console.log("Không có refresh token trong AuthProvider");
               }
               await delTokens();
-              // Không redirect ngay, để SessionContext xử lý
+
             }
           } catch (refreshError) {
             if (__DEV__) {
@@ -406,13 +365,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
               );
             }
             await delTokens();
-            // Không redirect ngay, để SessionContext xử lý
+
           }
         } else if (!access) {
           if (__DEV__) {
             console.log("Không có token trong AuthProvider");
           }
-          // Không redirect ngay, để SessionContext xử lý
+
         }
       } catch (error) {
         if (__DEV__) {
@@ -422,7 +381,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           );
         }
         await delTokens();
-        // Không redirect ngay, để SessionContext xử lý
+
       } finally {
         setIsAuthChecking(false);
       }
@@ -430,14 +389,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     init();
   }, [fetchUser, refreshTokenMutation]);
 
-  // Reset refresh flag khi user thay đổi
   useEffect(() => {
     if (user) {
       hasRefreshed.current = false;
     }
   }, [user]);
 
-  // Reset refresh flag khi logout
   const logout = useCallback(async () => {
     await handleLogout();
   }, [handleLogout]);

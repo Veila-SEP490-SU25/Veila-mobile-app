@@ -67,7 +67,6 @@ export async function clearLocalStorage(): Promise<void> {
   }
 }
 
-// 👇 Thêm kiểm tra token ở đây:
 export async function checkAccessToken(): Promise<string | null> {
   const token = await getFromLocalStorage<string>("accessToken", false);
   if (!token) {

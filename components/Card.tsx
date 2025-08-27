@@ -163,7 +163,6 @@ export default function Card({
   );
 }
 
-// Specialized card components for common use cases
 export const ProductCard = ({
   children,
   onPress,

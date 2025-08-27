@@ -10,12 +10,16 @@ import {
   updateDoc,
   where,
 } from "firebase/firestore";
+import { showMessage } from "../utils/message.util";
+import { FCMService } from "./fcm.service";
 import { db } from "./firebase";
 import { Notification } from "./types";
 
 export class NotificationService {
   private static instance: NotificationService;
   private unsubscribeFn: (() => void) | null = null;
+  private fcmUnsubscribers: (() => void)[] = [];
+  private isInitialized = false;
 
   static getInstance(): NotificationService {
     if (!NotificationService.instance) {
@@ -24,11 +28,47 @@ export class NotificationService {
     return NotificationService.instance;
   }
 
+  async initialize(userId?: string): Promise<void> {
+    if (this.isInitialized) return;
+
+    try {
+      await FCMService.getInstance().initialize();
+
+      this.setupNotificationHandlers(userId);
+
+      this.isInitialized = true;
+    } catch {}
+  }
+
+  private setupNotificationHandlers(_userId?: string): void {
+    try {
+      const unsubscribeReceived =
+        FCMService.getInstance().onNotificationReceived((notification) => {
+          if (
+            notification.request.content.title &&
+            notification.request.content.body
+          ) {
+            showMessage("INF002", notification.request.content.title);
+          }
+        });
+
+      const unsubscribeResponse =
+        FCMService.getInstance().onNotificationResponse(async (response) => {
+          const data = response.notification.request.content.data;
+
+          if (data?.type === "chat" && data?.chatRoomId) {
+          } else if (data?.type === "order" && data?.orderId) {
+          }
+        });
+
+      this.fcmUnsubscribers.push(unsubscribeReceived, unsubscribeResponse);
+    } catch {}
+  }
+
   private isDevelopmentMode(): boolean {
     return !db;
   }
 
-  // Mock data for development
   private mockNotifications: Notification[] = [
     {
       id: "1",
@@ -86,10 +126,8 @@ export class NotificationService {
     if (this.isDevelopmentMode()) {
       if (__DEV__) {
       }
-      // Return mock data immediately
       callback(this.mockNotifications);
 
-      // Return no-op unsubscribe function
       return () => {};
     }
 
@@ -98,7 +136,6 @@ export class NotificationService {
     }
 
     try {
-      // Use simple query first to avoid index requirements
       const q = query(
         collection(db, "notifications"),
         where("userId", "==", userId),
@@ -124,7 +161,6 @@ export class NotificationService {
               });
             });
 
-            // Sort manually to avoid index dependency
             notifications.sort((a, b) => {
               const dateA = a.timestamp || new Date(0);
               const dateB = b.timestamp || new Date(0);
@@ -141,7 +177,6 @@ export class NotificationService {
         },
         (error) => {
           console.error("Error in notifications subscription:", error);
-          // Fallback with even simpler query
           callback([]);
         }
       );
@@ -218,7 +253,7 @@ export class NotificationService {
   }
 
   async createNotification(
-    notification: Omit<Notification, "id" | "timestamp" | "data">
+    notification: Omit<Notification, "id" | "timestamp">
   ): Promise<string> {
     if (this.isDevelopmentMode()) {
       return "mock-id";
@@ -249,10 +284,21 @@ export class NotificationService {
     senderName: string,
     message: string
   ): Promise<string> {
+    const title = `Tin nhắn mới từ ${senderName}`;
+    const body =
+      message.length > 50 ? `${message.substring(0, 50)}...` : message;
+
+    await FCMService.getInstance().sendChatNotification(
+      title,
+      body,
+      chatRoomId,
+      senderName
+    );
+
     return this.createNotification({
       userId,
-      title: `Tin nhắn mới từ ${senderName}`,
-      body: message.length > 50 ? `${message.substring(0, 50)}...` : message,
+      title,
+      body,
       type: "chat",
       isRead: false,
       data: { chatRoomId, senderName },
@@ -263,15 +309,23 @@ export class NotificationService {
     userId: string,
     orderId: string,
     title: string,
-    body: string
+    body: string,
+    orderStatus?: string
   ): Promise<string> {
+    await FCMService.getInstance().sendOrderNotification(
+      title,
+      body,
+      orderId,
+      orderStatus || "updated"
+    );
+
     return this.createNotification({
       userId,
       title,
       body,
       type: "order",
       isRead: false,
-      data: { orderId },
+      data: { orderId, orderStatus },
     });
   }
 
@@ -281,6 +335,12 @@ export class NotificationService {
     body: string,
     data?: any
   ): Promise<string> {
+    await FCMService.getInstance().sendPromotionNotification(
+      title,
+      body,
+      data?.promotionId
+    );
+
     return this.createNotification({
       userId,
       title,
@@ -410,11 +470,35 @@ export class NotificationService {
     }
   }
 
+  async updateBadgeCount(userId: string): Promise<void> {
+    try {
+      const unreadCount = await this.getUnreadCount(userId);
+      await FCMService.getInstance().setBadgeCount(unreadCount);
+    } catch {}
+  }
+
+  async clearBadge(): Promise<void> {
+    try {
+      await FCMService.getInstance().setBadgeCount(0);
+    } catch {}
+  }
+
   unsubscribe(): void {
     if (this.unsubscribeFn) {
       this.unsubscribeFn();
       this.unsubscribeFn = null;
     }
+
+    this.fcmUnsubscribers.forEach((unsubscribe) => unsubscribe());
+    this.fcmUnsubscribers = [];
+  }
+
+  async getFCMToken(): Promise<string | null> {
+    return await FCMService.getInstance().getToken();
+  }
+
+  async refreshFCMToken(): Promise<string | null> {
+    return await FCMService.getInstance().refreshToken();
   }
 }
 

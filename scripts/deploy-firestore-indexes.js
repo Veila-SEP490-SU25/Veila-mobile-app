@@ -6,7 +6,7 @@ const path = require("path");
 console.log("🚀 Deploying Firestore indexes...");
 
 try {
-  // Check if project is set, if not try to detect it
+
   let currentProject = "";
   try {
     currentProject = execSync("firebase use", {
@@ -18,7 +18,6 @@ try {
   } catch (error) {
     console.log("🔧 No project set, trying to detect available projects...");
 
-    // List available projects
     const projectsOutput = execSync("firebase projects:list", {
       encoding: "utf8",
       cwd: path.join(__dirname, ".."),
@@ -27,7 +26,6 @@ try {
     console.log("📋 Available projects:");
     console.log(projectsOutput);
 
-    // Try to find a suitable project
     if (projectsOutput.includes("veilastudio")) {
       console.log("🎯 Found veilastudio project, setting it as active...");
       execSync("firebase use veilastudio", {
@@ -57,7 +55,6 @@ try {
     }
   }
 
-  // Deploy only Firestore indexes
   console.log(`🚀 Deploying indexes to project: ${currentProject}`);
   execSync("firebase deploy --only firestore:indexes", {
     stdio: "inherit",

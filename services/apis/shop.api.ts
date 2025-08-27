@@ -50,12 +50,10 @@ export const shopApi = {
     return makeRequest(url);
   },
 
-  // Get shop detail
   getShopById: async (id: string): Promise<ShopDetail> => {
     return makeRequest(`/shops/${id}`);
   },
 
-  // Get shop dresses
   getShopDresses: async (
     shopId: string,
     page: number = 0,
@@ -64,7 +62,6 @@ export const shopApi = {
     return makeRequest(`/shops/${shopId}/dresses?page=${page}&size=${size}`);
   },
 
-  // Get shop categories
   getShopCategories: async (
     shopId: string,
     page: number = 0,
@@ -73,7 +70,6 @@ export const shopApi = {
     return makeRequest(`/shops/${shopId}/categories?page=${page}&size=${size}`);
   },
 
-  // Get shop accessories
   getShopAccessories: async (
     shopId: string,
     page: number = 0,
@@ -84,7 +80,6 @@ export const shopApi = {
     );
   },
 
-  // Get shop services
   getShopServices: async (
     shopId: string,
     page: number = 0,
@@ -93,7 +88,6 @@ export const shopApi = {
     return makeRequest(`/shops/${shopId}/services?page=${page}&size=${size}`);
   },
 
-  // Get shop blogs
   getShopBlogs: async (
     shopId: string,
     page: number = 0,
@@ -102,7 +96,6 @@ export const shopApi = {
     return makeRequest(`/shops/${shopId}/blogs?page=${page}&size=${size}`);
   },
 
-  // Get accessory detail
   getAccessoryById: async (id: string): Promise<any> => {
     return makeRequest(`/accessories/${id}`);
   },

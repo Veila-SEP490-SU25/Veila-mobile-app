@@ -14,7 +14,7 @@ const indexesFile = path.join(projectRoot, "firestore-indexes.json");
 console.log("🚀 Deploying Firestore indexes...");
 
 try {
-  // Check if Firebase CLI is installed
+
   try {
     execSync("firebase --version", { stdio: "pipe" });
   } catch (error) {
@@ -23,7 +23,6 @@ try {
     process.exit(1);
   }
 
-  // Check if logged in to Firebase
   try {
     execSync("firebase projects:list", { stdio: "pipe" });
   } catch (error) {
@@ -32,7 +31,6 @@ try {
     process.exit(1);
   }
 
-  // Deploy indexes
   console.log("📦 Deploying Firestore indexes...");
   const result = execSync(`firebase deploy --only firestore:indexes`, {
     cwd: projectRoot,

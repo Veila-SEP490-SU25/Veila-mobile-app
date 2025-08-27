@@ -183,7 +183,6 @@ export default function Button({
   );
 }
 
-// Predefined button variants for common use cases
 export const PrimaryButton = (props: Omit<ButtonProps, "variant">) => (
   <Button variant="primary" {...props} />
 );
@@ -204,7 +203,6 @@ export const DangerButton = (props: Omit<ButtonProps, "variant">) => (
   <Button variant="danger" {...props} />
 );
 
-// Icon buttons
 const getIconButtonStyle = (size: string, variant: string) => {
   const sizeKey =
     `iconButton${size.charAt(0).toUpperCase() + size.slice(1)}` as keyof typeof styles;
@@ -275,7 +273,7 @@ const styles = StyleSheet.create({
   loadingSpinner: {
     marginRight: 8,
   },
-  // Icon button styles
+
   iconButton: {
     alignItems: "center",
     justifyContent: "center",

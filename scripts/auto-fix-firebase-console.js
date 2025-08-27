@@ -10,7 +10,6 @@ const path = require("path");
 
 console.log("🔧 Script tự động fix Firebase Console cho reCAPTCHA...\n");
 
-// Colors for console output
 const colors = {
   red: "\x1b[31m",
   green: "\x1b[32m",
@@ -26,10 +25,8 @@ const log = (color, message) => {
   console.log(`${color}${message}${colors.reset}`);
 };
 
-// 1. Kiểm tra cấu hình hiện tại
 log(colors.blue, "1️⃣ Kiểm tra cấu hình hiện tại:");
 
-// Kiểm tra app.json
 try {
   const appJson = JSON.parse(fs.readFileSync("app.json", "utf8"));
   const iosBundleId = appJson.expo?.ios?.bundleIdentifier;
@@ -38,7 +35,6 @@ try {
   log(colors.red, `   ❌ Không thể đọc app.json: ${error.message}`);
 }
 
-// Kiểm tra GoogleService-Info.plist
 const iosProjectPath = path.join(__dirname, "..", "ios");
 const googleServicePath = path.join(
   iosProjectPath,
@@ -52,7 +48,6 @@ if (fs.existsSync(googleServicePath)) {
   log(colors.red, "   GoogleService-Info.plist: ❌ Không có");
 }
 
-// 2. Hướng dẫn fix Firebase Console
 log(colors.magenta, "\n🔧 HƯỚNG DẪN FIX FIREBASE CONSOLE TỰ ĐỘNG:");
 
 log(colors.cyan, "Bước 1: Vào Firebase Console");
@@ -104,7 +99,6 @@ log(colors.white, "   • Trong Authentication → Settings → Phone numbers");
 log(colors.white, '   • Tìm "Enterprise reCAPTCHA"');
 log(colors.white, "   • Nếu có, vô hiệu hóa để dùng mặc định v2");
 
-// 3. Script tự động copy GoogleService-Info.plist
 log(colors.blue, "\n2️⃣ Script tự động copy GoogleService-Info.plist:");
 
 const downloadScript = `#!/bin/bash
@@ -142,7 +136,6 @@ fs.chmodSync(scriptPath, "755");
 log(colors.green, `   ✅ Script tự động đã được tạo: ${scriptPath}`);
 log(colors.white, "   💡 Chạy: bash scripts/download-google-service-info.sh");
 
-// 4. Hướng dẫn test
 log(colors.green, "\n🎯 HƯỚNG DẪN TEST:");
 
 log(colors.white, "1. Sau khi fix Firebase Console, restart app");
@@ -151,7 +144,6 @@ log(colors.yellow, "   npx expo start --clear");
 log(colors.white, "3. Test Phone Authentication với số +84937961828");
 log(colors.white, "4. Sử dụng OTP test: 123456");
 
-// 5. Kết quả mong đợi
 log(colors.green, "\n✅ KẾT QUẢ MONG ĐỢI:");
 
 log(colors.white, "Sau khi fix Firebase Console:");
@@ -167,7 +159,6 @@ log(
   "LOG Firebase Phone Auth: SMS sent successfully to +84937961828"
 );
 
-// 6. Troubleshooting
 log(colors.red, "\n🚨 NẾU VẪN GẶP LỖI:");
 
 log(colors.white, "1. Kiểm tra Firebase Console có enable Phone Auth chưa");

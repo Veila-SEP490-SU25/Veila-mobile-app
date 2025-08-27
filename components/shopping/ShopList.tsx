@@ -32,7 +32,6 @@ export default function ShopList({ onShopPress }: ShopListProps) {
   const [refreshing, setRefreshing] = useState(false);
   const [hasMore, setHasMore] = useState(true);
 
-  // Search and filter state
   const [searchQuery, setSearchQuery] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [filterOptions, setFilterOptions] = useState<FilterOptions>({
@@ -82,14 +81,14 @@ export default function ShopList({ onShopPress }: ShopListProps) {
       }
     },
     [filterOptions, searchQuery]
-  ); // các giá trị loadShops phụ thuộc
+  );
 
   useEffect(() => {
     loadShops(0, true);
   }, [filterOptions.sort, filterOptions.size, loadShops]);
 
   useEffect(() => {
-    // Debounce search
+
     const timeoutId = setTimeout(() => {
       if (searchQuery !== filterOptions.name) {
         setFilterOptions((prev) => ({ ...prev, name: searchQuery }));

@@ -1,4 +1,4 @@
-// /api/shops;
+
 export interface Shop {
   id: string;
   name: string;
@@ -22,7 +22,6 @@ export interface ShopListResponse {
   items: Shop[];
 }
 
-// /api/shops / { id };
 export interface ShopDetail {
   id: string;
   name: string;
@@ -35,7 +34,6 @@ export interface ShopDetail {
   coverUrl: string;
 }
 
-// /api/shops / { id } / accessories;
 export interface Accessory {
   id: string;
   images: string[] | null;
@@ -61,7 +59,6 @@ export interface AccessoryListResponse {
   items: Accessory[];
 }
 
-// /api/shops / { id } / categories;
 export type CategoryType = "SERVICE" | "ACCESSORY" | "DRESS" | "BLOG";
 
 export interface Category {
@@ -83,7 +80,6 @@ export interface CategoryListResponse {
   items: Category[];
 }
 
-// /api/shops/{id}/services
 export type ServiceStatus = "AVAILABLE" | "UNAVAILABLE";
 
 export interface Service {
@@ -106,14 +102,13 @@ export interface ServiceListResponse {
   items: Service[];
 }
 
-// /api/shops/{id}/dresses
 export type DressStatus = "AVAILABLE" | "UNAVAILABLE" | "OUT_OF_STOCK";
 
 export interface Dress {
   id: string;
   name: string;
   images: string[] | null;
-  ratingAverage: string; // có thể parse về number nếu muốn
+  ratingAverage: string;
   sellPrice: string;
   rentalPrice: string;
   isSellable: boolean;
@@ -133,7 +128,6 @@ export interface DressListResponse {
   items: Dress[];
 }
 
-// /api/shops / { id } / blogs;
 export interface Blog {
   id: string;
   title: string;

@@ -15,7 +15,6 @@ export const usePhoneVerification = () => {
 
   const [verifyPhone, { isLoading: isApiLoading }] = useVerifyPhoneMutation();
 
-  // Countdown timer for rate limiting
   useEffect(() => {
     if (countdown > 0) {
       const timer = setTimeout(() => {
@@ -25,7 +24,6 @@ export const usePhoneVerification = () => {
     }
   }, [countdown]);
 
-  // Validate phone number format (Vietnamese format)
   const validatePhone = (phoneNumber: string) => {
     return FirebasePhoneAuthService.validateVietnamesePhone(phoneNumber);
   };
@@ -33,14 +31,14 @@ export const usePhoneVerification = () => {
   const handlePhoneChange = (text: string) => {
     setPhone(text);
     setIsValidPhone(validatePhone(text));
-    setError(""); // Clear error when user types
+    setError("");
   };
 
   const handleCodeChange = (text: string) => {
-    // Chỉ cho phép nhập số và tối đa 6 ký tự
+
     const numericCode = text.replace(/[^0-9]/g, "");
     setCode(numericCode);
-    setError(""); // Clear error when user types
+    setError("");
   };
 
   const formatPhoneForFirebase = (phoneNumber: string): string => {
@@ -58,7 +56,6 @@ export const usePhoneVerification = () => {
       return false;
     }
 
-    // Check rate limiting
     const rateLimit = FirebasePhoneAuthService.checkRateLimit();
     if (!rateLimit.canSend) {
       setCountdown(rateLimit.remainingTime);
@@ -84,9 +81,8 @@ export const usePhoneVerification = () => {
     } catch (error: any) {
       console.error("Error sending code:", error);
 
-      // Handle specific error types
       if (error.message.includes("đợi")) {
-        // Rate limiting error
+
         const match = error.message.match(/(\d+)/);
         if (match) {
           setCountdown(parseInt(match[1]));
@@ -110,14 +106,14 @@ export const usePhoneVerification = () => {
     }
 
     try {
-      // Xác thực mã với Firebase
+
       const isVerified = await FirebasePhoneAuthService.verifyCode(
         verificationId,
         code
       );
 
       if (isVerified) {
-        // Nếu Firebase xác thực thành công, gửi số điện thoại xuống BE
+
         const result = await verifyPhone({ phone: phone.trim() }).unwrap();
 
         if (result.statusCode === 200) {
@@ -189,7 +185,7 @@ export const usePhoneVerification = () => {
     setCode("");
     setVerificationId(null);
     setError("");
-    // Removed duplicate and incorrect resetVerificationId call
+
     return isValidPhone && phone.trim() && countdown === 0;
   };
 
@@ -198,7 +194,7 @@ export const usePhoneVerification = () => {
   };
 
   return {
-    // State
+
     phone,
     isValidPhone,
     verificationId,
@@ -209,7 +205,6 @@ export const usePhoneVerification = () => {
     error,
     isLoading: isApiLoading,
 
-    // Actions
     handlePhoneChange,
     handleCodeChange,
     sendVerificationCode,
@@ -217,7 +212,6 @@ export const usePhoneVerification = () => {
     resendCode,
     resetVerification,
 
-    // Computed
     canSendCode: () => {
       return isValidPhone && phone.trim() && countdown === 0;
     },

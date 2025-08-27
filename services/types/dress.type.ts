@@ -5,7 +5,7 @@ export interface DressCategory {
   name: string;
   images: string[] | null;
   description: string;
-  type: string; // e.g., "DRESS"
+  type: string;
 }
 
 export interface DressShop {
@@ -20,7 +20,7 @@ export interface Dress {
   id: string;
   name: string;
   images: string[] | null;
-  ratingAverage: string; // có thể parse về number nếu muốn
+  ratingAverage: string;
   sellPrice: string;
   rentalPrice: string;
   isSellable: boolean;

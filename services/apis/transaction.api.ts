@@ -1,10 +1,10 @@
 import { getTokens, getVeilaServerConfig } from "../../utils";
 
 export interface TransactionParams {
-  filter?: string; // status:PENDING
-  sort?: string; // due_date:asc
-  size?: number; // default 10
-  page?: number; // default 0
+  filter?: string;
+  sort?: string;
+  size?: number;
+  page?: number;
 }
 
 export interface TransactionWalletInfo {

@@ -35,7 +35,7 @@ export default function AccessorySelectorPage() {
       console.log("🔍 API Response:", response);
 
       if (response && response.items && Array.isArray(response.items)) {
-        // Transform API data to match AccessorySelector interface
+
         const transformedAccessories = response.items.map((item) => ({
           id: item.id,
           name: item.name,
@@ -48,7 +48,7 @@ export default function AccessorySelectorPage() {
           user: {
             shop: {
               id: shopId,
-              name: "Shop", // You can get this from shop detail if needed
+              name: "Shop",
               address: "",
               logoUrl: "",
               reputation: 0,
@@ -103,8 +103,6 @@ export default function AccessorySelectorPage() {
 
     console.log("Continuing with accessories:", selectedAccessories);
 
-    // Navigate to next step or submit order
-    // You can pass selectedAccessories as params
     router.back();
   };
 

@@ -17,7 +17,7 @@ export default function FirebaseTestComponent() {
     const results: string[] = [];
 
     try {
-      // Test 1: Check if Firebase is initialized
+
       if (db) {
         results.push("✅ Firebase Firestore initialized");
         setConnectionStatus("Connected");
@@ -26,7 +26,6 @@ export default function FirebaseTestComponent() {
         setConnectionStatus("Not Connected");
       }
 
-      // Test 2: Check connection
       const isConnected = await ChatService.ensureConnection();
       if (isConnected) {
         results.push("✅ Firebase connection successful");
@@ -82,7 +81,7 @@ export default function FirebaseTestComponent() {
 
   const testSendMessage = async () => {
     try {
-      // First create a room
+
       const chatRoomData = {
         customerId: "test-customer-123",
         customerName: "Test Customer",
@@ -96,7 +95,6 @@ export default function FirebaseTestComponent() {
 
       const roomId = await ChatService.createChatRoom(chatRoomData);
 
-      // Then send a message
       const messageId = await ChatService.sendMessage(
         {
           chatRoomId: roomId,

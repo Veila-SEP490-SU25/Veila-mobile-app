@@ -44,12 +44,10 @@ export class ErrorBoundary extends Component<Props, State> {
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error("ErrorBoundary caught an error:", error, errorInfo);
 
-    // Call custom error handler if provided
     if (this.props.onError) {
       this.props.onError(error, errorInfo);
     }
 
-    // Start fade animation
     this.startFadeAnimation();
   }
 
@@ -93,7 +91,6 @@ export class ErrorBoundary extends Component<Props, State> {
       retryCount: retryCount + 1,
     });
 
-    // Simulate retry delay
     this.retryTimeout = setTimeout(() => {
       this.setState({
         hasError: false,

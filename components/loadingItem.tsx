@@ -142,7 +142,6 @@ export const LoadingItem = ({ variant = "default" }: LoadingItemProps) => {
   }
 };
 
-// Skeleton loading for different content types
 export const LoadingGrid = ({ count = 6 }: { count?: number }) => (
   <View className="flex-row flex-wrap justify-between">
     {Array.from({ length: count }).map((_, index) => (

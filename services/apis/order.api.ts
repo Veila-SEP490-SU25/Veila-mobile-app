@@ -44,8 +44,8 @@ export interface NewOrder {
   phone: string;
   email: string;
   address: string;
-  dueDate: string | Date; // Allow both string and Date
-  returnDate?: string | Date; // Optional, allow both string and Date
+  dueDate: string | Date;
+  returnDate?: string | Date;
   type: "SELL" | "RENT";
 }
 
@@ -123,7 +123,6 @@ export const orderApi = {
     });
   },
 
-  // Get customer orders
   getCustomerOrders: async (params?: {
     page?: number;
     size?: number;

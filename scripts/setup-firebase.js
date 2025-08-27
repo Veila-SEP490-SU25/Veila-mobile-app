@@ -6,7 +6,7 @@ const path = require("path");
 console.log("🔧 Setting up Firebase project configuration...");
 
 try {
-  // Check if already logged in
+
   try {
     execSync("firebase projects:list", {
       stdio: "pipe",
@@ -21,7 +21,6 @@ try {
     });
   }
 
-  // List available projects
   console.log("\n📋 Available Firebase projects:");
   const projectsOutput = execSync("firebase projects:list", {
     encoding: "utf8",
@@ -30,7 +29,6 @@ try {
 
   console.log(projectsOutput);
 
-  // Check if veilastudio exists
   if (projectsOutput.includes("veilastudio")) {
     console.log("\n🎯 Found veilastudio project! Setting it as active...");
     execSync("firebase use veilastudio", {
@@ -48,7 +46,6 @@ try {
     console.log("3. Verify: firebase use");
     console.log("4. Deploy indexes: npm run deploy-indexes");
 
-    // Try to get current project
     try {
       const currentProject = execSync("firebase use", {
         encoding: "utf8",
@@ -62,7 +59,6 @@ try {
     process.exit(1);
   }
 
-  // Verify project is set
   console.log("\n✅ Current Firebase project:");
   execSync("firebase use", {
     stdio: "inherit",

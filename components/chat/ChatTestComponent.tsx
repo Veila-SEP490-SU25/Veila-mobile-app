@@ -86,7 +86,7 @@ export default function ChatTestComponent() {
   const testCreateNotification = async () => {
     setLoading(true);
     try {
-      // TODO: Implement notification creation
+
       const notificationId = "test-notification-123";
 
       Toast.show({
@@ -131,7 +131,7 @@ export default function ChatTestComponent() {
   const testGetNotifications = async () => {
     setLoading(true);
     try {
-      // TODO: Implement notification retrieval
+
       const notifications = ["test-notification-1", "test-notification-2"];
 
       Toast.show({

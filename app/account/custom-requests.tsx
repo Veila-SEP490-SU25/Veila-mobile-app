@@ -37,17 +37,15 @@ export default function CustomRequestsScreen() {
   const [page, setPage] = useState(0);
   const [hasNextPage, setHasNextPage] = useState(false);
 
-  // Search and filter states
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [selectedFilter, setSelectedFilter] = useState<FilterType>("ALL");
   const [selectedStatus, setSelectedStatus] = useState<StatusFilterType>("ALL");
 
-  // Debounce search query
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearchQuery(searchQuery);
-      setPage(0); // Reset to first page when searching
+      setPage(0);
     }, 500);
 
     return () => clearTimeout(timer);
@@ -62,7 +60,6 @@ export default function CustomRequestsScreen() {
 
         const currentPage = refresh ? 0 : page;
 
-        // Build filter string
         let filterString = "";
         const filters = [];
 
@@ -94,7 +91,6 @@ export default function CustomRequestsScreen() {
         if (response.statusCode === 200 || response.statusCode === 201) {
           let filteredItems = response.items;
 
-          // Client-side filtering for privacy if API doesn't support it
           if (selectedFilter === "PRIVATE") {
             filteredItems = response.items.filter(
               (item) => item.isPrivate === true
@@ -149,7 +145,7 @@ export default function CustomRequestsScreen() {
       text1: "Xác nhận xóa",
       text2: "Bạn có chắc chắn muốn xóa yêu cầu này?",
       onPress: () => {
-        // Show confirmation dialog
+
         Toast.show({
           type: "info",
           text1: "Xác nhận",

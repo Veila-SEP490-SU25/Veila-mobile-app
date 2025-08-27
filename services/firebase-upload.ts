@@ -44,14 +44,13 @@ export const pickImage = async (options?: {
   mediaTypes?: ImagePicker.MediaTypeOptions;
 }): Promise<string | null> => {
   try {
-    // Request permissions
+
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== "granted") {
       alert("Cần quyền truy cập thư viện ảnh để chọn ảnh");
       return null;
     }
 
-    // Launch image picker
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: options?.allowsEditing ?? true,
@@ -77,14 +76,13 @@ export const takePhoto = async (options?: {
   quality?: number;
 }): Promise<string | null> => {
   try {
-    // Request permissions
+
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== "granted") {
       alert("Cần quyền truy cập camera để chụp ảnh");
       return null;
     }
 
-    // Launch camera
     const result = await ImagePicker.launchCameraAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: options?.allowsEditing ?? true,

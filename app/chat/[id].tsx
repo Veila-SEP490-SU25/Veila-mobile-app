@@ -19,9 +19,8 @@ import { ChatMessage, ChatRoom } from "../../services/types";
 
 export default function ChatDetailScreen() {
   const router = useRouter();
-  const { user } = useAuth(); // Get user from AuthProvider
+  const { user } = useAuth();
 
-  // Safely get params with error handling
   let chatRoomId: string | null = null;
   let paramsError: string | null = null;
 
@@ -38,7 +37,7 @@ export default function ChatDetailScreen() {
 
   const [chatRoom, setChatRoom] = useState<ChatRoom | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  // Loading states
+
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -46,9 +45,6 @@ export default function ChatDetailScreen() {
   const [messageText, setMessageText] = useState("");
   const flatListRef = useRef<FlatList>(null);
 
-  // Remove debug logs
-
-  // Validate navigation context
   useEffect(() => {
     if (!router) {
       setError("Navigation context không khả dụng");
@@ -75,7 +71,6 @@ export default function ChatDetailScreen() {
     }
   }, [router, chatRoomId, user, paramsError]);
 
-  // Load chat room
   useEffect(() => {
     const loadChatRoom = async () => {
       try {
@@ -85,7 +80,6 @@ export default function ChatDetailScreen() {
           return;
         }
 
-        // Get chat room details
         const room = await ChatService.getChatRoom(chatRoomId);
         if (room) {
           setChatRoom(room);
@@ -101,7 +95,6 @@ export default function ChatDetailScreen() {
     loadChatRoom();
   }, [chatRoomId, router, user]);
 
-  // Subscribe to messages with improved error handling
   useEffect(() => {
     if (!chatRoomId || !router || !user) return;
 
@@ -112,7 +105,7 @@ export default function ChatDetailScreen() {
         unsubscribe = ChatService.subscribeToMessages(
           chatRoomId,
           (newMessages) => {
-            // If no messages, add test messages for UI testing
+
             if (newMessages.length === 0 && __DEV__) {
               const testMessages: ChatMessage[] = [
                 {
@@ -121,7 +114,7 @@ export default function ChatDetailScreen() {
                   senderId: "test-shop-id",
                   senderName: "Kshlerin - Ziemann",
                   content: "Chào bạn! Bạn cần tư vấn gì về váy cưới không?",
-                  timestamp: new Date(Date.now() - 300000), // 5 mins ago
+                  timestamp: new Date(Date.now() - 300000),
                   isRead: false,
                   type: "text",
                 },
@@ -132,7 +125,7 @@ export default function ChatDetailScreen() {
                   senderName: user?.firstName || "Khách hàng",
                   content:
                     "Xin chào shop! Tôi muốn xem váy cưới cho đám cưới tháng 12.",
-                  timestamp: new Date(Date.now() - 240000), // 4 mins ago
+                  timestamp: new Date(Date.now() - 240000),
                   isRead: true,
                   type: "text",
                 },
@@ -143,7 +136,7 @@ export default function ChatDetailScreen() {
                   senderName: "Kshlerin - Ziemann",
                   content:
                     "Tuyệt vời! Chúng tôi có nhiều mẫu váy đẹp phù hợp cho mùa đông. Bạn có kích thước và phong cách yêu thích không?",
-                  timestamp: new Date(Date.now() - 180000), // 3 mins ago
+                  timestamp: new Date(Date.now() - 180000),
                   isRead: false,
                   type: "text",
                 },
@@ -159,18 +152,17 @@ export default function ChatDetailScreen() {
         );
       } catch (error) {
         console.warn("Error setting up chat subscription:", error);
-        // Use fallback mode instead of showing error
+
         setLoading(false);
       }
     };
 
-    // Try to setup subscription with retry
     const retrySubscription = () => {
       try {
         setupSubscription();
       } catch (error) {
         console.warn("Retry subscription failed:", error);
-        // Continue with fallback mode
+
         setLoading(false);
       }
     };
@@ -188,14 +180,12 @@ export default function ChatDetailScreen() {
     };
   }, [chatRoomId, router, user]);
 
-  // Mark messages as read
   useEffect(() => {
     if (chatRoomId && user && router) {
       ChatService.markMessagesAsRead(chatRoomId, user.id);
     }
   }, [chatRoomId, user, router, messages]);
 
-  // Handle send message with improved error handling
   const handleSendMessage = useCallback(async () => {
     if (!messageText.trim() || !chatRoomId || !user || sending) return;
 
@@ -208,7 +198,6 @@ export default function ChatDetailScreen() {
         type: "text" as const,
       };
 
-      // Optimistic update
       const tempMessage: ChatMessage = {
         id: `temp-${Date.now()}`,
         chatRoomId,
@@ -224,7 +213,6 @@ export default function ChatDetailScreen() {
       setMessages((prev) => [...prev, tempMessage]);
       setMessageText("");
 
-      // Send to Firebase
       const success = await ChatService.sendMessage(
         {
           chatRoomId,
@@ -239,7 +227,7 @@ export default function ChatDetailScreen() {
       );
 
       if (!success) {
-        // Remove temp message if failed
+
         setMessages((prev) => prev.filter((msg) => msg.id !== tempMessage.id));
         setError("Không thể gửi tin nhắn. Vui lòng thử lại.");
       }
@@ -247,20 +235,18 @@ export default function ChatDetailScreen() {
       console.error("Error sending message:", error);
       setError("Lỗi gửi tin nhắn. Vui lòng thử lại.");
 
-      // Remove temp message
       setMessages((prev) => prev.filter((msg) => !msg.id.startsWith("temp-")));
     } finally {
       setSending(false);
     }
   }, [messageText, chatRoomId, user, sending]);
 
-  // Retry connection
   const handleRetry = useCallback(async () => {
     setRetrying(true);
     setError(null);
 
     try {
-      // Reload chat room
+
       if (chatRoomId && router && user) {
         const room = await ChatService.getChatRoom(chatRoomId);
         if (room) {
@@ -268,7 +254,6 @@ export default function ChatDetailScreen() {
         }
       }
 
-      // Reset loading state
       setLoading(false);
     } catch {
       setError("Không thể kết nối lại. Vui lòng thử lại sau.");
@@ -277,7 +262,6 @@ export default function ChatDetailScreen() {
     }
   }, [chatRoomId, router, user]);
 
-  // Render message with beautiful modern design
   const renderMessage = useCallback(
     ({ item }: { item: ChatMessage }) => {
       const isOwnMessage = item.senderId === user?.id;
@@ -365,7 +349,6 @@ export default function ChatDetailScreen() {
     [user?.id, user?.firstName]
   );
 
-  // Render header with improved UI and fixed layout
   const renderHeader = () => {
     if (!chatRoom || !user) return null;
 
@@ -439,7 +422,6 @@ export default function ChatDetailScreen() {
     );
   };
 
-  // Render input bar with beautiful modern design
   const renderInput = () => (
     <SafeAreaView
       className="bg-white border-t border-gray-100"
@@ -517,7 +499,6 @@ export default function ChatDetailScreen() {
     </SafeAreaView>
   );
 
-  // Render empty state with beautiful modern design
   const renderEmptyState = () => (
     <View className="flex-1 justify-center items-center px-6 py-20">
       {/* Beautiful icon container */}
@@ -581,16 +562,14 @@ export default function ChatDetailScreen() {
     </View>
   );
 
-  // Handle quick message selection
   const handleQuickMessage = (message: string) => {
     setMessageText(message);
-    // Auto-send after a short delay
+
     setTimeout(() => {
       handleSendMessage();
     }, 500);
   };
 
-  // Render typing indicator with beautiful design
   const renderTypingIndicator = () => (
     <View className="flex-row items-center p-4 bg-white rounded-2xl mx-4 mb-4 shadow-sm border border-gray-100">
       {/* Avatar */}

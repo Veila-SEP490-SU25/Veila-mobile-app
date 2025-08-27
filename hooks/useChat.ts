@@ -58,7 +58,6 @@ export const useChat = (userId: string, userType: "customer" | "shop") => {
         senderInfo
       );
 
-      // Create notification for the other party
       const chatRoom = chatRooms.find((room) => room.id === chatRoomId);
       if (chatRoom) {
         const otherPartyId =

@@ -1,40 +1,42 @@
 import React from "react";
 import { StyleSheet, Text, View } from "react-native";
-import { useNotifications } from "../../hooks/useNotifications";
+import { useNotificationContext } from "../../providers/notification.provider";
 
 interface NotificationBadgeProps {
-  userId: string;
   size?: "small" | "medium" | "large";
 }
 
 export default function NotificationBadge({
-  userId,
   size = "medium",
 }: NotificationBadgeProps) {
-  const { unreadCount } = useNotifications(userId);
+  try {
+    const { unreadCount } = useNotificationContext();
 
-  if (unreadCount === 0) {
+    if (!unreadCount || unreadCount === 0) {
+      return null;
+    }
+
+    const badgeSize = {
+      small: { width: 16, height: 16, fontSize: 10 },
+      medium: { width: 20, height: 20, fontSize: 12 },
+      large: { width: 24, height: 24, fontSize: 14 },
+    }[size];
+
+    return (
+      <View
+        style={[
+          styles.badge,
+          { width: badgeSize.width, height: badgeSize.height },
+        ]}
+      >
+        <Text style={[styles.badgeText, { fontSize: badgeSize.fontSize }]}>
+          {unreadCount > 99 ? "99+" : unreadCount.toString()}
+        </Text>
+      </View>
+    );
+  } catch (error) {
     return null;
   }
-
-  const badgeSize = {
-    small: { width: 16, height: 16, fontSize: 10 },
-    medium: { width: 20, height: 20, fontSize: 12 },
-    large: { width: 24, height: 24, fontSize: 14 },
-  }[size];
-
-  return (
-    <View
-      style={[
-        styles.badge,
-        { width: badgeSize.width, height: badgeSize.height },
-      ]}
-    >
-      <Text style={[styles.badgeText, { fontSize: badgeSize.fontSize }]}>
-        {unreadCount > 99 ? "99+" : unreadCount.toString()}
-      </Text>
-    </View>
-  );
 }
 
 const styles = StyleSheet.create({

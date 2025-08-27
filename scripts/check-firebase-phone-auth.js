@@ -10,7 +10,6 @@ const path = require("path");
 
 console.log("🔍 Kiểm tra Firebase Phone Authentication Configuration...\n");
 
-// 1. Kiểm tra app.json
 console.log("1️⃣ Kiểm tra app.json:");
 try {
   const appJson = JSON.parse(fs.readFileSync("app.json", "utf8"));
@@ -27,7 +26,6 @@ try {
   console.log("   ❌ Không thể đọc app.json:", error.message);
 }
 
-// 2. Kiểm tra app.config.js
 console.log("\n2️⃣ Kiểm tra app.config.js:");
 try {
   const appConfigContent = fs.readFileSync("app.config.js", "utf8");
@@ -49,7 +47,6 @@ try {
   console.log("   ❌ Không thể đọc app.config.js:", error.message);
 }
 
-// 3. Kiểm tra .env
 console.log("\n3️⃣ Kiểm tra .env file:");
 try {
   if (fs.existsSync(".env")) {
@@ -75,7 +72,6 @@ try {
   console.log("   ❌ Không thể đọc .env:", error.message);
 }
 
-// 4. Hướng dẫn fix Firebase Console
 console.log("\n🔧 HƯỚNG DẪN FIX FIREBASE CONSOLE:");
 console.log("1. Vào https://console.firebase.google.com/");
 console.log("2. Chọn project Veila");
@@ -87,13 +83,11 @@ console.log('7. Nếu chưa có app, click "Add app" → iOS');
 console.log("8. Nhập Bundle ID: com.veila.app");
 console.log("9. Download google-services.plist và thêm vào iOS project");
 
-// 5. Kiểm tra iOS project
 console.log("\n4️⃣ Kiểm tra iOS project:");
 const iosProjectPath = path.join(__dirname, "..", "ios");
 if (fs.existsSync(iosProjectPath)) {
   console.log("   ✅ iOS project tồn tại");
 
-  // Kiểm tra GoogleService-Info.plist
   const googleServicePath = path.join(
     iosProjectPath,
     "Veila",

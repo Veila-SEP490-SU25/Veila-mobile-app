@@ -60,7 +60,7 @@ export default function Home() {
   }, [fadeAnim, slideAnim]);
 
   useEffect(() => {
-    // Fetch wallet balance once for customer
+
     const loadWallet = async () => {
       if (!user || user.role !== "CUSTOMER") return;
       try {
@@ -169,7 +169,7 @@ export default function Home() {
   };
 
   const getPhoneVerification = () => {
-    // Derive from computed field if available, else fallback
+
     const status = user?.phoneVerificationStatus;
     if (status === "VERIFIED") {
       return {

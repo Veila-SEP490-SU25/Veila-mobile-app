@@ -131,7 +131,6 @@ export const authApi = createApi({
       }),
     }),
 
-    // Verify phone with Firebase Phone Auth
     verifyPhone: builder.mutation<
       IPhoneVerificationResponse,
       IPhoneVerification

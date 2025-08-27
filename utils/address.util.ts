@@ -23,9 +23,8 @@ export const parseAddressString = (
 
   const parts = addressString.split(",").map((part) => part.trim());
 
-  // Handle different address formats
   if (parts.length >= 4) {
-    // Full format: "Số nhà, đường, Phường/Xã, Quận/Huyện, Tỉnh/Thành"
+
     const [streetAddress, ward, district, province] = parts;
     return {
       streetAddress: streetAddress || "",
@@ -34,7 +33,7 @@ export const parseAddressString = (
       province: province || "",
     };
   } else if (parts.length === 3) {
-    // Short format: "Phường/Xã, Quận/Huyện, Tỉnh/Thành"
+
     const [ward, district, province] = parts;
     return {
       streetAddress: "",
@@ -43,7 +42,7 @@ export const parseAddressString = (
       province: province || "",
     };
   } else if (parts.length === 2) {
-    // Very short format: "Quận/Huyện, Tỉnh/Thành"
+
     const [district, province] = parts;
     return {
       streetAddress: "",
@@ -52,7 +51,7 @@ export const parseAddressString = (
       province: province || "",
     };
   } else if (parts.length === 1) {
-    // Single part: "Tỉnh/Thành" or full address
+
     return {
       streetAddress: "",
       ward: "",

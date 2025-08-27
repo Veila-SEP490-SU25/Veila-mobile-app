@@ -11,7 +11,7 @@ module.exports = [
       parser: typescriptParser,
       parserOptions: {
         project: "./tsconfig.json",
-        tsconfigRootDir: __dirname, // Thêm để tránh lỗi parser không tìm thấy tsconfig khi dùng monorepo / expo
+        tsconfigRootDir: __dirname,
         ecmaVersion: "latest",
         sourceType: "module",
         ecmaFeatures: {
@@ -26,16 +26,14 @@ module.exports = [
       import: importPlugin,
     },
     rules: {
-      // React & Hooks
+
       "react/jsx-uses-react": "off",
       "react/react-in-jsx-scope": "off",
       "react-hooks/rules-of-hooks": "error",
       "react-hooks/exhaustive-deps": "warn",
 
-      // Import rules
-      "import/no-unresolved": "off", // Tắt nếu hay bị lỗi do Expo alias
+      "import/no-unresolved": "off",
 
-      // TypeScript rules (có thể mở rộng thêm)
       "@typescript-eslint/no-unused-vars": [
         "warn",
         { argsIgnorePattern: "^_" },

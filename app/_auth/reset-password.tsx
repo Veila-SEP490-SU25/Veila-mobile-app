@@ -52,7 +52,7 @@ export default function ResetPasswordScreen() {
   }, [isRunning, timer]);
 
   const validatePassword = (password: string) => {
-    // Kiểm tra mật khẩu có ít nhất 8 ký tự, có chữ hoa, chữ thường, số và ký tự đặc biệt
+
     const minLength = password.length >= 8;
     const hasUpperCase = /[A-Z]/.test(password);
     const hasLowerCase = /[a-z]/.test(password);

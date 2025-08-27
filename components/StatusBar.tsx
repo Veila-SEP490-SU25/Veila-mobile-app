@@ -39,7 +39,6 @@ export default function StatusBar({
   );
 }
 
-// Predefined status bar styles for common use cases
 export const LightStatusBar = () => (
   <StatusBar barStyle="light-content" backgroundColor="#E05C78" />
 );

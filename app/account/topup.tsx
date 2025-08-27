@@ -25,7 +25,7 @@ export default function TopupScreen() {
   const formatAmountInput = (value: string) => value.replace(/[^0-9]/g, "");
 
   const handleTopup = async () => {
-    // Check phone verification first
+
     if (!user?.isIdentified) {
       Toast.show({
         type: "warning",
