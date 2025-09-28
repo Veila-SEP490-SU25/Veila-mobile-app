@@ -51,6 +51,12 @@ export default function CustomRequestsScreen() {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
+  useEffect(() => {
+    setPage(0);
+    setRequests([]);
+    setHasNextPage(false);
+  }, [selectedFilter, selectedStatus]);
+
   const loadRequests = useCallback(
     async (refresh = false) => {
       try {
@@ -67,14 +73,8 @@ export default function CustomRequestsScreen() {
           filters.push(`title:like:${debouncedSearchQuery.trim()}`);
         }
 
-        if (selectedFilter === "PRIVATE") {
-          filters.push("isPrivate:eq:true");
-        } else if (selectedFilter === "PUBLIC") {
-          filters.push("isPrivate:eq:false");
-        }
-
         if (selectedStatus !== "ALL") {
-          filters.push(`status:eq:${selectedStatus}`);
+          filters.push(`status:${selectedStatus}`);
         }
 
         if (filters.length > 0) {
@@ -145,7 +145,6 @@ export default function CustomRequestsScreen() {
       text1: "Xác nhận xóa",
       text2: "Bạn có chắc chắn muốn xóa yêu cầu này?",
       onPress: () => {
-
         Toast.show({
           type: "info",
           text1: "Xác nhận",
@@ -316,7 +315,7 @@ export default function CustomRequestsScreen() {
           </View>
         </View>
 
-        <View className="flex-row space-x-2">
+        <View className="flex-row gap-x-2">
           <View className="flex-1">
             <Button
               title="Xem chi tiết"

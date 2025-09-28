@@ -5,6 +5,7 @@ import {
   getDocs,
   limit,
   onSnapshot,
+  orderBy,
   query,
   serverTimestamp,
   updateDoc,
@@ -94,8 +95,6 @@ export class NotificationService {
 
   async getUnreadCount(userId: string): Promise<number> {
     if (this.isDevelopmentMode()) {
-      if (__DEV__) {
-      }
       return this.mockNotifications.filter((n) => !n.isRead).length;
     }
 
@@ -111,11 +110,50 @@ export class NotificationService {
       );
       const snapshot = await getDocs(q);
       return snapshot.size;
-    } catch (error) {
-      if (__DEV__) {
-        console.error("Error getting unread count:", error);
-      }
+    } catch {
       return 0;
+    }
+  }
+
+  async getNotifications(userId: string): Promise<Notification[]> {
+    if (this.isDevelopmentMode()) {
+      return this.mockNotifications;
+    }
+
+    if (!db) {
+      throw new Error("Firestore not available");
+    }
+
+    try {
+      const notificationsRef = collection(db, "notifications");
+      const q = query(
+        notificationsRef,
+        where("userId", "==", userId),
+        orderBy("timestamp", "desc"),
+        limit(50)
+      );
+
+      const querySnapshot = await getDocs(q);
+      const notifications: Notification[] = [];
+
+      querySnapshot.forEach((doc) => {
+        const data = doc.data() as any;
+        notifications.push({
+          id: doc.id,
+          userId: data.userId,
+          title: data.title,
+          body: data.body,
+          type: data.type,
+          isRead: data.isRead || false,
+          timestamp: data.timestamp?.toDate() || new Date(),
+          data: data.data || {},
+        });
+      });
+
+      return notifications;
+    } catch (error) {
+      console.error("Error fetching notifications:", error);
+      throw new Error("Không thể tải thông báo");
     }
   }
 
@@ -124,10 +162,7 @@ export class NotificationService {
     callback: (notifications: Notification[]) => void
   ): () => void {
     if (this.isDevelopmentMode()) {
-      if (__DEV__) {
-      }
       callback(this.mockNotifications);
-
       return () => {};
     }
 
@@ -168,10 +203,7 @@ export class NotificationService {
             });
 
             callback(notifications);
-          } catch (error) {
-            if (__DEV__) {
-              console.error("Error processing notifications:", error);
-            }
+          } catch {
             callback([]);
           }
         },
@@ -187,10 +219,7 @@ export class NotificationService {
           this.unsubscribeFn = null;
         }
       };
-    } catch (error) {
-      if (__DEV__) {
-        console.error("Error setting up notifications subscription:", error);
-      }
+    } catch {
       callback([]);
       return () => {};
     }
@@ -212,9 +241,6 @@ export class NotificationService {
         updatedAt: serverTimestamp(),
       });
     } catch (error) {
-      if (__DEV__) {
-        console.error("Error marking notification as read:", error);
-      }
       throw error;
     }
   }
@@ -245,9 +271,6 @@ export class NotificationService {
 
       await Promise.all(updatePromises);
     } catch (error) {
-      if (__DEV__) {
-        console.error("Error marking all notifications as read:", error);
-      }
       throw error;
     }
   }
@@ -271,9 +294,6 @@ export class NotificationService {
       });
       return docRef.id;
     } catch (error) {
-      if (__DEV__) {
-        console.error("Error creating notification:", error);
-      }
       throw error;
     }
   }
@@ -373,9 +393,6 @@ export class NotificationService {
       }
       return null;
     } catch (error) {
-      if (__DEV__) {
-        console.error("Error getting notification settings:", error);
-      }
       throw error;
     }
   }
@@ -397,9 +414,6 @@ export class NotificationService {
       });
       return docRef.id;
     } catch (error) {
-      if (__DEV__) {
-        console.error("Error creating notification settings:", error);
-      }
       throw error;
     }
   }
@@ -432,9 +446,6 @@ export class NotificationService {
         });
       }
     } catch (error) {
-      if (__DEV__) {
-        console.error("Error updating notification settings:", error);
-      }
       throw error;
     }
   }
@@ -463,9 +474,6 @@ export class NotificationService {
         deletedAt: serverTimestamp(),
       });
     } catch (error) {
-      if (__DEV__) {
-        console.error("Error deleting notification:", error);
-      }
       throw error;
     }
   }

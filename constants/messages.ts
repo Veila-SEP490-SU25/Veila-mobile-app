@@ -11,7 +11,6 @@ export interface MessageConfig {
 }
 
 export const MESSAGES: Record<string, MessageConfig> = {
-
   SSM001: {
     code: "SSM001",
     type: "system",
@@ -217,16 +216,10 @@ export const MESSAGES: Record<string, MessageConfig> = {
   },
 };
 
-/**
- * Get message by code
- */
 export const getMessage = (code: string): MessageConfig | null => {
   return MESSAGES[code] || null;
 };
 
-/**
- * Get message content by code
- */
 export const getMessageContent = (code: string, fallback?: string): string => {
   return MESSAGES[code]?.content || fallback || `Message not found: ${code}`;
 };

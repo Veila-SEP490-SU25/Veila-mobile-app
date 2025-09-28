@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { checkFirestoreConnection } from "../services/firebase";
 
 export const useNetworkStatus = () => {
-  const [isOnline, setIsOnline] = useState(__DEV__ ? false : true);
+  const [isOnline, setIsOnline] = useState(true); // Mặc định online
   const [isChecking, setIsChecking] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const isMountedRef = useRef(true);
@@ -10,9 +10,10 @@ export const useNetworkStatus = () => {
   const checkConnection = useCallback(async () => {
     if (!isMountedRef.current) return;
 
+    // Trong development mode, luôn coi như online
     if (__DEV__) {
       if (isMountedRef.current) {
-        setIsOnline(false);
+        setIsOnline(true);
         setIsChecking(false);
       }
       return;
@@ -41,8 +42,8 @@ export const useNetworkStatus = () => {
 
     checkConnection();
 
+    // Chỉ check connection mỗi phút trong production mode
     if (!__DEV__) {
-
       intervalRef.current = setInterval(checkConnection, 60000);
     }
 

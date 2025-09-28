@@ -2,16 +2,18 @@ import { Ionicons } from "@expo/vector-icons";
 import { formatDistanceToNow } from "date-fns";
 import { vi } from "date-fns/locale";
 import { useRouter } from "expo-router";
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
+  RefreshControl,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
-import { useNotifications } from "../../hooks/useNotifications";
+import { useNotificationContext } from "../../providers/notification.provider";
+import { NotificationService } from "../../services/notification.service";
 import { Notification } from "../../services/types";
 
 interface NotificationListProps {
@@ -19,11 +21,56 @@ interface NotificationListProps {
 }
 
 export default function NotificationList({ userId }: NotificationListProps) {
-  const { notifications, loading, markAsRead } = useNotifications(userId);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const { refresh, unreadCount } = useNotificationContext();
   const router = useRouter();
 
-  const handleNotificationPress = async (notification: Notification) => {
+  useEffect(() => {
+    loadNotifications();
+  }, [userId]);
 
+  const loadNotifications = async () => {
+    if (!userId) return;
+
+    setLoading(true);
+    try {
+      const notificationService = NotificationService.getInstance();
+      const data = await notificationService.getNotifications(userId);
+      setNotifications(data);
+    } catch (error) {
+      console.error("Error loading notifications:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await refresh();
+      await loadNotifications();
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  const markAsRead = async (notificationId: string) => {
+    try {
+      const notificationService = NotificationService.getInstance();
+      await notificationService.markAsRead(notificationId);
+
+      // Update local state
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === notificationId ? { ...n, isRead: true } : n))
+      );
+    } catch (error) {
+      console.error("Error marking notification as read:", error);
+    }
+  };
+
+  const handleNotificationPress = async (notification: Notification) => {
     if (!notification.isRead) {
       await markAsRead(notification.id);
     }
@@ -53,15 +100,15 @@ export default function NotificationList({ userId }: NotificationListProps) {
   const getNotificationColor = (type: Notification["type"]) => {
     switch (type) {
       case "chat":
-        return "#007AFF";
+        return "#3B82F6";
       case "order":
-        return "#34C759";
+        return "#10B981";
       case "promotion":
-        return "#FF9500";
+        return "#F59E0B";
       case "system":
-        return "#FF3B30";
+        return "#E05C78";
       default:
-        return "#8E8E93";
+        return "#6B7280";
     }
   };
 
@@ -108,19 +155,28 @@ export default function NotificationList({ userId }: NotificationListProps) {
     );
   };
 
-  if (loading) {
+  if (loading && notifications.length === 0) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#007AFF" />
-        <Text style={styles.loadingText}>Đang tải thông báo...</Text>
+        <View style={styles.loadingIconContainer}>
+          <ActivityIndicator size="large" color="#E05C78" />
+        </View>
+        <Text style={styles.loadingTitle}>Đang tải thông báo...</Text>
+        <Text style={styles.loadingText}>Vui lòng chờ trong giây lát</Text>
       </View>
     );
   }
 
-  if (notifications.length === 0) {
+  if (notifications.length === 0 && !loading) {
     return (
       <View style={styles.emptyContainer}>
-        <Ionicons name="notifications-off-outline" size={64} color="#8E8E93" />
+        <View style={styles.emptyIconContainer}>
+          <Ionicons
+            name="notifications-off-outline"
+            size={64}
+            color="#9CA3AF"
+          />
+        </View>
         <Text style={styles.emptyTitle}>Không có thông báo</Text>
         <Text style={styles.emptyText}>
           Bạn sẽ nhận được thông báo khi có tin nhắn mới, đơn hàng hoặc cập nhật
@@ -136,8 +192,19 @@ export default function NotificationList({ userId }: NotificationListProps) {
       renderItem={renderNotification}
       keyExtractor={(item) => item.id}
       style={styles.container}
-      contentContainerStyle={styles.contentContainer}
+      contentContainerStyle={[
+        styles.contentContainer,
+        notifications.length === 0 && styles.emptyContentContainer,
+      ]}
       showsVerticalScrollIndicator={false}
+      refreshControl={
+        <RefreshControl
+          refreshing={isRefreshing}
+          onRefresh={handleRefresh}
+          colors={["#E05C78"]}
+          tintColor="#E05C78"
+        />
+      }
     />
   );
 }
@@ -145,57 +212,90 @@ export default function NotificationList({ userId }: NotificationListProps) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F2F2F7",
+    backgroundColor: "#F9FAFB",
   },
   contentContainer: {
     padding: 16,
+    paddingBottom: 32,
+  },
+  emptyContentContainer: {
+    flexGrow: 1,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#F2F2F7",
+    backgroundColor: "#F9FAFB",
+    paddingHorizontal: 32,
+  },
+  loadingIconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: "#FFE4E9",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 16,
+  },
+  loadingTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#1F2937",
+    marginBottom: 4,
   },
   loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: "#8E8E93",
+    fontSize: 14,
+    color: "#6B7280",
+    textAlign: "center",
   },
   emptyContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#F2F2F7",
+    backgroundColor: "#F9FAFB",
     paddingHorizontal: 32,
+  },
+  emptyIconContainer: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: "#F3F4F6",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 24,
   },
   emptyTitle: {
     fontSize: 20,
-    fontWeight: "600",
-    color: "#1C1C1E",
-    marginTop: 16,
+    fontWeight: "700",
+    color: "#1F2937",
     marginBottom: 8,
+    textAlign: "center",
   },
   emptyText: {
     fontSize: 16,
-    color: "#8E8E93",
+    color: "#6B7280",
     textAlign: "center",
-    lineHeight: 22,
+    lineHeight: 24,
+    maxWidth: 280,
   },
   notificationItem: {
     flexDirection: "row",
     backgroundColor: "#FFFFFF",
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 16,
     marginBottom: 12,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
     elevation: 3,
+    borderWidth: 1,
+    borderColor: "#F3F4F6",
   },
   unreadNotification: {
     borderLeftWidth: 4,
-    borderLeftColor: "#007AFF",
+    borderLeftColor: "#E05C78",
+    backgroundColor: "#FEFEFE",
   },
   iconContainer: {
     marginRight: 16,
@@ -213,24 +313,27 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#1C1C1E",
+    color: "#1F2937",
     marginBottom: 4,
+    lineHeight: 22,
   },
   body: {
     fontSize: 14,
-    color: "#8E8E93",
+    color: "#6B7280",
     marginBottom: 8,
     lineHeight: 20,
   },
   timestamp: {
     fontSize: 12,
-    color: "#8E8E93",
+    color: "#9CA3AF",
+    fontWeight: "500",
   },
   unreadDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: "#007AFF",
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: "#E05C78",
     alignSelf: "center",
+    marginLeft: 8,
   },
 });

@@ -68,7 +68,6 @@ const mockChatRooms: ChatRoom[] = [
 ];
 
 export class ChatService {
-
   private static isDevelopmentMode() {
     return !db;
   }
@@ -97,7 +96,6 @@ export class ChatService {
     shopId: string
   ): Promise<string | null> {
     if (this.isDevelopmentMode()) {
-
       return mockChatRooms[0]?.id || null;
     }
 
@@ -130,7 +128,6 @@ export class ChatService {
     chatRoom: Omit<ChatRoom, "id" | "createdAt" | "updatedAt">
   ): Promise<string> {
     if (this.isDevelopmentMode()) {
-
       console.log("Development mode: Mock chat room created");
       return "mock-chat-room-1";
     }
@@ -197,7 +194,6 @@ export class ChatService {
     userType: "customer" | "shop"
   ): Promise<ChatRoom[]> {
     if (this.isDevelopmentMode()) {
-
       console.log("Development mode: Returning mock chat rooms");
       return mockChatRooms;
     }
@@ -223,7 +219,7 @@ export class ChatService {
         updatedAt: doc.data().updatedAt?.toDate(),
         lastMessageTime: doc.data().lastMessageTime?.toDate(),
       })) as ChatRoom[];
-    } catch (error: any) {
+    } catch {
       console.warn("Firestore index not ready, using fallback query");
 
       try {
@@ -265,7 +261,6 @@ export class ChatService {
     callback: (chatRooms: ChatRoom[]) => void
   ) {
     if (this.isDevelopmentMode()) {
-
       console.log("Development mode: Mock chat rooms subscription");
       callback(mockChatRooms);
 
@@ -282,6 +277,76 @@ export class ChatService {
 
       const field = userType === "customer" ? "customerId" : "shopId";
 
+      // Thử query với orderBy trước
+      try {
+        const q = query(
+          collection(db, "chatRooms"),
+          where(field, "==", userId),
+          orderBy("updatedAt", "desc")
+        );
+
+        return onSnapshot(
+          q,
+          (querySnapshot) => {
+            try {
+              const chatRooms = querySnapshot.docs.map((doc) => ({
+                id: doc.id,
+                ...doc.data(),
+                createdAt: doc.data().createdAt?.toDate(),
+                updatedAt: doc.data().updatedAt?.toDate(),
+                lastMessageTime: doc.data().lastMessageTime?.toDate(),
+              })) as ChatRoom[];
+
+              callback(chatRooms);
+            } catch (error) {
+              console.warn("Error processing chat rooms data:", error);
+              callback([]);
+            }
+          },
+          (error: any) => {
+            console.warn(
+              "Error in chat rooms subscription with orderBy:",
+              error
+            );
+
+            if (error.code === "failed-precondition") {
+              console.warn(
+                "Firestore index not ready, using fallback subscription"
+              );
+              // Fallback: query không có orderBy
+              this.setupFallbackSubscription(userId, userType, field, callback);
+            } else if (error.code === "unavailable") {
+              console.warn("Firestore unavailable, using offline mode");
+              callback([]);
+            } else {
+              console.warn("Unknown error in subscription:", error);
+              callback([]);
+            }
+          }
+        );
+      } catch (error) {
+        console.warn("Error setting up orderBy subscription:", error);
+        // Fallback: query không có orderBy
+        return this.setupFallbackSubscription(
+          userId,
+          userType,
+          field,
+          callback
+        );
+      }
+    } catch (error) {
+      console.warn("Error setting up chat rooms subscription:", error);
+      return () => {};
+    }
+  }
+
+  private static setupFallbackSubscription(
+    userId: string,
+    userType: "customer" | "shop",
+    field: string,
+    callback: (chatRooms: ChatRoom[]) => void
+  ) {
+    try {
       const q = query(collection(db, "chatRooms"), where(field, "==", userId));
 
       return onSnapshot(
@@ -296,6 +361,7 @@ export class ChatService {
               lastMessageTime: doc.data().lastMessageTime?.toDate(),
             })) as ChatRoom[];
 
+            // Sort manually vì không có orderBy
             const sortedChatRooms = chatRooms.sort((a, b) => {
               const dateA = a.updatedAt || a.createdAt || new Date(0);
               const dateB = b.updatedAt || b.createdAt || new Date(0);
@@ -304,31 +370,17 @@ export class ChatService {
 
             callback(sortedChatRooms);
           } catch (error) {
-            console.warn("Error processing chat rooms data:", error);
+            console.warn("Error processing fallback chat rooms data:", error);
             callback([]);
           }
         },
         (error: any) => {
-          console.warn("Error in chat rooms subscription:", error);
-
-          if (error.code === "failed-precondition") {
-            console.warn(
-              "Firestore index not ready, using fallback subscription"
-            );
-
-            callback([]);
-          } else if (error.code === "unavailable") {
-            console.warn("Firestore unavailable, using offline mode");
-            callback([]);
-          } else {
-            console.warn("Unknown error in subscription:", error);
-            callback([]);
-          }
+          console.warn("Error in fallback subscription:", error);
+          callback([]);
         }
       );
     } catch (error) {
-      console.warn("Error setting up chat rooms subscription:", error);
-
+      console.warn("Error setting up fallback subscription:", error);
       return () => {};
     }
   }
@@ -388,6 +440,27 @@ export class ChatService {
       console.error("Error sending message:", error);
       throw new Error("Không thể gửi tin nhắn. Vui lòng thử lại.");
     }
+  }
+
+  static async sendImageMessage(
+    chatRoomId: string,
+    imageUrl: string,
+    senderInfo: {
+      senderId: string;
+      senderName: string;
+      senderAvatar?: string;
+    },
+    caption?: string
+  ): Promise<string> {
+    return this.sendMessage(
+      {
+        chatRoomId,
+        content: caption || "Hình ảnh",
+        type: "image",
+        imageUrl,
+      },
+      senderInfo
+    );
   }
 
   static async getMessages(
@@ -573,9 +646,8 @@ export class ChatService {
 
         await this.updateChatRoomUnreadCount(chatRoomId, userId);
       }
-    } catch (error) {
-      console.warn("Error marking messages as read:", error);
-
+    } catch {
+      console.warn("Error marking messages as read");
     }
   }
 
@@ -597,7 +669,6 @@ export class ChatService {
       const chatRoomDoc = await getDoc(chatRoomRef);
 
       if (chatRoomDoc.exists()) {
-
         await updateDoc(chatRoomRef, {
           unreadCount: 0,
           updatedAt: serverTimestamp(),
@@ -607,7 +678,6 @@ export class ChatService {
       }
     } catch (error) {
       console.warn("Error updating chat room unread count:", error);
-
     }
   }
 
@@ -654,7 +724,6 @@ export class ChatService {
       }
     } catch (error) {
       console.warn("Error updating chat room last message:", error);
-
     }
   }
 

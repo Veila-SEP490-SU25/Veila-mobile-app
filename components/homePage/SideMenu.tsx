@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import React, { useEffect, useRef, useCallback } from "react";
+import React, { useEffect, useRef } from "react";
 import {
   Animated,
   Dimensions,
@@ -89,7 +89,7 @@ const supportItems: MenuItem[] = [
     label: "Về Veila",
     subtitle: "Thông tin ứng dụng",
     icon: "information-circle-outline",
-    route: "/_tab/home",
+    route: "/_auth/about",
     color: "#8B5CF6",
   },
 ];
@@ -106,7 +106,6 @@ export default function SideMenu({
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-
     const openAnimation = Animated.parallel([
       Animated.timing(slideAnim, {
         toValue: 0,
@@ -125,10 +124,9 @@ export default function SideMenu({
     return () => {
       openAnimation.stop();
     };
-  }, []);
+  }, [fadeAnim, slideAnim]);
 
   const handleClose = () => {
-
     const closeAnimation = Animated.parallel([
       Animated.timing(slideAnim, {
         toValue: -screenWidth,

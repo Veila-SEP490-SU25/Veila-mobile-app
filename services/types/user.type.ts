@@ -44,4 +44,6 @@ export interface IUser {
   deletedAt?: string;
 
   phoneVerificationStatus?: PhoneVerificationStatus;
+  favDresses?: string[];
+  favShops?: string[];
 }

@@ -66,15 +66,24 @@ export const disableFirestoreNetwork = async () => {
 
 export const checkFirestoreConnection = async () => {
   if (!db) {
+    console.warn("Firestore not initialized");
     return false;
   }
+
   try {
+    // Kiểm tra kết nối bằng cách thực hiện một operation đơn giản
     await enableNetwork(db);
+
+    // Trong development mode, luôn trả về true
+    if (__DEV__) {
+      return true;
+    }
+
     return true;
   } catch (error) {
     console.warn("Firestore connection check failed:", error);
+    return false;
   }
-  return false;
 };
 
 export const checkFirebaseAuthStatus = () => {

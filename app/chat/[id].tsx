@@ -6,6 +6,7 @@ import {
   FlatList,
   Image,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   Text,
   TextInput,
@@ -13,8 +14,10 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import ImagePicker from "../../components/chat/ImagePicker";
 import { useAuth } from "../../providers/auth.provider";
 import { ChatService } from "../../services/chat.service";
+import { uploadImageToFirebase } from "../../services/firebase-upload";
 import { ChatMessage, ChatRoom } from "../../services/types";
 
 export default function ChatDetailScreen() {
@@ -30,8 +33,7 @@ export default function ChatDetailScreen() {
     if (!chatRoomId) {
       paramsError = "Không thể tìm thấy ID phòng chat";
     }
-  } catch (error) {
-    console.error("Navigation context error:", error);
+  } catch {
     paramsError = "Lỗi navigation context";
   }
 
@@ -43,6 +45,7 @@ export default function ChatDetailScreen() {
   const [error, setError] = useState<string | null>(null);
   const [retrying, setRetrying] = useState(false);
   const [messageText, setMessageText] = useState("");
+  const [showImagePicker, setShowImagePicker] = useState(false);
   const flatListRef = useRef<FlatList>(null);
 
   useEffect(() => {
@@ -86,8 +89,7 @@ export default function ChatDetailScreen() {
         } else {
           setError("Không thể tìm thấy phòng chat");
         }
-      } catch (error) {
-        console.error("Error loading chat room:", error);
+      } catch {
         setError("Không thể tải thông tin chat");
       }
     };
@@ -105,8 +107,7 @@ export default function ChatDetailScreen() {
         unsubscribe = ChatService.subscribeToMessages(
           chatRoomId,
           (newMessages) => {
-
-            if (newMessages.length === 0 && __DEV__) {
+            if (newMessages.length === 0) {
               const testMessages: ChatMessage[] = [
                 {
                   id: "test-1",
@@ -150,9 +151,7 @@ export default function ChatDetailScreen() {
             setError(null);
           }
         );
-      } catch (error) {
-        console.warn("Error setting up chat subscription:", error);
-
+      } catch {
         setLoading(false);
       }
     };
@@ -160,9 +159,7 @@ export default function ChatDetailScreen() {
     const retrySubscription = () => {
       try {
         setupSubscription();
-      } catch (error) {
-        console.warn("Retry subscription failed:", error);
-
+      } catch {
         setLoading(false);
       }
     };
@@ -173,8 +170,8 @@ export default function ChatDetailScreen() {
       if (unsubscribe) {
         try {
           unsubscribe();
-        } catch (error) {
-          console.warn("Error unsubscribing:", error);
+        } catch {
+          // Unsubscribe error handled silently
         }
       }
     };
@@ -227,26 +224,82 @@ export default function ChatDetailScreen() {
       );
 
       if (!success) {
-
         setMessages((prev) => prev.filter((msg) => msg.id !== tempMessage.id));
         setError("Không thể gửi tin nhắn. Vui lòng thử lại.");
       }
-    } catch (error) {
-      console.error("Error sending message:", error);
+    } catch {
       setError("Lỗi gửi tin nhắn. Vui lòng thử lại.");
-
       setMessages((prev) => prev.filter((msg) => !msg.id.startsWith("temp-")));
     } finally {
       setSending(false);
     }
   }, [messageText, chatRoomId, user, sending]);
 
+  const handleSendImage = useCallback(
+    async (imageUri: string, caption?: string) => {
+      if (!chatRoomId || !user || sending) return;
+
+      try {
+        setSending(true);
+        setError(null);
+
+        // Upload ảnh qua API /upload để lấy URL công khai
+        const upload = await uploadImageToFirebase(imageUri, "chat");
+        if (!upload.success || !upload.url) {
+          throw new Error(upload.error || "Không thể tải ảnh lên");
+        }
+
+        const finalImageUrl = upload.url;
+
+        const tempMessage: ChatMessage = {
+          id: `temp-${Date.now()}`,
+          chatRoomId,
+          senderId: user.id,
+          senderName: user.firstName || "Khách hàng",
+          senderAvatar: user.avatarUrl,
+          content: caption || "Hình ảnh",
+          timestamp: new Date(),
+          isRead: false,
+          type: "image",
+          imageUrl: finalImageUrl,
+        };
+
+        setMessages((prev) => [...prev, tempMessage]);
+
+        const success = await ChatService.sendImageMessage(
+          chatRoomId,
+          finalImageUrl,
+          {
+            senderId: user.id,
+            senderName: user.firstName || "Khách hàng",
+            senderAvatar: user.avatarUrl,
+          },
+          caption
+        );
+
+        if (!success) {
+          setMessages((prev) =>
+            prev.filter((msg) => msg.id !== tempMessage.id)
+          );
+          setError("Không thể gửi hình ảnh. Vui lòng thử lại.");
+        }
+      } catch {
+        setError("Lỗi gửi hình ảnh. Vui lòng thử lại.");
+        setMessages((prev) =>
+          prev.filter((msg) => !msg.id.startsWith("temp-"))
+        );
+      } finally {
+        setSending(false);
+      }
+    },
+    [chatRoomId, user, sending]
+  );
+
   const handleRetry = useCallback(async () => {
     setRetrying(true);
     setError(null);
 
     try {
-
       if (chatRoomId && router && user) {
         const room = await ChatService.getChatRoom(chatRoomId);
         if (room) {
@@ -302,15 +355,41 @@ export default function ChatDetailScreen() {
               </Text>
             )}
 
-            {/* Message content with proper text wrapping */}
-            <Text
-              className={`text-base leading-6 ${
-                isOwnMessage ? "text-white" : "text-gray-900"
-              }`}
-              style={{ textAlign: "left" }}
-            >
-              {item.content}
-            </Text>
+            {/* Message content */}
+            {item.type === "image" ? (
+              <View>
+                <Image
+                  source={{ uri: item.imageUrl }}
+                  style={{
+                    width: 200,
+                    height: 150,
+                    borderRadius: 8,
+                    marginBottom:
+                      item.content && item.content !== "Hình ảnh" ? 8 : 0,
+                  }}
+                  resizeMode="cover"
+                />
+                {item.content && item.content !== "Hình ảnh" && (
+                  <Text
+                    className={`text-base leading-6 ${
+                      isOwnMessage ? "text-white" : "text-gray-900"
+                    }`}
+                    style={{ textAlign: "left" }}
+                  >
+                    {item.content}
+                  </Text>
+                )}
+              </View>
+            ) : (
+              <Text
+                className={`text-base leading-6 ${
+                  isOwnMessage ? "text-white" : "text-gray-900"
+                }`}
+                style={{ textAlign: "left" }}
+              >
+                {item.content}
+              </Text>
+            )}
 
             {/* Message time and status */}
             <View className="flex-row items-center justify-between mt-3">
@@ -363,9 +442,8 @@ export default function ChatDetailScreen() {
         : chatRoom.customerAvatar;
 
     return (
-      <SafeAreaView className="bg-white border-b border-gray-200 shadow-sm">
-        <View className="flex-row items-center p-4">
-          {/* Back button */}
+      <View className="bg-white border-b border-gray-200 shadow-sm pt-20">
+        <View className="flex-row items-center px-4 py-3">
           <TouchableOpacity
             className="mr-3 p-2 rounded-full bg-gray-100"
             onPress={() => router.back()}
@@ -374,7 +452,6 @@ export default function ChatDetailScreen() {
             <Ionicons name="arrow-back" size={20} color="#333" />
           </TouchableOpacity>
 
-          {/* User info with fixed layout */}
           <View className="flex-1 flex-row items-center min-w-0">
             {otherPartyAvatar ? (
               <Image
@@ -390,7 +467,6 @@ export default function ChatDetailScreen() {
               </View>
             )}
 
-            {/* User details with proper text wrapping */}
             <View className="flex-1 min-w-0">
               <Text
                 className="text-lg font-semibold text-gray-800 mb-1"
@@ -409,16 +485,15 @@ export default function ChatDetailScreen() {
             </View>
           </View>
 
-          {/* Menu button */}
           <TouchableOpacity
             className="ml-3 p-2 rounded-full bg-gray-100"
-            onPress={() => console.log("Menu pressed")}
+            onPress={() => {}}
             activeOpacity={0.7}
           >
             <Ionicons name="ellipsis-vertical" size={20} color="#333" />
           </TouchableOpacity>
         </View>
-      </SafeAreaView>
+      </View>
     );
   };
 
@@ -427,7 +502,6 @@ export default function ChatDetailScreen() {
       className="bg-white border-t border-gray-100"
       edges={["bottom"]}
     >
-      {/* Error banner if there's an error */}
       {error && (
         <View className="bg-red-50 border border-red-200 rounded-xl mx-4 mb-3 mt-2">
           <View className="flex-row items-center p-3">
@@ -448,13 +522,13 @@ export default function ChatDetailScreen() {
       )}
 
       <View className="flex-row items-center p-4 space-x-3">
-        {/* Attachment button with modern design */}
+        {/* Image picker button */}
         <TouchableOpacity
-          className="w-12 h-12 rounded-full bg-gradient-to-r from-gray-100 to-gray-200 items-center justify-center shadow-sm"
-          onPress={() => console.log("Attachment pressed")}
+          className="w-12 h-12 rounded-full bg-gradient-to-r from-pink-100 to-pink-200 items-center justify-center shadow-sm"
+          onPress={() => setShowImagePicker(true)}
           activeOpacity={0.7}
         >
-          <Ionicons name="add" size={24} color="#666" />
+          <Ionicons name="camera" size={24} color="#E05C78" />
         </TouchableOpacity>
 
         {/* Message input with modern styling */}
@@ -476,11 +550,10 @@ export default function ChatDetailScreen() {
 
         {/* Send button with gradient design */}
         <TouchableOpacity
-          className={`w-12 h-12 rounded-full items-center justify-center shadow-lg ${
-            messageText.trim()
-              ? "bg-gradient-to-r from-primary-500 to-primary-600"
-              : "bg-gray-300"
-          }`}
+          className="w-12 h-12 rounded-full items-center justify-center shadow-lg"
+          style={{
+            backgroundColor: messageText.trim() ? "#E05C78" : "#D1D5DB",
+          }}
           onPress={handleSendMessage}
           disabled={!messageText.trim() || sending}
           activeOpacity={0.8}
@@ -491,11 +564,26 @@ export default function ChatDetailScreen() {
             <Ionicons
               name="send"
               size={20}
-              color={messageText.trim() ? "#FFFFFF" : "#999"}
+              color={messageText.trim() ? "#FFFFFF" : "#9CA3AF"}
             />
           )}
         </TouchableOpacity>
       </View>
+
+      {/* Image Picker Modal */}
+      <Modal
+        visible={showImagePicker}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowImagePicker(false)}
+      >
+        <View className="flex-1 bg-black/50 justify-center items-center p-4">
+          <ImagePicker
+            onImageSelected={handleSendImage}
+            onClose={() => setShowImagePicker(false)}
+          />
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 
@@ -521,7 +609,8 @@ export default function ChatDetailScreen() {
       {/* Quick actions with modern button design */}
       <View className="flex-row gap-4 mt-6">
         <TouchableOpacity
-          className="bg-gradient-to-r from-primary-500 to-primary-600 px-6 py-4 rounded-2xl shadow-lg"
+          className="px-6 py-4 rounded-2xl shadow-lg"
+          style={{ backgroundColor: "#E05C78" }}
           onPress={() => handleQuickMessage("Xin chào!")}
           activeOpacity={0.8}
         >
@@ -534,7 +623,8 @@ export default function ChatDetailScreen() {
         </TouchableOpacity>
 
         <TouchableOpacity
-          className="bg-gradient-to-r from-gray-500 to-gray-600 px-6 py-4 rounded-2xl shadow-lg"
+          className="px-6 py-4 rounded-2xl shadow-lg"
+          style={{ backgroundColor: "#6B7280" }}
           onPress={() => handleQuickMessage("Tư vấn")}
           activeOpacity={0.8}
         >
@@ -633,7 +723,8 @@ export default function ChatDetailScreen() {
             {/* Action buttons with modern design */}
             <View className="flex-row gap-4">
               <TouchableOpacity
-                className="bg-gradient-to-r from-primary-500 to-primary-600 px-8 py-4 rounded-2xl shadow-lg"
+                className="px-8 py-4 rounded-2xl shadow-lg"
+                style={{ backgroundColor: "#E05C78" }}
                 onPress={handleRetry}
                 disabled={retrying}
                 activeOpacity={0.8}
@@ -648,7 +739,8 @@ export default function ChatDetailScreen() {
               </TouchableOpacity>
 
               <TouchableOpacity
-                className="bg-gradient-to-r from-gray-500 to-gray-600 px-8 py-4 rounded-2xl shadow-lg"
+                className="px-8 py-4 rounded-2xl shadow-lg"
+                style={{ backgroundColor: "#6B7280" }}
                 onPress={() => router.back()}
                 activeOpacity={0.8}
               >
@@ -677,7 +769,8 @@ export default function ChatDetailScreen() {
           </Text>
 
           <TouchableOpacity
-            className="bg-gradient-to-r from-primary-500 to-primary-600 px-8 py-4 rounded-2xl shadow-lg mt-4"
+            className="px-8 py-4 rounded-2xl shadow-lg mt-4"
+            style={{ backgroundColor: "#E05C78" }}
             onPress={() => router.back()}
             activeOpacity={0.8}
           >
@@ -689,7 +782,7 @@ export default function ChatDetailScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50" edges={["top"]}>
+    <View className="flex-1 bg-gray-50">
       <KeyboardAvoidingView
         className="flex-1"
         behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -737,6 +830,6 @@ export default function ChatDetailScreen() {
 
         {renderInput()}
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 }

@@ -59,9 +59,7 @@ const AboutVeilaScreen = () => {
               resizeMode="contain"
               className="w-24 h-24 mb-4"
             />
-            <Text className="text-2xl font-bold text-maroon-500 font-playfair text-center mb-2">
-              Về Veila
-            </Text>
+
             <Text className="text-center text-sm text-gray-600 font-sans leading-5 max-w-xs">
               Nền tảng thời trang cao cấp với dịch vụ đặt may theo yêu cầu
             </Text>
@@ -140,17 +138,17 @@ const AboutVeilaScreen = () => {
               <View className="flex-row items-center justify-center">
                 <Ionicons name="mail-outline" size={16} color="#10B981" />
                 <Text className="text-sm text-green-700 ml-2">
-                  support@veila.com
+                  veila.studio.mail@gmail.com
                 </Text>
               </View>
               <View className="flex-row items-center justify-center">
                 <Ionicons name="call-outline" size={16} color="#10B981" />
-                <Text className="text-sm text-green-700 ml-2">1900-xxxx</Text>
+                <Text className="text-sm text-green-700 ml-2">0354019580</Text>
               </View>
               <View className="flex-row items-center justify-center">
                 <Ionicons name="location-outline" size={16} color="#10B981" />
                 <Text className="text-sm text-green-700 ml-2 text-center">
-                  TP.HCM, Việt Nam
+                  TP.Hồ Chí Minh, Việt Nam
                 </Text>
               </View>
             </View>
@@ -161,7 +159,7 @@ const AboutVeilaScreen = () => {
               Phiên bản 1.0.0
             </Text>
             <Text className="text-xs text-gray-500 text-center mt-1">
-              © 2024 Veila. Tất cả quyền được bảo lưu.
+              © 2025 Veila. Tất cả quyền được bảo lưu.
             </Text>
           </View>
         </View>

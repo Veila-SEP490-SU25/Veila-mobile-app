@@ -1,8 +1,8 @@
 import { useRouter } from "expo-router";
 import React, { useCallback, useState } from "react";
 import { Text, TextInput, TouchableOpacity, View } from "react-native";
-import Toast from "react-native-toast-message";
 import { useRegisterMutation } from "../../../services/apis";
+import { handleApiError, showMessage } from "../../../utils/message.util";
 
 export const RegisterForm = () => {
   const router = useRouter();
@@ -19,26 +19,17 @@ export const RegisterForm = () => {
 
   const handleRegister = useCallback(async () => {
     if (!email || !password || !confirmPassword) {
-      Toast.show({
-        type: "error",
-        text1: "Vui lòng nhập đầy đủ thông tin",
-      });
+      showMessage("ERM007", "Vui lòng nhập đầy đủ thông tin đăng ký");
       return;
     }
 
     if (password !== confirmPassword) {
-      Toast.show({
-        type: "error",
-        text1: "Mật khẩu không khớp",
-      });
+      showMessage("ERM001", "Mật khẩu xác nhận không khớp");
       return;
     }
 
     if (!agreeToTerms) {
-      Toast.show({
-        type: "error",
-        text1: "Vui lòng đồng ý với điều khoản và dịch vụ",
-      });
+      showMessage("ERM008", "Vui lòng đồng ý với điều khoản và dịch vụ");
       return;
     }
 
@@ -53,28 +44,20 @@ export const RegisterForm = () => {
       }).unwrap();
 
       if (statusCode === 200) {
-        Toast.show({
-          type: "success",
-          text1: "Đăng ký thành công",
-          text2: "Vui lòng xác minh email",
-        });
+        showMessage("SUC007", "Tài khoản đã được tạo thành công");
         router.push({
           pathname: "/_auth/verify-otp",
           params: { userId: item, email },
         });
       } else {
-        Toast.show({
-          type: "error",
-          text1: "Đăng ký thất bại",
-          text2: message || "",
-        });
+        if (message?.includes("email")) {
+          showMessage("ERM002");
+        } else {
+          handleApiError(new Error(message || "Đăng ký thất bại"));
+        }
       }
-    } catch {
-      Toast.show({
-        type: "error",
-        text1: "Có lỗi xảy ra",
-        text2: "Vui lòng thử lại sau",
-      });
+    } catch (error) {
+      handleApiError(error);
     }
   }, [
     email,
@@ -89,12 +72,7 @@ export const RegisterForm = () => {
   ]);
 
   const handleTermsPress = () => {
-
-    Toast.show({
-      type: "info",
-      text1: "Điều khoản và dịch vụ",
-      text2: "Tính năng đang được phát triển",
-    });
+    showMessage("INF004", "Điều khoản và dịch vụ đang được cập nhật");
   };
 
   return (

@@ -86,7 +86,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const convertApiResponseToUser = (apiUser: any): IUser => {
-
     let phoneVerificationStatus: PhoneVerificationStatus =
       PhoneVerificationStatus.NotVerified;
 
@@ -120,6 +119,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       updatedAt: apiUser.updatedAt,
       deletedAt: apiUser.deletedAt,
       phoneVerificationStatus,
+      favDresses: apiUser.favDresses || [],
+      favShops: apiUser.favShops || [],
     };
   };
 
@@ -129,32 +130,60 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         let response;
 
         if ("provinceId" in data || "districtId" in data || "wardId" in data) {
-
           const addressData: IUpdateProfile = {
             firstName: user?.firstName || "",
             lastName: user?.lastName || "",
             address: data.fullAddress || data.streetAddress || "",
           };
+          console.log("📍 Address Update Data:", addressData);
           response = await updateProfileMutation(addressData).unwrap();
         } else {
+          console.log("👤 Profile Update Data:", data);
 
-          response = await updateProfileMutation(
-            data as IUpdateProfile
-          ).unwrap();
+          // Check if this is avatar update
+          if ("avatarUrl" in data) {
+            console.log("📡 Avatar Update Data:", data);
+            response = await updateProfileMutation(
+              data as IUpdateProfile
+            ).unwrap();
+          } else {
+            response = await updateProfileMutation(
+              data as IUpdateProfile
+            ).unwrap();
+          }
         }
+
+        console.log("📡 API Response:", response);
 
         if (response.statusCode === 200 && response.item) {
           const updatedUser = convertApiResponseToUser(response.item);
+
+          // Check if avatar update was successful
+          if ("avatarUrl" in data) {
+            const isAvatarUpdated = updatedUser.avatarUrl === data.avatarUrl;
+
+            console.log("📡 Avatar Update Success:", {
+              isAvatarUpdated,
+              newAvatarUrl: updatedUser.avatarUrl,
+            });
+          }
+
           setUser(updatedUser);
           await setToLocalStorage("user", updatedUser);
 
-          showMessage("SUC004");
+          // Only show general success message for non-avatar updates
+          if (!("avatarUrl" in data)) {
+            showMessage("SUC004");
+          }
 
           return true;
         } else {
           throw new Error(response.message || "Failed to update user");
         }
-      } catch {
+      } catch (error) {
+        if ("avatarUrl" in data) {
+          console.error("🚨 Avatar Upload API Failed:", error);
+        }
         showMessage("ERM006");
         return false;
       }
@@ -164,17 +193,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const handleLogout = useCallback(async () => {
     try {
-
       const token = await getAccessToken();
       if (token) {
         await logoutMutation().unwrap();
       }
-    } catch (error) {
-      if (__DEV__) {
-        console.log("Lỗi logout API:", error);
-      }
+    } catch {
+      // Logout API error handled silently
     } finally {
-
       setUser(null);
       setIsAuthenticated(false);
       hasRefreshed.current = false;
@@ -184,7 +209,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setTimeout(() => {
         router.replace("/_auth/login");
       }, 100);
-
     }
   }, [logoutMutation, router, resetSession]);
 
@@ -201,11 +225,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       } else {
         throw new Error(response.message || "Failed to fetch user data");
       }
-    } catch (error) {
-      if (__DEV__) {
-        console.log("Lỗi fetch user:", error?.toString());
-      }
-
+    } catch {
       setUser(null);
       setIsAuthenticated(false);
       await delTokens();
@@ -224,10 +244,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       } else {
         throw new Error(response.message || "Failed to refresh user data");
       }
-    } catch (error) {
-      if (__DEV__) {
-        console.log("Lỗi refresh user:", error?.toString());
-      }
+    } catch {
+      // Refresh user error handled silently
     }
   }, [getMe]);
 
@@ -321,67 +339,40 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         if (access && !isTokenExpired(access)) {
           await fetchUser();
         } else if (access && isTokenExpired(access) && !hasRefreshed.current) {
-          if (__DEV__) {
-            console.log(
-              "Token hết hạn trong AuthProvider, đang thử refresh..."
-            );
-          }
           hasRefreshed.current = true;
           try {
-
             const refreshToken = await getRefreshToken();
             if (refreshToken) {
               const refreshResult = await refreshTokenMutation({
                 refreshToken,
               }).unwrap();
               if (refreshResult.statusCode === 200 && refreshResult.item) {
-                if (__DEV__) {
-                  console.log("Refresh token thành công trong AuthProvider");
-                }
                 await saveTokens(
                   refreshResult.item.accessToken,
                   refreshResult.item.refreshToken
                 );
                 await fetchUser();
               } else {
-                if (__DEV__) {
-                  console.log("Refresh token thất bại trong AuthProvider");
-                }
                 await delTokens();
-
+                setUser(null);
+                setIsAuthenticated(false);
               }
             } else {
-              if (__DEV__) {
-                console.log("Không có refresh token trong AuthProvider");
-              }
               await delTokens();
-
             }
-          } catch (refreshError) {
-            if (__DEV__) {
-              console.log(
-                "Lỗi refresh token trong AuthProvider:",
-                refreshError
-              );
-            }
+          } catch {
             await delTokens();
-
+            setUser(null);
+            setIsAuthenticated(false);
           }
         } else if (!access) {
-          if (__DEV__) {
-            console.log("Không có token trong AuthProvider");
-          }
-
+          setUser(null);
+          setIsAuthenticated(false);
         }
-      } catch (error) {
-        if (__DEV__) {
-          console.log(
-            "Lỗi kiểm tra token trong AuthProvider:",
-            error?.toString()
-          );
-        }
+      } catch {
+        setUser(null);
+        setIsAuthenticated(false);
         await delTokens();
-
       } finally {
         setIsAuthChecking(false);
       }

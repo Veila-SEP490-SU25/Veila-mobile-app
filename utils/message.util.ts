@@ -2,9 +2,6 @@ import { Alert } from "react-native";
 import Toast from "react-native-toast-message";
 import { getMessage, MessageConfig } from "../constants/messages";
 
-/**
- * Get toast type based on message type
- */
 export const getToastType = (
   messageType: MessageConfig["type"]
 ): "success" | "error" | "info" => {
@@ -22,9 +19,6 @@ export const getToastType = (
   }
 };
 
-/**
- * Show Toast message by code
- */
 export const showMessage = (
   code: string,
   title?: string,
@@ -36,7 +30,6 @@ export const showMessage = (
 ) => {
   const message = getMessage(code);
   if (!message) {
-
     Toast.show({
       type: "error",
       text1: "Lỗi hệ thống",
@@ -56,9 +49,6 @@ export const showMessage = (
   });
 };
 
-/**
- * Show confirmation dialog by code
- */
 export const showConfirm = (
   code: string,
   onConfirm: () => void,
@@ -84,9 +74,6 @@ export const showConfirm = (
   ]);
 };
 
-/**
- * Get default title for message type
- */
 const getMessageTitle = (type: MessageConfig["type"]): string => {
   switch (type) {
     case "success":
@@ -106,11 +93,7 @@ const getMessageTitle = (type: MessageConfig["type"]): string => {
   }
 };
 
-/**
- * Backward compatibility - replace common Toast.show patterns
- */
 export const showSuccessToast = (message: string) => {
-
   const matchingCode = findMessageByContent(message);
   if (matchingCode) {
     showMessage(matchingCode);
@@ -125,7 +108,6 @@ export const showSuccessToast = (message: string) => {
 };
 
 export const showErrorToast = (message: string) => {
-
   const matchingCode = findMessageByContent(message);
   if (matchingCode) {
     showMessage(matchingCode);
@@ -140,7 +122,6 @@ export const showErrorToast = (message: string) => {
 };
 
 export const showInfoToast = (message: string) => {
-
   const matchingCode = findMessageByContent(message);
   if (matchingCode) {
     showMessage(matchingCode);
@@ -154,9 +135,6 @@ export const showInfoToast = (message: string) => {
   }
 };
 
-/**
- * Helper to find message code by content (fuzzy matching)
- */
 const findMessageByContent = (content: string): string | null => {
   const normalizedContent = content.toLowerCase().trim();
 

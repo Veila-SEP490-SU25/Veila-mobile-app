@@ -32,6 +32,7 @@ export interface ShopDetail {
   images: string[] | null;
   logoUrl: string;
   coverUrl: string;
+  isFavorite?: boolean;
 }
 
 export interface Accessory {

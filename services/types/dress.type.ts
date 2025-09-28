@@ -26,6 +26,7 @@ export interface Dress {
   isSellable: boolean;
   isRentable: boolean;
   status: DressStatus;
+  isFavorite?: boolean;
   user?: { shop?: DressShop };
   category?: DressCategory;
   description?: string;

@@ -30,6 +30,33 @@ export default function CheckoutConfirmation(props: CheckoutConfirmationProps) {
     calculateTotalPrice,
   } = props;
 
+  // Format ngày để hiển thị đẹp hơn
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return "";
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString("vi-VN", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      });
+    } catch {
+      return dateString;
+    }
+  };
+
+  // Tính số ngày thuê
+  const calculateRentalDays = () => {
+    if (orderData.dueDate && orderData.returnDate) {
+      const dueDate = new Date(orderData.dueDate);
+      const returnDate = new Date(orderData.returnDate);
+      return Math.ceil(
+        (returnDate.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24)
+      );
+    }
+    return 0;
+  };
+
   return (
     <View style={{ gap: 16 }}>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
@@ -65,7 +92,22 @@ export default function CheckoutConfirmation(props: CheckoutConfirmationProps) {
             <Text style={{ color: "#E05C78", fontWeight: "600", fontSize: 16 }}>
               {type === "SELL"
                 ? formatVNDCustom(dress.sellPrice, "₫")
-                : formatVNDCustom(dress.rentalPrice, "₫")}
+                : (() => {
+                    // Tính số ngày thuê
+                    if (orderData.dueDate && orderData.returnDate) {
+                      const dueDate = new Date(orderData.dueDate);
+                      const returnDate = new Date(orderData.returnDate);
+                      const rentalDays = Math.ceil(
+                        (returnDate.getTime() - dueDate.getTime()) /
+                          (1000 * 60 * 60 * 24)
+                      );
+                      return `${formatVNDCustom(dress.rentalPrice, "₫")} / ${rentalDays} ngày`;
+                    } else if (orderData.dueDate) {
+                      return `${formatVNDCustom(dress.rentalPrice, "₫")} / ngày`;
+                    } else {
+                      return formatVNDCustom(dress.rentalPrice, "₫");
+                    }
+                  })()}
             </Text>
             {dress.category && (
               <Text style={{ color: "#6B7280", marginTop: 4, fontSize: 12 }}>
@@ -103,7 +145,24 @@ export default function CheckoutConfirmation(props: CheckoutConfirmationProps) {
 
               const price =
                 type === "SELL" ? accessory.sellPrice : accessory.rentalPrice;
-              const totalPrice = parseFloat(price) * selected.quantity;
+
+              // Tính tổng giá phụ kiện thuê dựa trên số ngày
+              let totalPrice;
+              if (
+                type === "RENT" &&
+                orderData.dueDate &&
+                orderData.returnDate
+              ) {
+                const dueDate = new Date(orderData.dueDate);
+                const returnDate = new Date(orderData.returnDate);
+                const rentalDays = Math.ceil(
+                  (returnDate.getTime() - dueDate.getTime()) /
+                    (1000 * 60 * 60 * 24)
+                );
+                totalPrice = parseFloat(price) * selected.quantity * rentalDays;
+              } else {
+                totalPrice = parseFloat(price) * selected.quantity;
+              }
 
               return (
                 <View
@@ -120,7 +179,21 @@ export default function CheckoutConfirmation(props: CheckoutConfirmationProps) {
                       {accessory.name} x{selected.quantity}
                     </Text>
                     <Text style={{ color: "#6B7280", fontSize: 12 }}>
-                      {formatVNDCustom(price, "₫")} / cái
+                      {type === "SELL"
+                        ? `${formatVNDCustom(price, "₫")} / cái`
+                        : (() => {
+                            if (orderData.dueDate && orderData.returnDate) {
+                              const dueDate = new Date(orderData.dueDate);
+                              const returnDate = new Date(orderData.returnDate);
+                              const rentalDays = Math.ceil(
+                                (returnDate.getTime() - dueDate.getTime()) /
+                                  (1000 * 60 * 60 * 24)
+                              );
+                              return `${formatVNDCustom(price, "₫")} / cái / ${rentalDays} ngày`;
+                            } else {
+                              return `${formatVNDCustom(price, "₫")} / cái / ngày`;
+                            }
+                          })()}
                     </Text>
                   </View>
                   <Text
@@ -168,12 +241,12 @@ export default function CheckoutConfirmation(props: CheckoutConfirmationProps) {
           </Text>
           {orderData.dueDate && (
             <Text style={{ color: "#1D4ED8", marginBottom: 4, fontSize: 14 }}>
-              Ngày giao: {orderData.dueDate}
+              Ngày giao: {formatDate(orderData.dueDate)}
             </Text>
           )}
           {type === "RENT" && orderData.returnDate && (
             <Text style={{ color: "#1D4ED8", fontSize: 14 }}>
-              Ngày trả: {orderData.returnDate}
+              Ngày trả: {formatDate(orderData.returnDate)}
             </Text>
           )}
         </View>
@@ -307,6 +380,315 @@ export default function CheckoutConfirmation(props: CheckoutConfirmationProps) {
             </View>
           </View>
         </View>
+
+        {type === "RENT" && (
+          <View
+            style={{
+              padding: 16,
+              backgroundColor: "#FEF3C7",
+              borderRadius: 8,
+              borderWidth: 1,
+              borderColor: "#F59E0B",
+            }}
+          >
+            <Text
+              style={{
+                fontWeight: "600",
+                color: "#92400E",
+                marginBottom: 12,
+                fontSize: 16,
+              }}
+            >
+              Thông tin đặt cọc
+            </Text>
+
+            <View style={{ gap: 8 }}>
+              <View
+                style={{
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}
+              >
+                <Text style={{ color: "#92400E", fontSize: 14 }}>
+                  Giá mua váy:
+                </Text>
+                <Text
+                  style={{ color: "#92400E", fontWeight: "600", fontSize: 14 }}
+                >
+                  {formatVNDCustom(dress?.sellPrice || "0", "₫")}
+                </Text>
+              </View>
+
+              <View
+                style={{
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}
+              >
+                <Text style={{ color: "#92400E", fontSize: 14 }}>
+                  Giá thuê váy:
+                </Text>
+                <Text
+                  style={{ color: "#92400E", fontWeight: "600", fontSize: 14 }}
+                >
+                  {(() => {
+                    if (orderData.dueDate && orderData.returnDate) {
+                      const dueDate = new Date(orderData.dueDate);
+                      const returnDate = new Date(orderData.returnDate);
+                      const rentalDays = Math.ceil(
+                        (returnDate.getTime() - dueDate.getTime()) /
+                          (1000 * 60 * 60 * 24)
+                      );
+                      const totalRentalPrice =
+                        parseFloat(dress?.rentalPrice || "0") * rentalDays;
+                      return `${formatVNDCustom(totalRentalPrice, "₫")} (${rentalDays} ngày)`;
+                    } else {
+                      return formatVNDCustom(dress?.rentalPrice || "0", "₫");
+                    }
+                  })()}
+                </Text>
+              </View>
+
+              <View
+                style={{
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}
+              >
+                <Text style={{ color: "#92400E", fontSize: 14 }}>
+                  Giá thuê phụ kiện:
+                </Text>
+                <Text
+                  style={{ color: "#92400E", fontWeight: "600", fontSize: 14 }}
+                >
+                  {formatVNDCustom(
+                    (() => {
+                      if (orderData.dueDate && orderData.returnDate) {
+                        const dueDate = new Date(orderData.dueDate);
+                        const returnDate = new Date(orderData.returnDate);
+                        const rentalDays = Math.ceil(
+                          (returnDate.getTime() - dueDate.getTime()) /
+                            (1000 * 60 * 60 * 24)
+                        );
+                        return selectedAccessories.reduce((total, selected) => {
+                          const accessory = shopAccessories.find(
+                            (a) => a.id === selected.accessoryId
+                          );
+                          if (!accessory) return total;
+                          return (
+                            total +
+                            parseFloat(accessory.rentalPrice) *
+                              selected.quantity *
+                              rentalDays
+                          );
+                        }, 0);
+                      } else {
+                        return selectedAccessories.reduce((total, selected) => {
+                          const accessory = shopAccessories.find(
+                            (a) => a.id === selected.accessoryId
+                          );
+                          if (!accessory) return total;
+                          return (
+                            total +
+                            parseFloat(accessory.rentalPrice) *
+                              selected.quantity
+                          );
+                        }, 0);
+                      }
+                    })(),
+                    "₫"
+                  )}
+                </Text>
+              </View>
+
+              <View
+                style={{
+                  height: 1,
+                  backgroundColor: "#F59E0B",
+                  marginVertical: 8,
+                }}
+              />
+
+              <View
+                style={{
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}
+              >
+                <Text
+                  style={{ color: "#92400E", fontSize: 16, fontWeight: "600" }}
+                >
+                  Tổng cộng giá thuê:
+                </Text>
+                <Text
+                  style={{ color: "#92400E", fontWeight: "600", fontSize: 16 }}
+                >
+                  {formatVNDCustom(
+                    (() => {
+                      if (orderData.dueDate && orderData.returnDate) {
+                        const dueDate = new Date(orderData.dueDate);
+                        const returnDate = new Date(orderData.returnDate);
+                        const rentalDays = Math.ceil(
+                          (returnDate.getTime() - dueDate.getTime()) /
+                            (1000 * 60 * 60 * 24)
+                        );
+
+                        // Tính tổng giá thuê váy
+                        const dressRentalTotal =
+                          parseFloat(dress?.rentalPrice || "0") * rentalDays;
+
+                        // Tính tổng giá thuê phụ kiện
+                        const accessoriesRentalTotal =
+                          selectedAccessories.reduce((total, selected) => {
+                            const accessory = shopAccessories.find(
+                              (a) => a.id === selected.accessoryId
+                            );
+                            if (!accessory) return total;
+                            return (
+                              total +
+                              parseFloat(accessory.rentalPrice) *
+                                selected.quantity *
+                                rentalDays
+                            );
+                          }, 0);
+
+                        return dressRentalTotal + accessoriesRentalTotal;
+                      } else {
+                        return (
+                          parseFloat(dress?.rentalPrice || "0") +
+                          selectedAccessories.reduce((total, selected) => {
+                            const accessory = shopAccessories.find(
+                              (a) => a.id === selected.accessoryId
+                            );
+                            if (!accessory) return total;
+                            return (
+                              total +
+                              parseFloat(accessory.rentalPrice) *
+                                selected.quantity
+                            );
+                          }, 0)
+                        );
+                      }
+                    })(),
+                    "₫"
+                  )}
+                </Text>
+              </View>
+
+              <View
+                style={{
+                  height: 1,
+                  backgroundColor: "#F59E0B",
+                  marginVertical: 8,
+                }}
+              />
+
+              <View
+                style={{
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}
+              >
+                <Text style={{ color: "#92400E", fontSize: 14 }}>
+                  Giá mua phụ kiện:
+                </Text>
+                <Text
+                  style={{ color: "#92400E", fontWeight: "600", fontSize: 14 }}
+                >
+                  {formatVNDCustom(
+                    selectedAccessories.reduce((total, selected) => {
+                      const accessory = shopAccessories.find(
+                        (a) => a.id === selected.accessoryId
+                      );
+                      if (!accessory) return total;
+                      return (
+                        total +
+                        parseFloat(accessory.sellPrice) * selected.quantity
+                      );
+                    }, 0),
+                    "₫"
+                  )}
+                </Text>
+              </View>
+
+              <View
+                style={{
+                  borderTopWidth: 1,
+                  borderTopColor: "#F59E0B",
+                  paddingTop: 8,
+                  marginTop: 8,
+                }}
+              >
+                <View
+                  style={{
+                    flexDirection: "row",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                  }}
+                >
+                  <Text
+                    style={{
+                      color: "#92400E",
+                      fontSize: 16,
+                      fontWeight: "600",
+                    }}
+                  >
+                    Tổng đặt cọc:
+                  </Text>
+                  <Text
+                    style={{
+                      color: "#92400E",
+                      fontWeight: "700",
+                      fontSize: 18,
+                    }}
+                  >
+                    {formatVNDCustom(
+                      parseFloat(dress?.sellPrice || "0") +
+                        selectedAccessories.reduce((total, selected) => {
+                          const accessory = shopAccessories.find(
+                            (a) => a.id === selected.accessoryId
+                          );
+                          if (!accessory) return total;
+                          return (
+                            total +
+                            parseFloat(accessory.sellPrice) * selected.quantity
+                          );
+                        }, 0),
+                      "₫"
+                    )}
+                  </Text>
+                </View>
+              </View>
+
+              <Text
+                style={{
+                  color: "#92400E",
+                  fontSize: 12,
+                  textAlign: "center",
+                  marginTop: 8,
+                  fontStyle: "italic",
+                }}
+              >
+                💡 Đặt cọc = Khoản tiền mua váy + Giá mua phụ kiện
+              </Text>
+              <Text
+                style={{
+                  color: "#92400E",
+                  fontSize: 12,
+                  textAlign: "center",
+                  fontStyle: "italic",
+                }}
+              >
+                Cọc thừa sẽ hoàn lại sau khi trả váy
+              </Text>
+            </View>
+          </View>
+        )}
       </View>
     </View>
   );

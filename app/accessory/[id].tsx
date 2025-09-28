@@ -88,7 +88,6 @@ export default function AccessoryDetailScreen() {
     <View className="flex-1 bg-background-soft">
       <LightStatusBar />
 
-      {/* Header */}
       <View className="flex-row items-center justify-between px-4 pt-20 pb-4 bg-primary-600">
         <TouchableOpacity
           className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center"
@@ -112,7 +111,6 @@ export default function AccessoryDetailScreen() {
       </View>
 
       <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
-        {/* Main Image */}
         <View className="relative h-72">
           <Image
             source={{
@@ -130,7 +128,6 @@ export default function AccessoryDetailScreen() {
           </View>
         </View>
 
-        {/* Accessory Info */}
         <View className="p-5">
           <Text className="text-2xl font-bold text-gray-800 text-center mb-4">
             {accessory.name}
@@ -178,7 +175,6 @@ export default function AccessoryDetailScreen() {
             )}
           </View>
 
-          {/* Description */}
           <Text className="text-lg font-semibold text-gray-800 mb-2">
             Mô tả
           </Text>
@@ -186,7 +182,6 @@ export default function AccessoryDetailScreen() {
             {accessory.description || "Đang cập nhật"}
           </Text>
 
-          {/* Feedbacks Section */}
           {accessory.feedbacks && accessory.feedbacks.length > 0 && (
             <View className="bg-white p-4 rounded-lg shadow-lg mb-6">
               <Text className="text-lg font-semibold text-gray-800 mb-4">
@@ -205,7 +200,6 @@ export default function AccessoryDetailScreen() {
             </View>
           )}
 
-          {/* Shop Information */}
           {accessory.user?.shop && (
             <View className="bg-white p-4 rounded-lg shadow-lg mb-12">
               <Text className="text-lg font-semibold text-gray-800 mb-4">

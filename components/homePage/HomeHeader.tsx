@@ -1,9 +1,10 @@
-
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React from "react";
 import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useChatContext } from "../../providers/chat.provider";
+import { useNotificationContext } from "../../providers/notification.provider";
 
 export default function HomeHeader({
   onMenuPress,
@@ -11,8 +12,12 @@ export default function HomeHeader({
   onMenuPress: () => void;
 }) {
   const router = useRouter();
-  const notificationCount = 3;
-  const messageCount = 5;
+  const { chatRooms } = useChatContext();
+  const { unreadCount } = useNotificationContext();
+
+  const unreadMessagesCount = chatRooms.reduce((total, room) => {
+    return total + (room.unreadCount || 0);
+  }, 0);
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
@@ -35,9 +40,11 @@ export default function HomeHeader({
         >
           <View style={styles.iconContainer}>
             <Ionicons name="notifications-outline" size={24} color="#fff" />
-            {notificationCount > 0 && (
+            {unreadCount > 0 && (
               <View style={styles.badge}>
-                <Text style={styles.badgeText}>{notificationCount}</Text>
+                <Text style={styles.badgeText}>
+                  {unreadCount > 99 ? "99+" : unreadCount}
+                </Text>
               </View>
             )}
           </View>
@@ -49,9 +56,11 @@ export default function HomeHeader({
         >
           <View style={styles.iconContainer}>
             <Ionicons name="chatbox-ellipses-outline" size={24} color="#fff" />
-            {messageCount > 0 && (
+            {unreadMessagesCount > 0 && (
               <View style={styles.badge}>
-                <Text style={styles.badgeText}>{messageCount}</Text>
+                <Text style={styles.badgeText}>
+                  {unreadMessagesCount > 99 ? "99+" : unreadMessagesCount}
+                </Text>
               </View>
             )}
           </View>

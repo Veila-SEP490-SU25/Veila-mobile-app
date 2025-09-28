@@ -28,7 +28,7 @@ export class FCMService {
     try {
       this.isExpoGo = this.detectExpoGo();
 
-      if (this.isExpoGo && __DEV__) {
+      if (this.isExpoGo) {
         return;
       }
 
@@ -46,9 +46,7 @@ export class FCMService {
 
       await this.getToken();
     } catch {
-      if (__DEV__ && !this.isExpoGo) {
-        console.warn("FCM initialization limited in current environment");
-      }
+      // FCM initialization error handled silently
     }
   }
 
@@ -64,9 +62,6 @@ export class FCMService {
       }
 
       if (finalStatus !== "granted") {
-        if (__DEV__) {
-          console.warn("Permission not granted for push notifications");
-        }
         return false;
       }
 
@@ -97,10 +92,7 @@ export class FCMService {
       }
 
       return true;
-    } catch (error) {
-      if (__DEV__) {
-        console.error("Error requesting notification permissions:", error);
-      }
+    } catch {
       return false;
     }
   }
@@ -121,9 +113,6 @@ export class FCMService {
         Constants.expoConfig?.slug;
 
       if (!projectId) {
-        if (__DEV__) {
-          console.warn("No projectId found for push notifications");
-        }
         return null;
       }
 
@@ -156,8 +145,7 @@ export class FCMService {
         trigger: null,
         identifier: `local_${Date.now()}`,
       });
-    } catch {
-    }
+    } catch {}
   }
 
   async sendChatNotification(
@@ -234,30 +222,23 @@ export class FCMService {
   async clearAllNotifications(): Promise<void> {
     try {
       await Notifications.dismissAllNotificationsAsync();
-    } catch (error) {
-      if (__DEV__) {
-        console.error("Error clearing notifications:", error);
-      }
+    } catch {
+      // Clear notifications error handled silently
     }
   }
 
   async cancelNotification(identifier: string): Promise<void> {
     try {
       await Notifications.cancelScheduledNotificationAsync(identifier);
-    } catch (error) {
-      if (__DEV__) {
-        console.error("Error canceling notification:", error);
-      }
+    } catch {
+      // Cancel notification error handled silently
     }
   }
 
   async getBadgeCount(): Promise<number> {
     try {
       return await Notifications.getBadgeCountAsync();
-    } catch (error) {
-      if (__DEV__) {
-        console.error("Error getting badge count:", error);
-      }
+    } catch {
       return 0;
     }
   }
@@ -265,10 +246,8 @@ export class FCMService {
   async setBadgeCount(count: number): Promise<void> {
     try {
       await Notifications.setBadgeCountAsync(count);
-    } catch (error) {
-      if (__DEV__) {
-        console.error("Error setting badge count:", error);
-      }
+    } catch {
+      // Set badge count error handled silently
     }
   }
 

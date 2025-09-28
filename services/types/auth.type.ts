@@ -114,5 +114,7 @@ export interface IUserResponse {
     reputation?: number;
     isVerified: boolean;
     isIdentified: boolean;
+    favDresses?: string[];
+    favShops?: string[];
   };
 }

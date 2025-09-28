@@ -6,6 +6,7 @@ export const suppressFirebaseErrors = () => {
   console.error = (...args) => {
     const message = args[0]?.toString() || "";
 
+    // Suppress Firebase errors in production
     if (message.includes("FIRESTORE") || message.includes("Firestore")) {
       if (
         message.includes("INTERNAL ASSERTION FAILED") ||
@@ -18,15 +19,12 @@ export const suppressFirebaseErrors = () => {
         return;
       }
     }
-
-    if (__DEV__) {
-      originalError.apply(console, args);
-    }
   };
 
   console.warn = (...args) => {
     const message = args[0]?.toString() || "";
 
+    // Suppress common warnings in production
     if (
       message.includes("Firestore") ||
       message.includes("AsyncStorage has been extracted") ||
@@ -36,15 +34,12 @@ export const suppressFirebaseErrors = () => {
     ) {
       return;
     }
-
-    if (__DEV__) {
-      originalWarn.apply(console, args);
-    }
   };
 
   console.log = (...args) => {
     const message = args[0]?.toString() || "";
 
+    // Suppress debug logs in production
     if (
       message.includes("Token hợp lệ") ||
       message.includes("env: load") ||
@@ -53,12 +48,7 @@ export const suppressFirebaseErrors = () => {
     ) {
       return;
     }
-
-    if (__DEV__) {
-      originalLog.apply(console, args);
-    }
   };
 };
 
-export const restoreConsoleMethods = () => {
-};
+export const restoreConsoleMethods = () => {};

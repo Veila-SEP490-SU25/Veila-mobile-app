@@ -1,16 +1,18 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { formatDistanceToNow } from "date-fns";
 import { vi } from "date-fns/locale";
-import React, { useCallback, useState } from "react";
+import { useRouter } from "expo-router";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
   Image,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+
 import Toast from "react-native-toast-message";
 import { useNetworkStatus } from "../../hooks/useNetworkStatus";
 import { useChatContext } from "../../providers/chat.provider";
@@ -20,38 +22,79 @@ interface ChatListProps {
   userId?: string;
   userType?: "customer" | "shop";
   onChatPress?: (chatId: string) => void;
+  onRefresh?: () => void;
+  refreshing?: boolean;
 }
 
 export default function ChatList({
   userType = "customer",
   onChatPress,
+  onRefresh,
+  refreshing = false,
 }: ChatListProps) {
-  const { chatRooms, loading: isLoading } = useChatContext();
+  const { chatRooms, loading: isLoading, error } = useChatContext();
+  const router = useRouter();
 
   const { isOnline } = useNetworkStatus();
   const [navigationError, setNavigationError] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
+  const [localRefreshing, setLocalRefreshing] = useState(false);
+
+  // Sử dụng prop refreshing hoặc local state
+  const isRefreshing = refreshing || localRefreshing;
+
+  // Debounce search query
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  // Handle refresh nếu không có onRefresh prop
+  const handleRefresh = useCallback(async () => {
+    if (onRefresh) {
+      onRefresh();
+    } else {
+      // Local refresh: reload chat rooms từ context
+      setLocalRefreshing(true);
+      try {
+        // Trigger refresh bằng cách gọi lại context
+        // ChatProvider sẽ tự động refresh khi user thay đổi
+      } finally {
+        setTimeout(() => setLocalRefreshing(false), 1000);
+      }
+    }
+  }, [onRefresh]);
+
+  // Filter chat rooms based on debounced search query
+  const filteredChatRooms = useMemo(() => {
+    if (!debouncedSearchQuery.trim()) {
+      return chatRooms;
+    }
+
+    const query = debouncedSearchQuery.toLowerCase().trim();
+    return chatRooms.filter((room) => {
+      const otherPartyName =
+        userType === "customer" ? room.shopName : room.customerName;
+      const lastMessage = room.lastMessage?.content || "";
+
+      return (
+        otherPartyName?.toLowerCase().includes(query) ||
+        lastMessage.toLowerCase().includes(query)
+      );
+    });
+  }, [chatRooms, debouncedSearchQuery, userType]);
 
   const handleChatPress = useCallback(
     (chatRoom: ChatRoom) => {
       try {
         if (onChatPress) {
           onChatPress(chatRoom.id);
-        } else {
-
-          console.log("Navigate to chat:", chatRoom.id);
-
-          if (__DEV__) {
-            Toast.show({
-              type: "info",
-              text1: "Chat Navigation",
-              text2: `Mở chat với ${chatRoom.shopName || chatRoom.customerName}`,
-            });
-          }
         }
-      } catch (error) {
-        if (__DEV__) {
-          console.error("Error opening chat:", error);
-        }
+      } catch {
         setNavigationError(true);
         Toast.show({
           type: "error",
@@ -62,6 +105,30 @@ export default function ChatList({
     },
     [onChatPress]
   );
+
+  const handleShopPress = useCallback(
+    (chatRoom: ChatRoom) => {
+      try {
+        if (userType === "customer") {
+          router.push(`/shop/${chatRoom.shopId}` as any);
+        } else {
+          router.push(`/customer/${chatRoom.customerId}` as any);
+        }
+      } catch (error) {
+        console.error("Error navigating:", error);
+        Toast.show({
+          type: "error",
+          text1: "Lỗi",
+          text2: "Không thể chuyển đến trang. Vui lòng thử lại.",
+        });
+      }
+    },
+    [router, userType]
+  );
+
+  const clearSearch = () => {
+    setSearchQuery("");
+  };
 
   const renderChatRoom = ({ item }: { item: ChatRoom }) => {
     const otherPartyName =
@@ -78,9 +145,7 @@ export default function ChatList({
         activeOpacity={0.8}
       >
         <View className="p-4">
-          {/* Avatar and info row */}
           <View className="flex-row items-center">
-            {/* Beautiful avatar with gradient border */}
             <View className="relative mr-4">
               <View className="w-14 h-14 rounded-full bg-gradient-to-br from-primary-100 to-primary-200 p-0.5">
                 {otherPartyAvatar ? (
@@ -98,10 +163,8 @@ export default function ChatList({
                 )}
               </View>
 
-              {/* Online status indicator */}
               <View className="absolute bottom-0 right-0 w-4 h-4 bg-green-500 rounded-full border-2 border-white" />
 
-              {/* Unread badge with beautiful design */}
               {unreadCount > 0 && (
                 <View className="absolute -top-1 -right-1 bg-gradient-to-r from-red-500 to-red-600 rounded-full min-w-[22px] h-6 items-center justify-center px-2 shadow-lg">
                   <Text className="text-white text-xs font-bold">
@@ -111,17 +174,32 @@ export default function ChatList({
               )}
             </View>
 
-            {/* Chat room info with better layout */}
             <View className="flex-1 min-w-0">
               <View className="flex-row justify-between items-center mb-2">
-                <Text
-                  className="text-lg font-bold text-gray-800 flex-1 mr-3"
-                  numberOfLines={1}
+                <TouchableOpacity
+                  onPress={() => handleShopPress(item)}
+                  activeOpacity={0.7}
+                  className="flex-1 mr-3"
                 >
-                  {otherPartyName}
-                </Text>
+                  <View className="bg-gray-50 rounded-lg p-2 border border-gray-100">
+                    <Text
+                      className="text-lg font-bold text-gray-800"
+                      numberOfLines={1}
+                    >
+                      {otherPartyName}
+                    </Text>
 
-                {/* Last message time with modern styling */}
+                    {userType === "customer" && (
+                      <View className="flex-row items-center mt-1">
+                        <Ionicons name="storefront" size={12} color="#E05C78" />
+                        <Text className="text-xs text-primary-600 ml-1 font-medium">
+                          Click để xem shop
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                </TouchableOpacity>
+
                 {lastMessage && lastMessage.timestamp && (
                   <View className="bg-gray-50 px-2 py-1 rounded-full">
                     <Text className="text-xs text-gray-600 font-medium">
@@ -144,7 +222,6 @@ export default function ChatList({
                 )}
               </View>
 
-              {/* Last message preview with enhanced design */}
               <View className="flex-row items-center">
                 {lastMessage ? (
                   <>
@@ -160,7 +237,6 @@ export default function ChatList({
                       </Text>
                     </View>
 
-                    {/* Unread indicator with modern design */}
                     {unreadCount > 0 && (
                       <View className="w-3 h-3 rounded-full bg-gradient-to-r from-primary-500 to-primary-600 shadow-sm" />
                     )}
@@ -174,7 +250,6 @@ export default function ChatList({
             </View>
           </View>
 
-          {/* Additional info row */}
           <View className="flex-row items-center justify-between mt-3 pt-3 border-t border-gray-50">
             <View className="flex-row items-center">
               <View className="w-2 h-2 bg-green-500 rounded-full mr-2" />
@@ -183,7 +258,6 @@ export default function ChatList({
               </Text>
             </View>
 
-            {/* Chat room status */}
             <View className="flex-row items-center">
               <Ionicons name="chatbubble-ellipses" size={14} color="#9CA3AF" />
               <Text className="text-xs text-gray-500 ml-1">
@@ -198,124 +272,139 @@ export default function ChatList({
 
   if (isLoading) {
     return (
-      <SafeAreaView className="flex-1 bg-gray-50" edges={["top"]}>
-        <View className="flex-1 justify-center items-center px-6">
-          {/* Beautiful loading animation */}
-          <View className="w-28 h-28 rounded-full bg-gradient-to-br from-primary-50 to-primary-100 items-center justify-center mb-8 shadow-lg">
-            <ActivityIndicator size="large" color="#E05C78" />
-          </View>
+      <View className="flex-1 justify-center items-center px-6">
+        <View className="w-28 h-28 rounded-full bg-gradient-to-br from-primary-50 to-primary-100 items-center justify-center mb-8 shadow-lg">
+          <ActivityIndicator size="large" color="#E05C78" />
+        </View>
 
-          <Text className="text-xl font-bold text-gray-800 mb-3 text-center">
-            Đang tải cuộc trò chuyện...
-          </Text>
+        <Text className="text-xl font-bold text-gray-800 mb-3 text-center">
+          Đang tải cuộc trò chuyện...
+        </Text>
 
-          <Text className="text-base text-gray-600 text-center leading-6">
-            Vui lòng chờ trong giây lát
-          </Text>
+        <Text className="text-base text-gray-600 text-center leading-6">
+          Vui lòng chờ trong giây lát
+        </Text>
 
-          {/* Firebase index status info */}
-          <View className="mt-6 px-6">
-            <View className="bg-blue-50 rounded-xl p-4 border border-blue-200">
-              <View className="flex-row items-center">
-                <Ionicons name="information-circle" size={20} color="#3B82F6" />
-                <Text className="text-blue-700 text-sm ml-2 flex-1">
-                  Đang tối ưu hóa hiệu suất chat. Có thể mất vài phút để hoàn
-                  thành.
-                </Text>
-              </View>
+        <View className="mt-6 px-6">
+          <View className="bg-blue-50 rounded-xl p-4 border border-blue-200">
+            <View className="flex-row items-center">
+              <Ionicons name="information-circle" size={20} color="#3B82F6" />
+              <Text className="text-blue-700 text-sm ml-2 flex-1">
+                Đang tối ưu hóa hiệu suất chat. Có thể mất vài phút để hoàn
+                thành.
+              </Text>
             </View>
           </View>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   if (chatRooms.length === 0) {
     return (
-      <SafeAreaView className="flex-1 bg-gray-50" edges={["top"]}>
-        <View className="flex-1 justify-center items-center px-6">
-          <View className="items-center">
-            {/* Beautiful empty state icon */}
-            <View className="w-32 h-32 rounded-full bg-gradient-to-br from-primary-50 to-primary-100 items-center justify-center mb-8 shadow-lg">
-              <View className="w-24 h-24 rounded-full bg-white items-center justify-center shadow-inner">
-                <Ionicons
-                  name="chatbubble-ellipses"
-                  size={48}
-                  color="#E05C78"
-                />
-              </View>
-            </View>
+      <View className="flex-1 justify-center items-center px-6">
+        <View className="w-28 h-28 rounded-full bg-gradient-to-br from-gray-50 to-gray-100 items-center justify-center mb-8 shadow-lg">
+          <Ionicons name="chatbubble-ellipses" size={48} color="#9CA3AF" />
+        </View>
 
-            <Text className="text-2xl font-bold text-gray-800 mb-3 text-center">
-              Chưa có cuộc trò chuyện nào
-            </Text>
+        <Text className="text-xl font-bold text-gray-800 mb-3 text-center">
+          Chưa có cuộc trò chuyện nào
+        </Text>
 
-            <Text className="text-base text-gray-600 text-center mb-8 leading-6 px-4">
-              Bắt đầu trò chuyện với shop để được hỗ trợ và tư vấn chuyên nghiệp
-            </Text>
+        <Text className="text-base text-gray-600 text-center leading-6">
+          Bắt đầu trò chuyện với shop để được tư vấn về váy cưới
+        </Text>
 
-            {/* Quick actions with modern design */}
-            <View className="flex-row gap-4">
-              <TouchableOpacity
-                className="bg-gradient-to-r from-primary-500 to-primary-600 px-8 py-4 rounded-2xl shadow-lg"
-                onPress={() => console.log("Explore shops")}
-                activeOpacity={0.8}
-              >
-                <View className="flex-row items-center">
-                  <Ionicons name="search" size={20} color="#FFFFFF" />
-                  <Text className="text-white font-semibold text-base ml-2">
-                    Khám phá shop
-                  </Text>
-                </View>
-              </TouchableOpacity>
+        <TouchableOpacity
+          onPress={handleRefresh}
+          className="mt-6 bg-primary-500 px-6 py-3 rounded-xl"
+          activeOpacity={0.8}
+        >
+          <Text className="text-white font-semibold text-base">Làm mới</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
-              <TouchableOpacity
-                className="bg-gradient-to-r from-gray-500 to-gray-600 px-8 py-4 rounded-2xl shadow-lg"
-                onPress={() => console.log("Learn more")}
-                activeOpacity={0.8}
-              >
-                <View className="flex-row items-center">
-                  <Ionicons
-                    name="information-circle"
-                    size={20}
-                    color="#FFFFFF"
-                  />
-                  <Text className="text-white font-semibold text-base ml-2">
-                    Tìm hiểu thêm
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            </View>
-
-            {/* Additional info */}
-            <View className="mt-8 px-6">
-              <View className="bg-blue-50 rounded-xl p-4 border border-blue-200">
-                <View className="flex-row items-center">
-                  <Ionicons name="bulb" size={20} color="#3B82F6" />
-                  <Text className="text-blue-700 text-sm ml-2 flex-1">
-                    Bạn có thể tìm thấy shop yêu thích và bắt đầu cuộc trò
-                    chuyện ngay bây giờ!
-                  </Text>
-                </View>
-              </View>
+  if (filteredChatRooms.length === 0 && debouncedSearchQuery.trim()) {
+    return (
+      <View className="flex-1 justify-center items-center px-6">
+        <View className="items-center">
+          <View className="w-32 h-32 rounded-full bg-gradient-to-br from-gray-50 to-gray-100 items-center justify-center mb-8 shadow-lg">
+            <View className="w-24 h-24 rounded-full bg-white items-center justify-center shadow-inner">
+              <Ionicons name="search" size={48} color="#9CA3AF" />
             </View>
           </View>
+
+          <Text className="text-2xl font-bold text-gray-800 mb-3 text-center">
+            Không tìm thấy kết quả
+          </Text>
+
+          <Text className="text-base text-gray-600 text-center mb-8 leading-6 px-4">
+            Không có cuộc trò chuyện nào phù hợp với từ khóa "
+            {debouncedSearchQuery}"
+          </Text>
+
+          <View className="flex-row gap-4">
+            <TouchableOpacity
+              className="bg-gradient-to-r from-primary-500 to-primary-600 px-8 py-4 rounded-2xl shadow-lg"
+              onPress={clearSearch}
+              activeOpacity={0.8}
+            >
+              <View className="flex-row items-center">
+                <Ionicons name="refresh" size={20} color="#FFFFFF" />
+                <Text className="text-white font-semibold text-base ml-2">
+                  Xóa tìm kiếm
+                </Text>
+              </View>
+            </TouchableOpacity>
+          </View>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50" edges={["top"]}>
-      {/* Header */}
-      <View className="bg-white px-6 py-4 border-b border-gray-100 shadow-sm">
-        <Text className="text-2xl font-bold text-gray-800">Tin nhắn</Text>
-        <Text className="text-sm text-gray-600 mt-1">
-          {chatRooms.length} cuộc trò chuyện
-        </Text>
+    <View className="flex-1">
+      <View className="mx-4 mt-2 mb-3">
+        <View className="relative">
+          <View className="absolute left-3 top-0 bottom-0 justify-center z-10">
+            <Ionicons name="search" size={20} color="#9CA3AF" />
+          </View>
+          <TextInput
+            className="bg-gray-50 border border-gray-200 rounded-2xl pl-12 pr-12 py-3 text-base text-gray-800"
+            placeholder="Tìm kiếm chat..."
+            placeholderTextColor="#9CA3AF"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity
+              className="absolute right-3 top-0 bottom-0 justify-center z-10"
+              onPress={clearSearch}
+            >
+              <Ionicons name="close-circle" size={20} color="#9CA3AF" />
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {debouncedSearchQuery.trim() && (
+          <View className="mt-2 px-2">
+            <Text className="text-sm text-gray-600">
+              Tìm thấy {filteredChatRooms.length} cuộc trò chuyện
+              {filteredChatRooms.length !== chatRooms.length && (
+                <Text className="text-gray-500">
+                  {" "}
+                  trong tổng số {chatRooms.length}
+                </Text>
+              )}
+            </Text>
+          </View>
+        )}
       </View>
 
-      {/* Network status banner */}
       {!isOnline && (
         <View className="bg-yellow-50 border border-yellow-200 mx-4 mt-2 rounded-lg p-3">
           <View className="flex-row items-center">
@@ -329,7 +418,6 @@ export default function ChatList({
         </View>
       )}
 
-      {/* Navigation error banner */}
       {navigationError && (
         <View className="bg-red-50 border border-red-200 mx-4 mt-2 rounded-lg p-3">
           <View className="flex-row items-center">
@@ -349,9 +437,25 @@ export default function ChatList({
         </View>
       )}
 
-      {/* Chat rooms list */}
+      {error && (
+        <View className="bg-red-50 border border-red-200 mx-4 mt-2 rounded-lg p-3">
+          <View className="flex-row items-center">
+            <View className="w-5 h-5 bg-red-500 rounded-full items-center justify-center mr-2">
+              <Ionicons name="warning" size={12} color="#FFFFFF" />
+            </View>
+            <Text className="flex-1 text-red-700 text-sm">{error}</Text>
+            <TouchableOpacity
+              onPress={handleRefresh}
+              className="ml-2 px-3 py-1 bg-red-500 rounded-lg"
+            >
+              <Text className="text-white text-xs font-semibold">Thử lại</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
       <FlatList
-        data={chatRooms}
+        data={filteredChatRooms}
         renderItem={renderChatRoom}
         keyExtractor={(item) => item.id}
         className="flex-1"
@@ -363,7 +467,9 @@ export default function ChatList({
         removeClippedSubviews={true}
         maxToRenderPerBatch={10}
         windowSize={10}
+        onRefresh={handleRefresh}
+        refreshing={isRefreshing}
       />
-    </SafeAreaView>
+    </View>
   );
 }

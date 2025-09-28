@@ -12,12 +12,19 @@ type CheckoutCustomerInfoProps = {
     returnDate: string | null;
   };
   type: "SELL" | "RENT";
+  validationErrors: { [key: string]: string };
   onUpdateOrderData: (field: string, value: string | null) => void;
   onOpenDatePicker: (mode: "delivery" | "return") => void;
 };
 
 export default function CheckoutCustomerInfo(props: CheckoutCustomerInfoProps) {
-  const { orderData, type, onUpdateOrderData, onOpenDatePicker } = props;
+  const {
+    orderData,
+    type,
+    validationErrors,
+    onUpdateOrderData,
+    onOpenDatePicker,
+  } = props;
 
   const renderField = (
     field: keyof typeof orderData,
@@ -27,6 +34,8 @@ export default function CheckoutCustomerInfo(props: CheckoutCustomerInfoProps) {
     keyboardType: "default" | "phone-pad" | "email-address" = "default",
     multiline: boolean = false
   ) => {
+    const error = validationErrors[field];
+
     return (
       <View style={styles.fieldContainer}>
         <Text style={styles.fieldLabel}>
@@ -42,8 +51,10 @@ export default function CheckoutCustomerInfo(props: CheckoutCustomerInfoProps) {
           keyboardType={keyboardType}
           multiline={multiline}
           numberOfLines={multiline ? 2 : 1}
-          style={styles.input}
+          style={[styles.input, error ? { borderColor: "#EF4444" } : {}]}
         />
+
+        {error && <Text style={styles.errorText}>{error}</Text>}
       </View>
     );
   };
@@ -55,6 +66,22 @@ export default function CheckoutCustomerInfo(props: CheckoutCustomerInfoProps) {
   ) => {
     const hasValue = orderData[field] && orderData[field] !== null;
     const mode = field === "dueDate" ? "delivery" : "return";
+    const error = validationErrors[field];
+
+    // Format ngày để hiển thị đẹp hơn
+    const formatDate = (dateString: string | null) => {
+      if (!dateString) return "";
+      try {
+        const date = new Date(dateString);
+        return date.toLocaleDateString("vi-VN", {
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        });
+      } catch {
+        return dateString;
+      }
+    };
 
     return (
       <View style={styles.fieldContainer}>
@@ -63,8 +90,14 @@ export default function CheckoutCustomerInfo(props: CheckoutCustomerInfoProps) {
         </Text>
 
         <TouchableOpacity
-          onPress={() => onOpenDatePicker(mode)}
-          style={styles.dateInput}
+          onPress={() => {
+            console.log(
+              "Date field pressed, calling onOpenDatePicker with mode:",
+              mode
+            );
+            onOpenDatePicker(mode);
+          }}
+          style={[styles.dateInput, error ? { borderColor: "#EF4444" } : {}]}
         >
           <View style={styles.dateInputContent}>
             <Text
@@ -74,9 +107,11 @@ export default function CheckoutCustomerInfo(props: CheckoutCustomerInfoProps) {
                   ? styles.dateInputTextFilled
                   : styles.dateInputTextPlaceholder,
               ]}
+              numberOfLines={1}
+              ellipsizeMode="tail"
             >
               {hasValue
-                ? orderData[field]
+                ? formatDate(orderData[field])
                 : field === "returnDate" && type === "SELL"
                   ? "Không cần thiết (đơn hàng mua)"
                   : "Chọn ngày"}
@@ -84,6 +119,27 @@ export default function CheckoutCustomerInfo(props: CheckoutCustomerInfoProps) {
             <Ionicons name="calendar" size={20} color="#6B7280" />
           </View>
         </TouchableOpacity>
+
+        {error && <Text style={styles.errorText}>{error}</Text>}
+
+        {/* Helper text cho validation */}
+        {!error && field === "dueDate" && (
+          <Text style={styles.helperText}>
+            Ngày giao hàng phải cách ngày hiện tại ít nhất 3 ngày
+          </Text>
+        )}
+
+        {!error && field === "returnDate" && type === "RENT" && (
+          <Text style={styles.helperText}>
+            Ngày trả hàng phải sau ngày giao và không quá 6 ngày
+          </Text>
+        )}
+
+        {!error && field === "returnDate" && type === "SELL" && (
+          <Text style={styles.helperText}>
+            Không cần thiết cho đơn hàng mua
+          </Text>
+        )}
       </View>
     );
   };
@@ -194,8 +250,10 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: "#D1D5DB",
     backgroundColor: "#FFFFFF",
-    padding: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
     borderRadius: 8,
+    minHeight: 52,
   },
   dateInputContent: {
     flexDirection: "row",
@@ -204,6 +262,8 @@ const styles = StyleSheet.create({
   },
   dateInputText: {
     fontSize: 16,
+    flex: 1,
+    marginRight: 8,
   },
   dateInputTextFilled: {
     color: "#111827",
@@ -240,5 +300,15 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#6B7280",
     marginLeft: 28,
+  },
+  errorText: {
+    fontSize: 12,
+    color: "#EF4444",
+    marginTop: 4,
+  },
+  helperText: {
+    fontSize: 12,
+    color: "#6B7280",
+    marginTop: 4,
   },
 });

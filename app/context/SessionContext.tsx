@@ -98,10 +98,10 @@ export default function SessionProvider({
         <View className="flex-1 items-center justify-center bg-black/50">
           <View className="bg-white p-6 rounded-2xl w-80 shadow-lg">
             <Text className="text-lg font-bold mb-3 text-gray-700 text-center">
-              Phiên đăng nhập đã hết hạn
+              Phiên đăng nhập đã hết hạn.
             </Text>
             <Text className="text-sm text-gray-500 text-center mb-4">
-              Vui lòng đăng nhập lại để tiếp tục sử dụng
+              Vui lòng đăng nhập lại.
             </Text>
             <TouchableOpacity
               className="bg-primary-500 py-3 rounded-xl mt-2"

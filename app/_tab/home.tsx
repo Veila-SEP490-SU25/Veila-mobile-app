@@ -17,6 +17,7 @@ import {
   View,
 } from "react-native";
 import { useAuth } from "../../providers/auth.provider";
+import { useChatContext } from "../../providers/chat.provider";
 import { walletApi } from "../../services/apis/wallet.api";
 
 interface QuickAction {
@@ -26,6 +27,7 @@ interface QuickAction {
   icon: keyof typeof Ionicons.glyphMap;
   color: string;
   onPress: () => void;
+  badge?: number;
 }
 
 export default function Home() {
@@ -35,8 +37,13 @@ export default function Home() {
   const slideAnim = React.useRef(new Animated.Value(50)).current;
 
   const { user } = useAuth();
+  const { chatRooms } = useChatContext();
   const [walletBalance, setWalletBalance] = useState<string | null>(null);
   const [isLoadingWallet, setIsLoadingWallet] = useState(false);
+
+  const totalUnreadMessages = chatRooms.reduce((total, room) => {
+    return total + (room.unreadCount || 0);
+  }, 0);
 
   useEffect(() => {
     const animation = Animated.parallel([
@@ -60,7 +67,6 @@ export default function Home() {
   }, [fadeAnim, slideAnim]);
 
   useEffect(() => {
-
     const loadWallet = async () => {
       if (!user || user.role !== "CUSTOMER") return;
       try {
@@ -121,10 +127,14 @@ export default function Home() {
     {
       id: "consultation",
       title: "Tư vấn miễn phí",
-      subtitle: "Nhận tư vấn từ shop",
+      subtitle:
+        totalUnreadMessages > 0
+          ? `${totalUnreadMessages} tin nhắn chưa đọc`
+          : "Nhận tư vấn từ shop",
       icon: "chatbubble-ellipses-outline",
       color: "#E05C78",
       onPress: () => router.push("/shop" as any),
+      badge: totalUnreadMessages > 0 ? totalUnreadMessages : undefined,
     },
     {
       id: "custom-design",
@@ -169,7 +179,6 @@ export default function Home() {
   };
 
   const getPhoneVerification = () => {
-
     const status = user?.phoneVerificationStatus;
     if (status === "VERIFIED") {
       return {
@@ -212,6 +221,11 @@ export default function Home() {
       >
         <View style={styles.quickActionIcon}>
           <Ionicons name={action.icon} size={24} color={action.color} />
+          {action.badge && (
+            <View style={styles.quickActionBadge}>
+              <Text style={styles.quickActionBadgeText}>{action.badge}</Text>
+            </View>
+          )}
         </View>
         <View style={styles.quickActionContent}>
           <Text style={styles.quickActionTitle}>{action.title}</Text>
@@ -526,6 +540,28 @@ const styles = StyleSheet.create({
   quickActionSubtitle: {
     fontSize: 13,
     color: "#666666",
+  },
+  quickActionBadge: {
+    position: "absolute",
+    top: -8,
+    right: -8,
+    backgroundColor: "#E05C78",
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  quickActionBadgeText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "700",
   },
   specialOffersSection: {
     backgroundColor: "#FFFFFF",

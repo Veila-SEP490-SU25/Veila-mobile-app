@@ -96,7 +96,11 @@ export default function CheckoutStatusModal({
     if (onAction) {
       switch (status) {
         case "SUCCESS":
-          onAction("VIEW_ORDER");
+          if (orderNumber && orderNumber !== "ORDER_SUCCESS") {
+            onAction("VIEW_ORDER");
+          } else {
+            onAction("CONTINUE_SHOPPING");
+          }
           break;
         case "PENDING_PAYMENT":
           onAction("PAY_NOW");

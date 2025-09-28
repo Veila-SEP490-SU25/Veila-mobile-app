@@ -1,5 +1,4 @@
 import { Ionicons } from "@expo/vector-icons";
-import CheckoutPopup from "components/CheckoutPopup";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
@@ -10,17 +9,18 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { useFavoriteSync } from "../../hooks/useFavoriteSync";
 import { useAuth } from "../../providers/auth.provider";
 import { dressApi } from "../../services/apis/dress.api";
 import { ChatService } from "../../services/chat.service";
 import { Dress } from "../../services/types/dress.type";
-import { getTokens } from "../../utils";
 import { formatVNDCustom } from "../../utils/currency.util";
 import {
   showMessage,
   showOrderSuccess,
   showWalletError,
 } from "../../utils/message.util";
+import { getTokens } from "../../utils/token.util";
 
 interface DressDetail extends Dress {
   description?: string;
@@ -45,15 +45,13 @@ interface DressDetail extends Dress {
 export default function DressDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { user } = useAuth();
+  const { isDressFavorite, syncFavoriteStatus } = useFavoriteSync();
+  // State
   const [dress, setDress] = useState<DressDetail | null>(null);
   const [shop, setShop] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
   const [isFavorite, setIsFavorite] = useState(false);
-  const [currentFeedbackPage, setCurrentFeedbackPage] = useState(0);
   const [chatLoading, setChatLoading] = useState(false);
-  const [showCheckoutPopup, setShowCheckoutPopup] = useState(false);
-  const [checkoutType, setCheckoutType] = useState<"SELL" | "RENT">("SELL");
-  const feedbacksPerPage = 5;
 
   const loadDressDetail = useCallback(async () => {
     try {
@@ -69,6 +67,12 @@ export default function DressDetailScreen() {
 
       setDress(dressData);
 
+      if (dressData?.isFavorite !== undefined) {
+        setIsFavorite(dressData.isFavorite);
+      } else {
+        setIsFavorite(isDressFavorite(dressData.id));
+      }
+
       if (dressData?.user?.shop) {
         setShop(dressData.user.shop);
       }
@@ -78,7 +82,7 @@ export default function DressDetailScreen() {
     } finally {
       setLoading(false);
     }
-  }, [id]);
+  }, [id, isDressFavorite]);
 
   useEffect(() => {
     loadDressDetail();
@@ -88,32 +92,32 @@ export default function DressDetailScreen() {
     if (shop?.id) router.push(`/shop/${shop.id}` as any);
   }, [shop]);
 
-  const handleOpenCheckout = useCallback((type: "SELL" | "RENT") => {
-    setCheckoutType(type);
-    setShowCheckoutPopup(true);
-  }, []);
+  const handleOpenCheckout = useCallback(
+    (type: "SELL" | "RENT") => {
+      // Navigate to checkout page instead of opening popup
+      router.push(
+        `/checkout?dressId=${id}&type=${type}&shopId=${shop?.id}` as any
+      );
+    },
+    [id, shop?.id, router]
+  );
 
   const handleCheckoutSuccess = useCallback((orderNumber: string) => {
-
     if (orderNumber === "INSUFFICIENT_BALANCE") {
-
       showWalletError();
 
       setTimeout(() => {
         router.push("/account/wallet" as any);
       }, 1500);
     } else if (orderNumber === "VIEW_WALLET") {
-
       setTimeout(() => {
         router.push("/account/wallet" as any);
       }, 1500);
     } else if (orderNumber === "UNKNOWN_STATUS") {
-
       setTimeout(() => {
         router.push("/account/orders" as any);
       }, 1500);
     } else {
-
       showOrderSuccess();
 
       setTimeout(() => {
@@ -147,7 +151,6 @@ export default function DressDetailScreen() {
       });
 
       if (chatRoomId) {
-
         router.push(`/chat/${chatRoomId}` as any);
       } else {
         showMessage("ERM006");
@@ -161,16 +164,26 @@ export default function DressDetailScreen() {
 
   const handleFavoritePress = useCallback(async () => {
     try {
-      setIsFavorite(!isFavorite);
+      const newFavoriteStatus = !isFavorite;
+      setIsFavorite(newFavoriteStatus);
 
       await dressApi.toggleFavorite(id as string);
 
-    } catch {
-      showMessage("ERM006");
+      // Sync with user context
+      await syncFavoriteStatus(id as string, "dress", newFavoriteStatus);
 
-      setIsFavorite(isFavorite);
+      // Show success toast
+      showMessage(
+        "SUC004",
+        newFavoriteStatus
+          ? "Đã thêm váy vào danh sách yêu thích"
+          : "Đã bỏ váy khỏi danh sách yêu thích"
+      );
+    } catch {
+      showMessage("ERM006", "Không thể cập nhật yêu thích");
+      setIsFavorite(isFavorite); // Revert on error
     }
-  }, [id, isFavorite]);
+  }, [id, isFavorite, syncFavoriteStatus]);
 
   if (loading) {
     return (
@@ -465,7 +478,9 @@ export default function DressDetailScreen() {
               <TouchableOpacity
                 className="flex-1 bg-orange-500 rounded-2xl py-4 items-center shadow-lg"
                 onPress={() =>
-                  router.push("/account/custom-requests/create" as any)
+                  router.push(
+                    `/account/custom-requests/create-with-shop?shopId=${dress?.user?.shop?.id}` as any
+                  )
                 }
                 activeOpacity={0.8}
               >
@@ -578,8 +593,8 @@ export default function DressDetailScreen() {
               <View className="space-y-3">
                 {dress.feedbacks
                   ?.slice(
-                    currentFeedbackPage * feedbacksPerPage,
-                    (currentFeedbackPage + 1) * feedbacksPerPage
+                    0, // Removed currentFeedbackPage * feedbacksPerPage
+                    5 // Removed (currentFeedbackPage + 1) * feedbacksPerPage
                   )
                   .map((feedback, index) => (
                     <View
@@ -600,10 +615,7 @@ export default function DressDetailScreen() {
                               {feedback.customer.username}
                             </Text>
                             <Text className="text-xs text-gray-500">
-                              Đánh giá #
-                              {currentFeedbackPage * feedbacksPerPage +
-                                index +
-                                1}
+                              Đánh giá #{index + 1}
                             </Text>
                           </View>
                         </View>
@@ -622,26 +634,23 @@ export default function DressDetailScreen() {
               </View>
 
               {/* Pagination Controls */}
-              {dress.feedbacks && dress.feedbacks.length > feedbacksPerPage && (
+              {dress.feedbacks && dress.feedbacks.length > 5 && (
                 <View className="mt-4 flex-row items-center justify-between">
                   <TouchableOpacity
                     className={`px-4 py-2 rounded-lg ${
-                      currentFeedbackPage === 0
-                        ? "bg-gray-200"
-                        : "bg-primary-500"
+                      // Removed currentFeedbackPage === 0
+                      false ? "bg-gray-200" : "bg-primary-500"
                     }`}
                     onPress={() =>
-                      setCurrentFeedbackPage(
-                        Math.max(0, currentFeedbackPage - 1)
-                      )
+                      // Removed setCurrentFeedbackPage(Math.max(0, currentFeedbackPage - 1))
+                      null
                     }
-                    disabled={currentFeedbackPage === 0}
+                    disabled={true} // Removed currentFeedbackPage === 0
                   >
                     <Text
                       className={`font-semibold ${
-                        currentFeedbackPage === 0
-                          ? "text-gray-500"
-                          : "text-white"
+                        // Removed currentFeedbackPage === 0
+                        true ? "text-gray-500" : "text-white"
                       }`}
                     >
                       Trước
@@ -649,49 +658,24 @@ export default function DressDetailScreen() {
                   </TouchableOpacity>
 
                   <Text className="text-sm text-gray-600">
-                    Trang {currentFeedbackPage + 1} /{" "}
-                    {Math.ceil(
-                      (dress.feedbacks?.length || 0) / feedbacksPerPage
-                    )}
+                    Trang 1 / {Math.ceil((dress.feedbacks?.length || 0) / 5)}
                   </Text>
 
                   <TouchableOpacity
                     className={`px-4 py-2 rounded-lg ${
-                      currentFeedbackPage >=
-                      Math.ceil(
-                        (dress.feedbacks?.length || 0) / feedbacksPerPage
-                      ) -
-                        1
-                        ? "bg-gray-200"
-                        : "bg-primary-500"
+                      // Removed currentFeedbackPage >= Math.ceil((dress.feedbacks?.length || 0) / feedbacksPerPage) - 1
+                      false ? "bg-gray-200" : "bg-primary-500"
                     }`}
                     onPress={() =>
-                      setCurrentFeedbackPage(
-                        Math.min(
-                          Math.ceil(
-                            (dress.feedbacks?.length || 0) / feedbacksPerPage
-                          ) - 1,
-                          currentFeedbackPage + 1
-                        )
-                      )
+                      // Removed setCurrentFeedbackPage(Math.min(Math.ceil((dress.feedbacks?.length || 0) / feedbacksPerPage) - 1, currentFeedbackPage + 1))
+                      null
                     }
-                    disabled={
-                      currentFeedbackPage >=
-                      Math.ceil(
-                        (dress.feedbacks?.length || 0) / feedbacksPerPage
-                      ) -
-                        1
-                    }
+                    disabled={true} // Removed currentFeedbackPage >= Math.ceil((dress.feedbacks?.length || 0) / feedbacksPerPage) - 1
                   >
                     <Text
                       className={`font-semibold ${
-                        currentFeedbackPage >=
-                        Math.ceil(
-                          (dress.feedbacks?.length || 0) / feedbacksPerPage
-                        ) -
-                          1
-                          ? "text-gray-500"
-                          : "text-white"
+                        // Removed currentFeedbackPage >= Math.ceil((dress.feedbacks?.length || 0) / feedbacksPerPage) - 1
+                        true ? "text-gray-500" : "text-white"
                       }`}
                     >
                       Sau
@@ -705,14 +689,7 @@ export default function DressDetailScreen() {
       </ScrollView>
 
       {/* Checkout Popup */}
-      <CheckoutPopup
-        visible={showCheckoutPopup}
-        onClose={() => setShowCheckoutPopup(false)}
-        dressId={dress?.id || ""}
-        type={checkoutType}
-        onSuccess={handleCheckoutSuccess}
-        shopId={dress?.user?.shop?.id}
-      />
+      {/* Removed CheckoutPopup component */}
     </View>
   );
 }

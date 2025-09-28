@@ -40,7 +40,6 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({
   } = useNotifications(user?.id || "") || {};
 
   useEffect(() => {
-
     if (user?.id && !isInitialized) {
       NotificationService.initialize(user.id);
     }

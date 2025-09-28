@@ -2,15 +2,14 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useAuth } from "providers/auth.provider";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
-  Alert,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
-import Toast from "react-native-toast-message";
 import { useRequestOtpMutation } from "services/apis";
+import { handleApiError, showMessage } from "../../../utils/message.util";
 
 export default function VerifyOtpScreen() {
   const router = useRouter();
@@ -54,7 +53,7 @@ export default function VerifyOtpScreen() {
   const handleVerify = useCallback(async () => {
     const code = otp.join("");
     if (code.length < 6) {
-      Alert.alert("Lỗi", "Vui lòng nhập mã OTP hợp lệ.");
+      showMessage("ERM003", "Vui lòng nhập đầy đủ 6 số mã OTP");
       return;
     }
     await verifyOtp({ userId, otp: code });
@@ -64,21 +63,17 @@ export default function VerifyOtpScreen() {
     try {
       const res = await requestOtp({ email }).unwrap();
       if (res.statusCode === 200) {
-        Toast.show({ type: "success", text1: "Mã OTP đã được gửi lại." });
+        showMessage("INF003", "Mã OTP đã được gửi lại thành công");
         setUserId(res.item);
         setOtp(Array(6).fill(""));
         inputRefs.current[0]?.focus();
         setTimer(300);
         setIsRunning(true);
       } else {
-        Toast.show({
-          type: "error",
-          text1: "Không thể gửi OTP",
-          text2: res.message,
-        });
+        showMessage("ERM003", res.message || "Không thể gửi OTP");
       }
-    } catch {
-      Toast.show({ type: "error", text1: "Đã xảy ra lỗi khi gửi lại OTP." });
+    } catch (error) {
+      handleApiError(error);
     }
   }, [email, requestOtp]);
 

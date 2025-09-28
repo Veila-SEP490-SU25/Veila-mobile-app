@@ -56,6 +56,7 @@ export default function RootLayout() {
                 />
                 <Stack.Screen name="account" options={{ headerShown: false }} />
                 <Stack.Screen name="payment" options={{ headerShown: false }} />
+                <Stack.Screen name="chat" options={{ headerShown: false }} />
               </Stack>
               <Toast
                 config={toastConfig}

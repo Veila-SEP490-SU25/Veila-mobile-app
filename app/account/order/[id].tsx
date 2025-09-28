@@ -11,8 +11,10 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import Card from "../../../components/Card";
 import { LightStatusBar } from "../../../components/StatusBar";
-import { orderApi } from "../../../services/apis/order.api";
-import { Order } from "../../../services/types/order.type";
+import {
+  CustomerOrderResponse,
+  orderApi,
+} from "../../../services/apis/order.api";
 import { formatVNDCustom } from "../../../utils/currency.util";
 import { showMessage } from "../../../utils/message.util";
 
@@ -101,7 +103,7 @@ const getTypeConfig = (type: string) => {
 
 export default function OrderDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const [order, setOrder] = useState<Order | null>(null);
+  const [order, setOrder] = useState<CustomerOrderResponse | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -110,7 +112,12 @@ export default function OrderDetailScreen() {
     const loadOrder = async () => {
       try {
         setLoading(true);
-        const orderData = await orderApi.getOrderById(id as string);
+        const response = await orderApi.getOrderById(id as string);
+        const orderData = response?.item;
+        if (!orderData) {
+          showMessage("ERM006", "Không tìm thấy dữ liệu đơn hàng");
+          return;
+        }
         setOrder(orderData);
       } catch {
         showMessage("ERM006");
@@ -309,9 +316,6 @@ export default function OrderDetailScreen() {
             )}
             <View className="flex-row justify-between">
               <Text className="text-gray-600">Mua lại:</Text>
-              <Text className="text-gray-800 font-medium">
-                {order.isBuyBack ? "Có" : "Không"}
-              </Text>
             </View>
           </View>
         </Card>

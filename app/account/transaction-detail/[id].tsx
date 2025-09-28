@@ -1,58 +1,58 @@
 import { Ionicons } from "@expo/vector-icons";
-import { format } from "date-fns";
+import { formatDistanceToNow } from "date-fns";
 import { vi } from "date-fns/locale";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  SafeAreaView,
   ScrollView,
   StatusBar,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import Toast from "react-native-toast-message";
 import {
   transactionApi,
   TransactionItem,
 } from "../../../services/apis/transaction.api";
-
-const statusColors: { [key: string]: string } = {
-  completed: "#10B981",
-  pending: "#F59E0B",
-  failed: "#EF4444",
-};
-
-const statusLabels: { [key: string]: string } = {
-  completed: "Hoàn thành",
-  pending: "Đang xử lý",
-  failed: "Thất bại",
-};
-
-const typeLabels: { [key: string]: string } = {
-  transfer: "Chuyển khoản",
-  deposit: "Nạp tiền",
-  withdraw: "Rút tiền",
-};
-
-const orderTypeLabels: { [key: string]: string } = {
-  SELL: "Mua váy",
-  RENT: "Thuê váy",
-  CUSTOM: "Đặt may",
-};
-
-const orderStatusLabels: { [key: string]: string } = {
-  PENDING: "Chờ xử lý",
-  IN_PROCESS: "Đang xử lý",
-  COMPLETED: "Hoàn thành",
-  CANCELLED: "Đã hủy",
-};
+import { formatVND } from "../../../utils/currency.util";
 
 export default function TransactionDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id } = useLocalSearchParams();
   const [transaction, setTransaction] = useState<TransactionItem | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const loadTransactionDetail = async () => {
+    try {
+      setLoading(true);
+      const response = await transactionApi.getTransactionDetail(id as string);
+
+      if (response.statusCode === 200) {
+        setTransaction(response.item);
+        console.log("✅ Transaction detail loaded:", response.item);
+      } else {
+        console.log("❌ API Error:", response);
+        Toast.show({
+          type: "error",
+          text1: "Lỗi",
+          text2: "Không thể tải chi tiết giao dịch",
+          visibilityTime: 3000,
+        });
+      }
+    } catch (error) {
+      console.error("🚨 Exception:", error);
+      Toast.show({
+        type: "error",
+        text1: "Lỗi",
+        text2: "Không thể tải chi tiết giao dịch",
+        visibilityTime: 3000,
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (id) {
@@ -60,38 +60,35 @@ export default function TransactionDetailScreen() {
     }
   }, [id]);
 
-  const loadTransactionDetail = async () => {
-    try {
-      setLoading(true);
-      const response = await transactionApi.getTransactionDetail(id!);
-      if (response.statusCode === 200) {
-        setTransaction(response.items);
-      }
-    } catch (error: any) {
-      Toast.show({
-        type: "error",
-        text1: "Lỗi tải chi tiết",
-        text2: error?.message || "Không thể tải thông tin giao dịch",
-      });
-    } finally {
-      setLoading(false);
-    }
+  const getStatusColor = (status: string) => {
+    const statusColors: { [key: string]: string } = {
+      COMPLETED: "#10B981",
+      PENDING: "#F59E0B",
+      FAILED: "#EF4444",
+    };
+    return statusColors[status] || "#6B7280";
   };
 
-  const formatCurrency = (amount: string) => {
-    const numAmount = parseFloat(amount);
-    if (isNaN(numAmount)) return "0 ₫";
-
-    return new Intl.NumberFormat("vi-VN", {
-      style: "currency",
-      currency: "VND",
-    }).format(numAmount);
+  const getStatusLabel = (status: string) => {
+    const statusLabels: { [key: string]: string } = {
+      COMPLETED: "Hoàn thành",
+      PENDING: "Đang xử lý",
+      FAILED: "Thất bại",
+    };
+    return statusLabels[status] || status;
   };
 
-  const formatDateTime = (dateString: string) => {
-    return format(new Date(dateString), "dd/MM/yyyy 'lúc' HH:mm", {
-      locale: vi,
-    });
+  const getOrderTypeLabel = (type: string) => {
+    const typeLabels: { [key: string]: string } = {
+      SELL: "Mua váy",
+      RENT: "Thuê váy",
+      CUSTOM: "Đặt may",
+    };
+    return typeLabels[type] || type;
+  };
+
+  const formatShopName = (shopName: string) => {
+    return shopName.replace(/_shop_\d+$/, "").replace(/_/g, " ");
   };
 
   if (loading) {
@@ -100,7 +97,7 @@ export default function TransactionDetailScreen() {
         <StatusBar barStyle="dark-content" backgroundColor="#F9FAFB" />
         <View className="flex-1 justify-center items-center">
           <ActivityIndicator size="large" color="#E05C78" />
-          <Text className="text-gray-600 mt-2">
+          <Text className="text-lg text-gray-600 mt-4">
             Đang tải chi tiết giao dịch...
           </Text>
         </View>
@@ -115,28 +112,28 @@ export default function TransactionDetailScreen() {
         <View className="flex-1 justify-center items-center p-6">
           <Ionicons name="document-text-outline" size={80} color="#9CA3AF" />
           <Text className="text-xl font-semibold text-gray-400 mt-4 text-center">
-            Không tìm thấy giao dịch
+            Không thể tải chi tiết giao dịch
           </Text>
           <TouchableOpacity
             className="bg-primary-500 rounded-xl py-3 px-6 mt-4"
-            onPress={() => router.back()}
+            onPress={loadTransactionDetail}
           >
-            <Text className="text-white font-semibold">Quay lại</Text>
+            <Text className="text-white font-semibold">Thử lại</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
     );
   }
 
-  const statusColor = statusColors[transaction.status] || "#6B7280";
-  const isOutgoing = transaction.fromTypeBalance === "available";
+  const isOutgoing = transaction.fromTypeBalance === "AVAILABLE";
+  const statusColor = getStatusColor(transaction.status);
 
   return (
     <SafeAreaView className="flex-1 bg-gray-50">
       <StatusBar barStyle="dark-content" backgroundColor="#F9FAFB" />
 
       {/* Header */}
-      <View className="bg-white px-4 py-3 border-b border-gray-100">
+      <View className="bg-white px-6 py-4 border-b border-gray-100">
         <View className="flex-row items-center justify-between">
           <TouchableOpacity
             className="w-10 h-10 rounded-full bg-gray-100 items-center justify-center"
@@ -152,11 +149,11 @@ export default function TransactionDetailScreen() {
       </View>
 
       <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
-        {/* Transaction Status Card */}
-        <View className="bg-white mx-4 mt-4 rounded-2xl p-6 shadow-sm">
-          <View className="items-center mb-4">
+        {/* Transaction Summary Card */}
+        <View className="bg-white mx-4 mt-4 rounded-2xl p-6 shadow-soft">
+          <View className="items-center mb-6">
             <View
-              className="w-16 h-16 rounded-full items-center justify-center mb-3"
+              className={`w-16 h-16 rounded-full items-center justify-center mb-3`}
               style={{ backgroundColor: `${statusColor}15` }}
             >
               <Ionicons
@@ -165,86 +162,61 @@ export default function TransactionDetailScreen() {
                 color={statusColor}
               />
             </View>
-            <Text
-              className={`text-2xl font-bold ${isOutgoing ? "text-red-600" : "text-green-600"}`}
-            >
-              {isOutgoing ? "-" : "+"} {formatCurrency(transaction.amount)}
+
+            <Text className="text-2xl font-bold text-gray-800 mb-2">
+              {isOutgoing ? "-" : "+"} {formatVND(transaction.amount)}
             </Text>
-            <View className="flex-row items-center mt-2">
+
+            <View className="flex-row items-center">
               <View
-                className="w-3 h-3 rounded-full mr-2"
+                className={`w-3 h-3 rounded-full mr-2`}
                 style={{ backgroundColor: statusColor }}
               />
-              <Text
-                className="text-sm font-medium"
-                style={{ color: statusColor }}
-              >
-                {statusLabels[transaction.status] || transaction.status}
+              <Text className="text-gray-600 font-medium">
+                {getStatusLabel(transaction.status)}
               </Text>
             </View>
           </View>
-        </View>
 
-        {/* Transaction Info */}
-        <View className="bg-white mx-4 mt-4 rounded-2xl p-4 shadow-sm">
-          <Text className="text-lg font-semibold text-gray-800 mb-4">
-            Thông tin giao dịch
-          </Text>
-
-          <View className="space-y-3">
-            <View className="flex-row justify-between py-2 border-b border-gray-100">
-              <Text className="text-gray-600">Mã giao dịch</Text>
-              <Text className="font-medium text-gray-900">
-                {transaction.id.slice(-12)}
-              </Text>
-            </View>
-
-            <View className="flex-row justify-between py-2 border-b border-gray-100">
+          {/* Transaction Info */}
+          <View className="space-y-4">
+            <View className="flex-row justify-between items-center py-2 border-b border-gray-100">
               <Text className="text-gray-600">Loại giao dịch</Text>
-              <Text className="font-medium text-gray-900">
-                {typeLabels[transaction.type] || transaction.type}
+              <Text className="font-medium text-gray-800">
+                {transaction.type === "TRANSFER"
+                  ? "Chuyển khoản"
+                  : transaction.type}
               </Text>
             </View>
 
-            <View className="flex-row justify-between py-2 border-b border-gray-100">
-              <Text className="text-gray-600">Thời gian tạo</Text>
-              <Text className="font-medium text-gray-900">
-                {formatDateTime(transaction.createdAt)}
-              </Text>
-            </View>
-
-            <View className="flex-row justify-between py-2 border-b border-gray-100">
+            <View className="flex-row justify-between items-center py-2 border-b border-gray-100">
               <Text className="text-gray-600">Từ</Text>
-              <Text className="font-medium text-gray-900">
-                {transaction.from}
+              <Text className="font-medium text-gray-800">
+                {formatShopName(transaction.from)}
               </Text>
             </View>
 
-            <View className="flex-row justify-between py-2 border-b border-gray-100">
+            <View className="flex-row justify-between items-center py-2 border-b border-gray-100">
               <Text className="text-gray-600">Đến</Text>
-              <Text className="font-medium text-gray-900">
-                {transaction.to}
+              <Text className="font-medium text-gray-800">
+                {formatShopName(transaction.to)}
               </Text>
             </View>
 
-            <View className="flex-row justify-between py-2 border-b border-gray-100">
-              <Text className="text-gray-600">Loại số dư (từ)</Text>
-              <Text className="font-medium text-gray-900 capitalize">
-                {transaction.fromTypeBalance}
-              </Text>
-            </View>
-
-            <View className="flex-row justify-between py-2">
-              <Text className="text-gray-600">Loại số dư (đến)</Text>
-              <Text className="font-medium text-gray-900 capitalize">
-                {transaction.toTypeBalance}
+            <View className="flex-row justify-between items-center py-2 border-b border-gray-100">
+              <Text className="text-gray-600">Thời gian</Text>
+              <Text className="font-medium text-gray-800">
+                {formatDistanceToNow(new Date(transaction.createdAt), {
+                  addSuffix: true,
+                  locale: vi,
+                })}
               </Text>
             </View>
 
             {transaction.note && (
-              <View className="flex-row justify-between py-2 border-t border-gray-100">
+              <View className="flex-row justify-between items-center py-2 border-b border-gray-100">
                 <Text className="text-gray-600">Ghi chú</Text>
-                <Text className="font-medium text-gray-900 flex-1 text-right">
+                <Text className="font-medium text-gray-800">
                   {transaction.note}
                 </Text>
               </View>
@@ -252,133 +224,101 @@ export default function TransactionDetailScreen() {
           </View>
         </View>
 
-        {/* Order Info */}
+        {/* Order Details */}
         {transaction.order && (
-          <View className="bg-white mx-4 mt-4 rounded-2xl p-4 shadow-sm">
+          <View className="bg-white mx-4 mt-4 rounded-2xl p-6 shadow-soft">
             <Text className="text-lg font-semibold text-gray-800 mb-4">
-              Thông tin đơn hàng
+              Chi tiết đơn hàng
             </Text>
 
-            <View className="space-y-3">
-              <View className="flex-row justify-between py-2 border-b border-gray-100">
-                <Text className="text-gray-600">Mã đơn hàng</Text>
-                <Text className="font-medium text-gray-900">
-                  {transaction.order.id.slice(-12)}
-                </Text>
-              </View>
-
-              <View className="flex-row justify-between py-2 border-b border-gray-100">
+            <View className="space-y-4">
+              <View className="flex-row justify-between items-center py-2 border-b border-gray-100">
                 <Text className="text-gray-600">Loại đơn hàng</Text>
-                <Text className="font-medium text-gray-900">
-                  {orderTypeLabels[transaction.order.type] ||
-                    transaction.order.type}
+                <Text className="font-medium text-gray-800">
+                  {getOrderTypeLabel(transaction.order.type)}
                 </Text>
               </View>
 
-              <View className="flex-row justify-between py-2 border-b border-gray-100">
-                <Text className="text-gray-600">Trạng thái đơn hàng</Text>
-                <Text className="font-medium text-gray-900">
-                  {orderStatusLabels[transaction.order.status] ||
-                    transaction.order.status}
+              <View className="flex-row justify-between items-center py-2 border-b border-gray-100">
+                <Text className="text-gray-600">Trạng thái</Text>
+                <Text className="font-medium text-gray-800">
+                  {getStatusLabel(transaction.order.status)}
                 </Text>
               </View>
 
-              <View className="flex-row justify-between py-2 border-b border-gray-100">
-                <Text className="text-gray-600">Số điện thoại</Text>
-                <Text className="font-medium text-gray-900">
-                  {transaction.order.phone}
+              <View className="flex-row justify-between items-center py-2 border-b border-gray-100">
+                <Text className="text-gray-600">Số tiền</Text>
+                <Text className="font-medium text-gray-800">
+                  {formatVND(transaction.order.amount)}
                 </Text>
               </View>
 
-              <View className="flex-row justify-between py-2 border-b border-gray-100">
-                <Text className="text-gray-600">Email</Text>
-                <Text className="font-medium text-gray-900">
-                  {transaction.order.email}
+              <View className="flex-row justify-between items-center py-2 border-b border-gray-100">
+                <Text className="text-gray-600">Ngày hẹn</Text>
+                <Text className="font-medium text-gray-800">
+                  {transaction.order.dueDate
+                    ? new Date(transaction.order.dueDate).toLocaleDateString(
+                        "vi-VN"
+                      )
+                    : "Không có"}
                 </Text>
               </View>
-
-              <View className="flex-row justify-between py-2 border-b border-gray-100">
-                <Text className="text-gray-600">Địa chỉ giao hàng</Text>
-                <Text className="font-medium text-gray-900 flex-1 text-right">
-                  {transaction.order.address}
-                </Text>
-              </View>
-
-              <View className="flex-row justify-between py-2 border-b border-gray-100">
-                <Text className="text-gray-600">Giá trị đơn hàng</Text>
-                <Text className="font-medium text-gray-900">
-                  {formatCurrency(transaction.order.amount)}
-                </Text>
-              </View>
-
-              {transaction.order.dueDate && (
-                <View className="flex-row justify-between py-2 border-b border-gray-100">
-                  <Text className="text-gray-600">Ngày dự kiến</Text>
-                  <Text className="font-medium text-gray-900">
-                    {format(new Date(transaction.order.dueDate), "dd/MM/yyyy", {
-                      locale: vi,
-                    })}
-                  </Text>
-                </View>
-              )}
 
               {transaction.order.returnDate && (
-                <View className="flex-row justify-between py-2">
+                <View className="flex-row justify-between items-center py-2 border-b border-gray-100">
                   <Text className="text-gray-600">Ngày trả</Text>
-                  <Text className="font-medium text-gray-900">
-                    {format(
-                      new Date(transaction.order.returnDate),
-                      "dd/MM/yyyy",
-                      { locale: vi }
+                  <Text className="font-medium text-gray-800">
+                    {new Date(transaction.order.returnDate).toLocaleDateString(
+                      "vi-VN"
                     )}
                   </Text>
                 </View>
               )}
+
+              <View className="flex-row justify-between items-start py-2">
+                <Text className="text-gray-600">Địa chỉ</Text>
+                <Text className="font-medium text-gray-800 text-right flex-1 ml-4">
+                  {transaction.order.address}
+                </Text>
+              </View>
             </View>
           </View>
         )}
 
         {/* Wallet Info */}
-        <View className="bg-white mx-4 mt-4 mb-6 rounded-2xl p-4 shadow-sm">
+        <View className="bg-white mx-4 mt-4 mb-6 rounded-2xl p-6 shadow-soft">
           <Text className="text-lg font-semibold text-gray-800 mb-4">
             Thông tin ví
           </Text>
 
-          <View className="space-y-3">
-            <View className="flex-row justify-between py-2 border-b border-gray-100">
-              <Text className="text-gray-600">Mã ví</Text>
-              <Text className="font-medium text-gray-900">
-                {transaction.wallet.id.slice(-12)}
-              </Text>
-            </View>
-
-            <View className="flex-row justify-between py-2 border-b border-gray-100">
+          <View className="space-y-4">
+            <View className="flex-row justify-between items-center py-2 border-b border-gray-100">
               <Text className="text-gray-600">Số dư khả dụng</Text>
-              <Text className="font-medium text-green-600">
-                {formatCurrency(transaction.wallet.availableBalance)}
+              <Text className="font-medium text-gray-800">
+                {formatVND(transaction.wallet.availableBalance)}
               </Text>
             </View>
 
-            <View className="flex-row justify-between py-2 border-b border-gray-100">
+            <View className="flex-row justify-between items-center py-2 border-b border-gray-100">
               <Text className="text-gray-600">Số dư bị khóa</Text>
-              <Text className="font-medium text-orange-600">
-                {formatCurrency(transaction.wallet.lockedBalance)}
+              <Text className="font-medium text-gray-800">
+                {formatVND(transaction.wallet.lockedBalance)}
               </Text>
             </View>
 
             {transaction.wallet.bin && (
-              <View className="flex-row justify-between py-2 border-b border-gray-100">
-                <Text className="text-gray-600">BIN</Text>
-                <Text className="font-medium text-gray-900">
+              <View className="flex-row justify-between items-center py-2 border-b border-gray-100">
+                <Text className="text-gray-600">BIN ngân hàng</Text>
+                <Text className="font-medium text-gray-800">
                   {transaction.wallet.bin}
                 </Text>
               </View>
             )}
 
             {transaction.wallet.bankNumber && (
-              <View className="flex-row justify-between py-2">
+              <View className="flex-row justify-between items-center py-2">
                 <Text className="text-gray-600">Số tài khoản</Text>
-                <Text className="font-medium text-gray-900">
+                <Text className="font-medium text-gray-800">
                   {transaction.wallet.bankNumber}
                 </Text>
               </View>

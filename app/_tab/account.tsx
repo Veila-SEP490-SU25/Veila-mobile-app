@@ -14,6 +14,8 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { PhoneVerificationStatus, UserStatus } from "services/types";
 import { useAuth } from "../../providers/auth.provider";
+import { useChatContext } from "../../providers/chat.provider";
+import { useNotificationContext } from "../../providers/notification.provider";
 import { dressApi } from "../../services/apis/dress.api";
 import { shopApi } from "../../services/apis/shop.api";
 import { Dress } from "../../services/types/dress.type";
@@ -37,6 +39,13 @@ export default function AccountScreen() {
 
   const [favoriteShops, setFavoriteShops] = useState<Shop[]>([]);
   const [favoriteDresses, setFavoriteDresses] = useState<Dress[]>([]);
+
+  const { chatRooms } = useChatContext();
+  const { unreadCount } = useNotificationContext();
+
+  const totalUnreadMessages = chatRooms.reduce((total, room) => {
+    return total + (room.unreadCount || 0);
+  }, 0);
 
   useEffect(() => {
     Animated.timing(fadeAnim, {
@@ -65,8 +74,7 @@ export default function AccountScreen() {
             ? dresses.value
             : []
         );
-      } catch (error) {
-        console.error("Error fetching favorites:", error);
+      } catch {
         setFavoriteShops([]);
         setFavoriteDresses([]);
       }
@@ -155,7 +163,7 @@ export default function AccountScreen() {
       subtitle: "Xem tin nhắn và thông báo",
       icon: "chatbubble-outline",
       onPress: () => router.push("/_tab/chat"),
-      badge: 3,
+      badge: totalUnreadMessages > 0 ? totalUnreadMessages : undefined,
       showArrow: true,
       iconColor: "#3B82F6",
     },
@@ -164,8 +172,8 @@ export default function AccountScreen() {
       title: "Thông báo",
       subtitle: "Cài đặt thông báo",
       icon: "notifications-outline",
-      onPress: () => console.log("Notifications pressed"),
-      badge: 5,
+      onPress: () => router.push("/_tab/notifications"),
+      badge: unreadCount > 0 ? unreadCount : undefined,
       showArrow: true,
       iconColor: "#F59E0B",
     },
@@ -222,6 +230,15 @@ export default function AccountScreen() {
       onPress: () => router.push("/account/custom-requests" as any),
       showArrow: true,
       iconColor: "#F59E0B",
+    },
+    {
+      id: "register-shop",
+      title: "Đăng ký shop",
+      subtitle: "Trở thành đối tác kinh doanh",
+      icon: "business-outline",
+      onPress: () => router.push("/account/register-shop" as any),
+      showArrow: true,
+      iconColor: "#8B5CF6",
     },
   ];
 
@@ -297,7 +314,11 @@ export default function AccountScreen() {
           </View>
 
           <View style={styles.profileInfo}>
-            <View style={styles.avatarContainer}>
+            <TouchableOpacity
+              style={styles.avatarContainer}
+              onPress={() => router.push("/account/profile")}
+              activeOpacity={0.8}
+            >
               {user?.avatarUrl ? (
                 <Image source={{ uri: user.avatarUrl }} style={styles.avatar} />
               ) : (
@@ -310,10 +331,10 @@ export default function AccountScreen() {
                   <Ionicons name="checkmark-circle" size={18} color="#10B981" />
                 </View>
               )}
-              <TouchableOpacity style={styles.cameraButton}>
+              <View style={styles.cameraButton}>
                 <Ionicons name="camera" size={14} color="#FFFFFF" />
-              </TouchableOpacity>
-            </View>
+              </View>
+            </TouchableOpacity>
 
             <View style={styles.userInfo}>
               <Text style={styles.userName}>{getFullName()}</Text>

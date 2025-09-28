@@ -11,7 +11,6 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import Toast from "react-native-toast-message";
 import AccessoryGrid from "../../components/shopping/AccessoryGrid";
 import BlogList from "../../components/shopping/BlogList";
 import CategoryTabs, {
@@ -21,6 +20,7 @@ import DressGrid from "../../components/shopping/DressGrid";
 import { useAuth } from "../../providers/auth.provider";
 import { shopApi } from "../../services/apis/shop.api";
 import { Accessory, Dress, ShopDetail } from "../../services/types";
+import { showMessage } from "../../utils/message.util";
 
 export default function ShopDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -50,11 +50,13 @@ export default function ShopDetailScreen() {
       const shopData = await shopApi.getShopById(id);
 
       if (shopData && typeof shopData === "object") {
-
         if ("item" in shopData && shopData.item) {
           setShop(shopData.item as ShopDetail);
-        } else if ("id" in shopData && "name" in shopData) {
 
+          if ((shopData.item as any).isFavorite !== undefined) {
+            setIsFavorite((shopData.item as any).isFavorite);
+          }
+        } else if ("id" in shopData && "name" in shopData) {
           const shopDetail: ShopDetail = {
             id: shopData.id as string,
             name: shopData.name as string,
@@ -67,20 +69,16 @@ export default function ShopDetailScreen() {
             coverUrl: shopData.coverUrl as string,
           };
           setShop(shopDetail);
+
+          if ((shopData as any).isFavorite !== undefined) {
+            setIsFavorite((shopData as any).isFavorite);
+          }
         } else {
-          Toast.show({
-            type: "error",
-            text1: "Lỗi",
-            text2: "Dữ liệu shop không hợp lệ",
-          });
+          showMessage("ERM006", "Dữ liệu shop không hợp lệ");
           return;
         }
       } else {
-        Toast.show({
-          type: "error",
-          text1: "Lỗi",
-          text2: "Dữ liệu shop không hợp lệ",
-        });
+        showMessage("ERM006", "Dữ liệu shop không hợp lệ");
         return;
       }
 
@@ -104,18 +102,9 @@ export default function ShopDetailScreen() {
         blogs: blogs.items || [],
       });
 
-      Toast.show({
-        type: "success",
-        text1: "Thành công",
-        text2: "Đã tải thông tin shop",
-      });
-    } catch (error) {
-      console.error("Error loading shop detail:", error);
-      Toast.show({
-        type: "error",
-        text1: "Lỗi",
-        text2: "Không thể tải thông tin cửa hàng",
-      });
+      showMessage("INF004", "Đã tải thông tin shop thành công");
+    } catch {
+      showMessage("ERM006", "Không thể tải thông tin shop");
     } finally {
       setLoading(false);
     }
@@ -139,21 +128,7 @@ export default function ShopDetailScreen() {
 
   const handleContact = useCallback(() => {
     if (shop) {
-      Toast.show({
-        type: "info",
-        text1: "Thông tin liên hệ",
-        text2: `Điện thoại: ${shop.phone}\nEmail: ${shop.email}\nĐịa chỉ: ${shop.address}`,
-        onPress: () => {
-          Toast.show({
-            type: "info",
-            text1: "Tùy chọn",
-            text2: "Chọn hành động liên hệ",
-            onPress: () => {
-
-            },
-          });
-        },
-      });
+      showMessage("INF002", `Liên hệ: ${shop.phone} | ${shop.email}`);
     }
   }, [shop]);
 
@@ -162,11 +137,7 @@ export default function ShopDetailScreen() {
       if (!shop) return;
 
       if (!user) {
-        Toast.show({
-          type: "error",
-          text1: "Lỗi",
-          text2: "Vui lòng đăng nhập để chat",
-        });
+        showMessage("SSM001");
         return;
       }
 
@@ -187,36 +158,32 @@ export default function ShopDetailScreen() {
       const chatRoomId = await ChatService.createChatRoom(chatRoomData);
 
       router.push(`/chat/${chatRoomId}`);
-    } catch (error) {
-      console.error("Error creating chat room:", error);
-      Toast.show({
-        type: "error",
-        text1: "Lỗi",
-        text2: "Không thể tạo cuộc trò chuyện",
-      });
+    } catch {
+      showMessage("ERM006", "Không thể tạo phòng chat");
     }
   }, [shop, user]);
 
   const handleCustomRequest = useCallback(() => {
-    router.push(`/account/custom-requests/create?shopId=${id}` as any);
+    // Navigate to checkout page for custom order
+    router.push(`/checkout?dressId=custom&type=SELL&shopId=${id}` as any);
   }, [id]);
 
   const handleFavorite = useCallback(async () => {
     try {
-      setIsFavorite(!isFavorite);
+      const newFavoriteStatus = !isFavorite;
+      setIsFavorite(newFavoriteStatus);
 
       await shopApi.toggleFavorite(id as string);
-      Toast.show({
-        type: "success",
-        text1: isFavorite ? "Đã bỏ yêu thích" : "Đã thêm vào yêu thích",
-      });
-    } catch (error) {
-      console.error("Error toggling favorite:", error);
-      Toast.show({
-        type: "error",
-        text1: "Lỗi",
-        text2: "Không thể cập nhật yêu thích",
-      });
+
+      showMessage(
+        "SUC004",
+        newFavoriteStatus
+          ? "Đã thêm shop vào danh sách yêu thích"
+          : "Đã bỏ yêu thích shop"
+      );
+    } catch {
+      showMessage("ERM006", "Không thể cập nhật yêu thích");
+      setIsFavorite(isFavorite);
     }
   }, [id, isFavorite]);
 
@@ -403,7 +370,6 @@ export default function ShopDetailScreen() {
     <View style={styles.container}>
       <StatusBar style="light" />
 
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backButton}
@@ -425,7 +391,6 @@ export default function ShopDetailScreen() {
         data={[{ key: "content" }]}
         renderItem={() => (
           <>
-            {/* Cover Image */}
             <View style={styles.coverContainer}>
               <Image
                 source={{
@@ -452,7 +417,6 @@ export default function ShopDetailScreen() {
               </View>
             </View>
 
-            {/* Shop Info */}
             <View style={styles.shopInfo}>
               <View style={styles.shopHeader}>
                 <Text style={styles.shopName}>{shop.name}</Text>
@@ -519,24 +483,8 @@ export default function ShopDetailScreen() {
                 </View>
               </View>
 
-              {/* Action Buttons */}
               {renderActionButtons()}
 
-              {/* Test Accessory Selector Button */}
-              <TouchableOpacity
-                style={styles.testButton}
-                onPress={() =>
-                  router.push(
-                    `/accessory-selector?shopId=${id}&mode=buy` as any
-                  )
-                }
-                activeOpacity={0.8}
-              >
-                <Ionicons name="diamond-outline" size={20} color="#FFFFFF" />
-                <Text style={styles.testButtonText}>Test Chọn Phụ Kiện</Text>
-              </TouchableOpacity>
-
-              {/* Contact Button */}
               <TouchableOpacity
                 style={styles.contactButton}
                 onPress={handleContact}
@@ -546,17 +494,14 @@ export default function ShopDetailScreen() {
                 <Text style={styles.contactButtonText}>Liên hệ ngay</Text>
               </TouchableOpacity>
 
-              {/* Shop Stats */}
               {renderShopStats()}
             </View>
 
-            {/* Category Tabs */}
             <CategoryTabs
               selectedCategory={selectedCategory}
               onSelectCategory={setSelectedCategory}
             />
 
-            {/* Content based on selected category */}
             {renderContent()}
           </>
         )}

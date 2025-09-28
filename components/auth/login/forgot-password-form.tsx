@@ -1,15 +1,14 @@
 import { router } from "expo-router";
 import React, { useState } from "react";
 import {
-  Alert,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
-import Toast from "react-native-toast-message";
 import { useRequestOtpMutation } from "../../../services/apis";
+import { handleApiError, showMessage } from "../../../utils/message.util";
 
 export default function ForgotPasswordForm() {
   const [email, setEmail] = useState("");
@@ -18,12 +17,12 @@ export default function ForgotPasswordForm() {
 
   const handleSubmit = async () => {
     if (!email.trim()) {
-      Alert.alert("Lỗi", "Vui lòng nhập email của bạn");
+      showMessage("ERM007", "Vui lòng nhập email của bạn");
       return;
     }
 
     if (!email.includes("@")) {
-      Alert.alert("Lỗi", "Vui lòng nhập email hợp lệ");
+      showMessage("ERM007", "Vui lòng nhập email hợp lệ");
       return;
     }
 
@@ -32,29 +31,17 @@ export default function ForgotPasswordForm() {
       const response = await requestOtp({ email: email.trim() }).unwrap();
 
       if (response.statusCode === 200) {
-        Toast.show({
-          type: "success",
-          text1: "Thành công",
-          text2: "Mã OTP đã được gửi đến email của bạn",
-        });
+        showMessage("INF003", "Mã OTP đã được gửi đến email của bạn");
 
         router.push({
           pathname: "/_auth/reset-password" as any,
           params: { userId: response.item, email: email.trim() },
         });
       } else {
-        Toast.show({
-          type: "error",
-          text1: "Lỗi",
-          text2: response.message || "Không thể gửi mã OTP",
-        });
+        showMessage("ERM003", response.message || "Không thể gửi mã OTP");
       }
-    } catch {
-      Toast.show({
-        type: "error",
-        text1: "Lỗi",
-        text2: "Đã xảy ra lỗi, vui lòng thử lại",
-      });
+    } catch (error) {
+      handleApiError(error);
     } finally {
       setIsLoading(false);
     }

@@ -31,23 +31,22 @@ const makeRequest = async (endpoint: string, options: RequestInit = {}) => {
 };
 
 export const shopApi = {
-  getShops: async (
-    page: number = 0,
-    size: number = 10,
-    filter?: string,
-    sort?: string
-  ): Promise<ShopListResponse> => {
-    let url = `/shops?page=${page}&size=${size}`;
+  getShops: async (params?: {
+    page?: number;
+    size?: number;
+    search?: string;
+    category?: string;
+  }): Promise<ShopListResponse> => {
+    const queryParams = new URLSearchParams();
+    if (params?.page !== undefined)
+      queryParams.append("page", String(params.page));
+    if (params?.size !== undefined)
+      queryParams.append("size", String(params.size));
+    if (params?.search) queryParams.append("search", params.search);
+    if (params?.category) queryParams.append("category", params.category);
 
-    if (filter) {
-      url += `&filter=${encodeURIComponent(filter)}`;
-    }
-
-    if (sort) {
-      url += `&sort=${encodeURIComponent(sort)}`;
-    }
-
-    return makeRequest(url);
+    const qs = queryParams.toString();
+    return makeRequest(`/shops${qs ? `?${qs}` : ""}`);
   },
 
   getShopById: async (id: string): Promise<ShopDetail> => {
@@ -106,5 +105,50 @@ export const shopApi = {
 
   getFavoriteShops: async (): Promise<Shop[]> => {
     return makeRequest(`/shops/favorites`);
+  },
+
+  registerShop: async (data: {
+    name: string;
+    phone: string;
+    email: string;
+    address: string;
+    licenseImages: string;
+  }): Promise<{
+    success: boolean;
+    message: string;
+    shopId?: string;
+  }> => {
+    try {
+      const { accessToken } = await getTokens();
+      const response = await fetch(`${API_URL}/shops/me`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(accessToken && { Authorization: `Bearer ${accessToken}` }),
+        },
+        body: JSON.stringify(data),
+      });
+
+      const responseData = await response.json();
+
+      if (response.status === 201) {
+        return {
+          success: true,
+          message: responseData.message || "Đăng ký shop thành công",
+          shopId: responseData.shopId,
+        };
+      } else {
+        return {
+          success: false,
+          message: responseData.message || "Có lỗi xảy ra khi đăng ký shop",
+        };
+      }
+    } catch (error: any) {
+      console.error("Error registering shop:", error);
+      return {
+        success: false,
+        message: error.message || "Có lỗi xảy ra khi đăng ký shop",
+      };
+    }
   },
 };

@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   ScrollView,
   Text,
@@ -19,6 +19,7 @@ import {
   createProfileUpdateFromAddress,
   parseAddressString,
 } from "../../utils/address.util";
+import { showMessage } from "../../utils/message.util";
 
 interface Address {
   id: string;
@@ -70,27 +71,11 @@ const AddressScreen = () => {
     },
   });
 
-  useEffect(() => {
-
-    if (user) {
-      setFormData((prev) => ({
-        ...prev,
-        name:
-          `${user.firstName || ""} ${user.lastName || ""}`.trim() ||
-          "Nguyễn Văn A",
-        phone: user.phone || "0901234567",
-      }));
-    }
-
-    loadAddresses();
-  }, [user]);
-
-  const loadAddresses = () => {
+  const loadAddresses = useCallback(() => {
     if (!user) return;
 
     const userAddress = user.address;
     if (userAddress) {
-
       const parsedAddress = parseAddressString(userAddress);
 
       if (parsedAddress.province) {
@@ -125,7 +110,6 @@ const AddressScreen = () => {
 
         setAddresses([existingAddress]);
       } else {
-
         const existingAddress: Address = {
           id: "1",
           name:
@@ -142,10 +126,22 @@ const AddressScreen = () => {
         setAddresses([existingAddress]);
       }
     } else {
-
       setAddresses([]);
     }
-  };
+  }, [user]);
+
+  useEffect(() => {
+    if (user) {
+      setFormData((prev) => ({
+        ...prev,
+        name:
+          `${user.firstName || ""} ${user.lastName || ""}`.trim() ||
+          "Nguyễn Văn A",
+        phone: user.phone || "0901234567",
+      }));
+      loadAddresses();
+    }
+  }, [user, loadAddresses]);
 
   const resetForm = () => {
     setFormData({
@@ -205,56 +201,32 @@ const AddressScreen = () => {
 
   const validateForm = (): boolean => {
     if (!formData.name.trim()) {
-      Toast.show({
-        type: "error",
-        text1: "Lỗi",
-        text2: "Vui lòng nhập họ và tên",
-      });
+      showMessage("ERM007", "Vui lòng nhập họ và tên");
       return false;
     }
 
     if (!formData.phone.trim()) {
-      Toast.show({
-        type: "error",
-        text1: "Lỗi",
-        text2: "Vui lòng nhập số điện thoại",
-      });
+      showMessage("ERM007", "Vui lòng nhập số điện thoại");
       return false;
     }
 
     if (!formData.address.province) {
-      Toast.show({
-        type: "error",
-        text1: "Lỗi",
-        text2: "Vui lòng chọn tỉnh/thành phố",
-      });
+      showMessage("ERM007", "Vui lòng chọn tỉnh/thành phố");
       return false;
     }
 
     if (!formData.address.district) {
-      Toast.show({
-        type: "error",
-        text1: "Lỗi",
-        text2: "Vui lòng chọn quận/huyện",
-      });
+      showMessage("ERM007", "Vui lòng chọn quận/huyện");
       return false;
     }
 
     if (!formData.address.ward) {
-      Toast.show({
-        type: "error",
-        text1: "Lỗi",
-        text2: "Vui lòng chọn phường/xã",
-      });
+      showMessage("ERM007", "Vui lòng chọn phường/xã");
       return false;
     }
 
     if (!formData.streetAddress.trim()) {
-      Toast.show({
-        type: "error",
-        text1: "Lỗi",
-        text2: "Vui lòng nhập địa chỉ chi tiết",
-      });
+      showMessage("ERM007", "Vui lòng nhập địa chỉ chi tiết");
       return false;
     }
 
@@ -266,9 +238,7 @@ const AddressScreen = () => {
 
     setLoading(true);
     try {
-
       if (updateUser) {
-
         const profileUpdate = createProfileUpdateFromAddress(formData.address, {
           firstName: user?.firstName || "",
           lastName: user?.lastName || "",
@@ -277,7 +247,6 @@ const AddressScreen = () => {
         const success = await updateUser(profileUpdate);
 
         if (success) {
-
           const newAddress: Address = {
             id: editingAddress?.id || Date.now().toString(),
             name: formData.name.trim(),
@@ -290,25 +259,15 @@ const AddressScreen = () => {
           };
 
           if (isEditing && editingAddress) {
-
             setAddresses((prev) =>
               prev.map((addr) =>
                 addr.id === editingAddress.id ? newAddress : addr
               )
             );
-            Toast.show({
-              type: "success",
-              text1: "Thành công",
-              text2: "Địa chỉ đã được cập nhật",
-            });
+            showMessage("SUC005", "Địa chỉ đã được cập nhật");
           } else {
-
             setAddresses((prev) => [...prev, newAddress]);
-            Toast.show({
-              type: "success",
-              text1: "Thành công",
-              text2: "Địa chỉ mới đã được thêm",
-            });
+            showMessage("SUC005", "Địa chỉ mới đã được thêm");
           }
 
           handleCancel();
@@ -320,7 +279,6 @@ const AddressScreen = () => {
           });
         }
       } else {
-
         const newAddress: Address = {
           id: editingAddress?.id || Date.now().toString(),
           name: formData.name.trim(),
@@ -354,8 +312,7 @@ const AddressScreen = () => {
 
         handleCancel();
       }
-    } catch (error) {
-      console.error("Error saving address:", error);
+    } catch {
       Toast.show({
         type: "error",
         text1: "Lỗi",

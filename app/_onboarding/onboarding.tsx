@@ -56,7 +56,6 @@ export default function Onboarding() {
         )}
       />
 
-      {/* Indicator */}
       <View className="absolute bottom-36 gap-2 w-full flex-row justify-center items-center">
         {slides.map((_, index) => (
           <View

@@ -9,6 +9,12 @@ export default {
     orientation: "portrait",
     scheme: "veila",
     userInterfaceStyle: "automatic",
+    splash: {
+      image: "./assets/images/splash.png",
+      resizeMode: "cover",
+      backgroundColor: "#ffffff",
+    },
+
     ios: {
       supportsTablet: true,
       bundleIdentifier: "com.veila.app",

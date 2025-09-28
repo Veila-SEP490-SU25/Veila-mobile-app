@@ -31,6 +31,8 @@ export interface Wallet {
   lockedBalance: number | string;
   bin?: string | null;
   bankNumber?: string | null;
+  pin?: string | null;
+  hasPin?: boolean;
   user: WalletUser;
 }
 
@@ -38,4 +40,11 @@ export interface WalletResponse {
   message: string;
   statusCode: number;
   item: Wallet;
+}
+
+export interface DepositRequest {
+  amount: number;
+  note: string;
+  returnUrl: string;
+  cancelUrl: string;
 }

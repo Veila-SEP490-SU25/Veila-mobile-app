@@ -40,11 +40,11 @@ export interface TransactionItem {
   deletedAt: string | null;
   from: string;
   to: string;
-  fromTypeBalance: "available" | "locked" | string;
-  toTypeBalance: "available" | "locked" | string;
+  fromTypeBalance: "AVAILABLE" | "LOCKED" | string;
+  toTypeBalance: "AVAILABLE" | "LOCKED" | string;
   amount: string;
-  type: "transfer" | string;
-  status: "completed" | "pending" | "failed" | string;
+  type: "TRANSFER" | string;
+  status: "COMPLETED" | "PENDING" | "FAILED" | string;
   note: string | null;
   wallet: TransactionWalletInfo;
   order: TransactionOrderInfo | null;
@@ -69,7 +69,7 @@ export interface TransactionPage {
 export interface TransactionDetailResponse {
   message: string;
   statusCode: number;
-  items: TransactionItem;
+  item: TransactionItem;
 }
 
 const API_URL = getVeilaServerConfig();

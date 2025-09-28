@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-  Modal,
   ScrollView,
   StyleSheet,
   Text,
@@ -9,6 +9,13 @@ import {
   View,
 } from "react-native";
 import Toast from "react-native-toast-message";
+import Button from "../components/Button";
+import CheckoutAccessories from "../components/CheckoutAccessories";
+import CheckoutConfirmation from "../components/CheckoutConfirmation";
+import CheckoutCustomerInfo from "../components/CheckoutCustomerInfo";
+import CheckoutMeasurements from "../components/CheckoutMeasurements";
+import CheckoutStatusModal from "../components/CheckoutStatusModal";
+import DatePicker from "../components/DatePicker";
 import { useAuth } from "../providers/auth.provider";
 import { dressApi } from "../services/apis/dress.api";
 import {
@@ -20,22 +27,6 @@ import {
 import { shopApi } from "../services/apis/shop.api";
 import { Accessory } from "../services/types";
 import { Dress } from "../services/types/dress.type";
-import Button from "./Button";
-import CheckoutAccessories from "./CheckoutAccessories";
-import CheckoutConfirmation from "./CheckoutConfirmation";
-import CheckoutCustomerInfo from "./CheckoutCustomerInfo";
-import CheckoutMeasurements from "./CheckoutMeasurements";
-import CheckoutStatusModal from "./CheckoutStatusModal";
-import DatePicker from "./DatePicker";
-
-interface CheckoutPopupProps {
-  visible: boolean;
-  onClose: () => void;
-  dressId: string;
-  type: "SELL" | "RENT";
-  onSuccess?: (orderNumber: string) => void;
-  shopId?: string;
-}
 
 interface CheckoutStep {
   id: string;
@@ -43,17 +34,16 @@ interface CheckoutStep {
   description: string;
 }
 
-export default function CheckoutPopup({
-  visible,
-  onClose,
-  dressId,
-  type,
-  onSuccess,
-  shopId,
-}: CheckoutPopupProps) {
+export default function CheckoutPage() {
+  const router = useRouter();
   const { user } = useAuth();
+  const searchParams = useLocalSearchParams();
 
-  // Simple state management
+  const dressId = searchParams.dressId as string;
+  const type = (searchParams.type as "SELL" | "RENT") || "SELL";
+  const shopId = searchParams.shopId as string;
+
+  // State management
   const [currentStep, setCurrentStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [dress, setDress] = useState<Dress | null>(null);
@@ -101,7 +91,7 @@ export default function CheckoutPopup({
     [key: string]: string;
   }>({});
 
-  // Simple steps array
+  // Steps array
   const steps: CheckoutStep[] = [
     {
       id: "customer-info",
@@ -125,22 +115,13 @@ export default function CheckoutPopup({
     },
   ];
 
-  // Functions moved to useEffect to prevent re-render issues
-
-  // Simple useEffect - only run when visible or dressId changes
+  // Load dress details
   useEffect(() => {
-    let isMounted = true; // Flag để kiểm tra component còn mount không
-
-    if (visible && dressId) {
-      // Load dress details
+    if (dressId) {
       const loadDress = async () => {
         try {
-          if (!isMounted) return; // Kiểm tra trước khi set state
-
           setLoading(true);
           const response = await dressApi.getDressById(dressId);
-
-          if (!isMounted) return; // Kiểm tra sau khi API call
 
           let dressData: Dress;
           if ("item" in response && response.item) {
@@ -161,9 +142,6 @@ export default function CheckoutPopup({
                 0,
                 50
               );
-
-              if (!isMounted) return; // Kiểm tra sau khi API call
-
               if (
                 accessoriesResponse &&
                 accessoriesResponse.items &&
@@ -174,93 +152,68 @@ export default function CheckoutPopup({
                 setShopAccessories([]);
               }
             } catch (error) {
-              if (isMounted) {
-                console.error("Error loading shop accessories:", error);
-                setShopAccessories([]);
-              }
+              console.error("Error loading shop accessories:", error);
+              setShopAccessories([]);
             }
           }
         } catch (error) {
-          if (isMounted) {
-            console.error("Error loading dress details:", error);
-            Toast.show({
-              type: "error",
-              text1: "Lỗi",
-              text2: "Không thể tải thông tin váy",
-            });
-          }
+          console.error("Error loading dress details:", error);
+          Toast.show({
+            type: "error",
+            text1: "Lỗi",
+            text2: "Không thể tải thông tin váy",
+          });
         } finally {
-          if (isMounted) {
-            setLoading(false);
-          }
+          setLoading(false);
         }
       };
 
       // Reset form
-      if (isMounted) {
-        setCurrentStep(0);
+      setCurrentStep(0);
 
-        // Tính ngày giao mặc định: ngày hiện tại + 3 ngày
-        const defaultDeliveryDate = new Date();
-        defaultDeliveryDate.setDate(defaultDeliveryDate.getDate() + 3);
-        const formattedDeliveryDate = defaultDeliveryDate
-          .toISOString()
-          .split("T")[0];
+      // Tính ngày giao mặc định: ngày hiện tại + 3 ngày
+      const defaultDeliveryDate = new Date();
+      defaultDeliveryDate.setDate(defaultDeliveryDate.getDate() + 3);
+      defaultDeliveryDate.setHours(12, 0, 0, 0);
+      const formattedDeliveryDate = `${defaultDeliveryDate.getFullYear()}-${String(
+        defaultDeliveryDate.getMonth() + 1
+      ).padStart(2, "0")}-${String(defaultDeliveryDate.getDate()).padStart(
+        2,
+        "0"
+      )}`;
 
-        setOrderData({
-          phone: user?.phone || "",
-          email: user?.email || "",
-          address: user?.address || "",
-          dueDate: formattedDeliveryDate,
-          returnDate: null,
-        });
-        setMeasurements({
-          dressId: dressId || "",
-          height: 160, // Số đo trung bình: 160cm
-          weight: 55, // Số đo trung bình: 55kg
-          bust: 85, // Số đo trung bình: 85cm
-          waist: 70, // Số đo trung bình: 70cm
-          hip: 90, // Số đo trung bình: 90cm
-          armpit: 25, // Số đo trung bình: 25cm
-          bicep: 25, // Số đo trung bình: 25cm
-          neck: 35, // Số đo trung bình: 35cm
-          shoulderWidth: 35, // Số đo trung bình: 35cm
-          sleeveLength: 0, // Số đo trung bình: 0cm (không có tay áo)
-          backLength: 45, // Số đo trung bình: 45cm
-          lowerWaist: 15, // Số đo trung bình: 15cm
-          waistToFloor: 0, // Số đo trung bình: 0cm (không cần thiết)
-        });
-        setSelectedAccessories([]);
-        setValidationErrors({});
-      }
+      setOrderData({
+        phone: user?.phone || "",
+        email: user?.email || "",
+        address: user?.address || "",
+        dueDate: formattedDeliveryDate,
+        returnDate: null,
+      });
+      setMeasurements({
+        dressId: dressId || "",
+        height: 160, // Số đo trung bình: 160cm
+        weight: 55, // Số đo trung bình: 55kg
+        bust: 85, // Số đo trung bình: 85cm
+        waist: 70, // Số đo trung bình: 70cm
+        hip: 90, // Số đo trung bình: 90cm
+        armpit: 25, // Số đo trung bình: 25cm
+        bicep: 25, // Số đo trung bình: 25cm
+        neck: 35, // Số đo trung bình: 35cm
+        shoulderWidth: 35, // Số đo trung bình: 35cm
+        sleeveLength: 0, // Số đo trung bình: 0cm (không có tay áo)
+        backLength: 45, // Số đo trung bình: 45cm
+        lowerWaist: 15, // Số đo trung bình: 15cm
+        waistToFloor: 0, // Số đo trung bình: 0cm (không cần thiết)
+      });
+      setSelectedAccessories([]);
+      setValidationErrors({});
 
       // Load dress
       loadDress();
     }
+  }, [dressId, user?.phone, user?.email, user?.address, shopId]);
 
-    // Cleanup function
-    return () => {
-      isMounted = false;
-    };
-  }, [visible, dressId, user?.phone, user?.email, user?.address, shopId]);
-
-  // Cleanup effect khi popup đóng
-  useEffect(() => {
-    if (!visible) {
-      // Reset tất cả state khi popup đóng
-      setCurrentStep(0);
-      setLoading(false);
-      setDress(null);
-      setShopAccessories([]);
-      setSelectedAccessories([]);
-      setShowDatePicker(false);
-      setShowStatusModal(false);
-      setCheckoutStatus({ status: "SUCCESS" });
-      setValidationErrors({});
-    }
-  }, [visible]);
-
-  // Simple validation functions
+  // Validation functions
   const validateField = (field: string, value: any): string | null => {
     switch (field) {
       case "phone":
@@ -368,8 +321,9 @@ export default function CheckoutPopup({
     return null;
   };
 
-  // Simple update functions
+  // Update functions
   const updateOrderData = (field: string, value: string | null) => {
+    console.log("updateOrderData called:", { field, value });
     setOrderData((prev) => ({ ...prev, [field]: value }));
 
     // Clear validation error
@@ -410,7 +364,7 @@ export default function CheckoutPopup({
     }));
   };
 
-  // Simple validation step function
+  // Validation step function
   const validateStep = (stepIndex: number): boolean => {
     const errors: { [key: string]: string } = {};
 
@@ -498,7 +452,7 @@ export default function CheckoutPopup({
     return Object.keys(errors).length === 0;
   };
 
-  // Simple step navigation
+  // Step navigation
   const nextStep = () => {
     if (currentStep < steps.length - 1) {
       if (!validateStep(currentStep)) {
@@ -519,7 +473,7 @@ export default function CheckoutPopup({
     }
   };
 
-  // Simple accessory functions
+  // Accessory functions
   const toggleAccessory = (accessoryId: string) => {
     setSelectedAccessories((prev) => {
       const existing = prev.find((item) => item.accessoryId === accessoryId);
@@ -546,13 +500,40 @@ export default function CheckoutPopup({
     );
   };
 
-  // Simple date functions
+  // Date functions
   const handleDateSelect = (date: Date) => {
-    const formattedDate = date.toISOString().split("T")[0];
+    console.log("handleDateSelect called with date:", date);
+    // Đảm bảo ngày được xử lý chính xác
+    const selectedDate = new Date(date);
+    selectedDate.setHours(12, 0, 0, 0); // Đặt trưa để tránh lệch ngày do timezone
+
+    const formattedDate = `${selectedDate.getFullYear()}-${String(
+      selectedDate.getMonth() + 1
+    ).padStart(2, "0")}-${String(selectedDate.getDate()).padStart(2, "0")}`;
+    console.log("Formatted date:", formattedDate);
 
     if (datePickerMode === "delivery") {
+      console.log("Updating dueDate:", formattedDate);
       updateOrderData("dueDate", formattedDate);
+
+      // Nếu đang thuê váy và đã có ngày trả, kiểm tra xem ngày trả có hợp lệ không
+      if (type === "RENT" && orderData.returnDate) {
+        const returnDateError = validateField(
+          "returnDate",
+          orderData.returnDate
+        );
+        if (returnDateError) {
+          // Nếu ngày trả không hợp lệ, xóa ngày trả
+          updateOrderData("returnDate", null);
+          Toast.show({
+            type: "warning",
+            text1: "Thông báo",
+            text2: "Ngày trả đã bị xóa do không hợp lệ với ngày giao mới",
+          });
+        }
+      }
     } else if (datePickerMode === "return") {
+      console.log("Updating returnDate:", formattedDate);
       updateOrderData("returnDate", formattedDate);
     }
   };
@@ -562,7 +543,7 @@ export default function CheckoutPopup({
     setShowDatePicker(true);
   };
 
-  // Simple price calculation
+  // Price calculation
   const calculateTotalPrice = () => {
     if (!dress) return 0;
     let total = 0;
@@ -613,37 +594,31 @@ export default function CheckoutPopup({
     return total;
   };
 
-  // Simple create order function
+  // Create order function
   const handleCreateOrder = async () => {
-    let isMounted = true; // Flag để kiểm tra component còn mount không
-
     try {
-      if (!isMounted) return;
-
       setLoading(true);
 
       // Validate lại tất cả trước khi tạo đơn hàng
       if (!validateStep(0)) {
-        if (isMounted) {
-          Toast.show({
-            type: "error",
-            text1: "Lỗi",
-            text2: "Vui lòng hoàn thành thông tin bước 1",
-          });
-          setCurrentStep(0);
-        }
+        Toast.show({
+          type: "error",
+          text1: "Lỗi",
+          text2: "Vui lòng hoàn thành thông tin bước 1",
+        });
+        setCurrentStep(0);
+        setLoading(false);
         return;
       }
 
       if (!validateStep(1)) {
-        if (isMounted) {
-          Toast.show({
-            type: "error",
-            text1: "Lỗi",
-            text2: "Vui lòng hoàn thành thông tin số đo bước 2",
-          });
-          setCurrentStep(1);
-        }
+        Toast.show({
+          type: "error",
+          text1: "Lỗi",
+          text2: "Vui lòng hoàn thành thông tin số đo bước 2",
+        });
+        setCurrentStep(1);
+        setLoading(false);
         return;
       }
 
@@ -665,8 +640,6 @@ export default function CheckoutPopup({
 
       const result = await orderApi.createOrder(orderRequest);
 
-      if (!isMounted) return;
-
       if (result.success === false || result.statusCode >= 400) {
         const errorMessage = result.message || "Có lỗi xảy ra";
 
@@ -685,56 +658,77 @@ export default function CheckoutPopup({
         return;
       }
 
+      // Kiểm tra orderNumber hợp lệ - có thể ở các field khác nhau
+      let orderNumber =
+        result.orderNumber ||
+        result.orderId ||
+        result.item?.id ||
+        result.id ||
+        result.number;
+
+      if (
+        !orderNumber ||
+        orderNumber === "0" ||
+        orderNumber === "" ||
+        orderNumber === "ORDER_SUCCESS"
+      ) {
+        // Fallback: Tạo orderNumber từ timestamp nếu API không trả về
+        const timestamp = Date.now();
+        const randomId = Math.random().toString(36).substr(2, 9);
+        orderNumber = `ORDER_${timestamp}_${randomId}`;
+      }
+
       setCheckoutStatus({
         status: "SUCCESS",
-        orderNumber: result.orderNumber || "ORDER_SUCCESS",
+        orderNumber: orderNumber,
       });
       setShowStatusModal(true);
     } catch (error: any) {
-      if (isMounted) {
-        console.error("Error creating order:", error);
-        setCheckoutStatus({
-          status: "ERROR",
-          message: error.message || "Đã có lỗi xảy ra. Vui lòng thử lại sau.",
-        });
-        setShowStatusModal(true);
-      }
+      console.error("Error creating order:", error);
+      setCheckoutStatus({
+        status: "ERROR",
+        message: error.message || "Đã có lỗi xảy ra. Vui lòng thử lại sau.",
+      });
+      setShowStatusModal(true);
     } finally {
-      if (isMounted) {
-        setLoading(false);
-      }
+      setLoading(false);
     }
   };
 
-  // Simple status modal action handler
+  // Status modal action handler
   const handleStatusModalAction = (action: string) => {
-    // Reset tất cả state trước khi đóng
-    setCurrentStep(0);
-    setLoading(false);
-    setDress(null);
-    setShopAccessories([]);
-    setSelectedAccessories([]);
-    setShowDatePicker(false);
-    setShowStatusModal(false);
-    setCheckoutStatus({ status: "SUCCESS" });
-    setValidationErrors({});
-
     switch (action) {
       case "VIEW_ORDER":
-        if (onSuccess && checkoutStatus.orderNumber) {
-          onSuccess(checkoutStatus.orderNumber);
+        if (
+          checkoutStatus.orderNumber &&
+          checkoutStatus.orderNumber !== "ORDER_SUCCESS"
+        ) {
+          // Sử dụng replace để thay thế checkout page, không thêm vào stack
+          // Khi user nhấn back từ order detail, sẽ về trang trước checkout (ví dụ: dress detail)
+          router.replace(`/account/orders/${checkoutStatus.orderNumber}`);
+        } else {
+          // Nếu không có orderNumber, chuyển về trang orders
+          router.replace("/account/orders");
         }
-        onClose();
         break;
       case "CONTINUE_SHOPPING":
-        onClose();
+        // Quay về trang trước đó (ví dụ: dress detail)
+        router.back();
+        break;
+      case "TOPUP_WALLET":
+        // Push để có thể back về checkout
+        router.push("/account/wallet");
+        break;
+      case "VIEW_WALLET":
+        // Push để có thể back về checkout
+        router.push("/account/wallet");
         break;
       default:
-        onClose();
+        router.back();
     }
   };
 
-  // Simple render functions
+  // Render functions
   const renderCurrentStep = () => {
     switch (currentStep) {
       case 0:
@@ -885,158 +879,176 @@ export default function CheckoutPopup({
     );
   };
 
-  // Simple close handler
-  const handleClose = () => {
-    // Reset tất cả state trước khi đóng
-    setCurrentStep(0);
-    setLoading(false);
-    setDress(null);
-    setShopAccessories([]);
-    setSelectedAccessories([]);
-    setShowDatePicker(false);
-    setShowStatusModal(false);
-    setCheckoutStatus({ status: "SUCCESS" });
-    setValidationErrors({});
+  if (loading && !dress) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Text style={styles.loadingText}>Đang tải thông tin váy...</Text>
+      </View>
+    );
+  }
 
-    // Reset order data
-    setOrderData({
-      phone: user?.phone || "",
-      email: user?.email || "",
-      address: user?.address || "",
-      dueDate: null,
-      returnDate: null,
-    });
-
-    // Reset measurements
-    setMeasurements({
-      dressId: dressId || "",
-      height: 160,
-      weight: 55,
-      bust: 85,
-      waist: 70,
-      hip: 90,
-      armpit: 25,
-      bicep: 25,
-      neck: 35,
-      shoulderWidth: 35,
-      sleeveLength: 0,
-      backLength: 45,
-      lowerWaist: 15,
-      waistToFloor: 0,
-    });
-
-    // Gọi onClose
-    onClose();
-  };
+  if (!dress) {
+    return (
+      <View style={styles.errorContainer}>
+        <Text style={styles.errorText}>Không thể tải thông tin váy</Text>
+        <Button title="Quay lại" onPress={() => router.back()} />
+      </View>
+    );
+  }
 
   return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      presentationStyle="pageSheet"
-      onRequestClose={handleClose}
-      onDismiss={handleClose}
-    >
-      <View style={styles.modalContainer}>
-        <View style={styles.modalHeader}>
-          <TouchableOpacity onPress={handleClose}>
-            <Ionicons name="close" size={24} color="#374151" />
-          </TouchableOpacity>
-          <Text style={styles.modalTitle}>
-            {type === "SELL" ? "Mua váy" : "Thuê váy"}
-          </Text>
-          <View style={styles.modalHeaderSpacer} />
-        </View>
-
-        <ScrollView
-          style={styles.modalContent}
-          showsVerticalScrollIndicator={false}
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={styles.backButton}
         >
-          {renderStepIndicator()}
-          {renderCurrentStep()}
-          {renderNavigationButtons()}
-        </ScrollView>
+          <Ionicons name="arrow-back" size={24} color="#374151" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>
+          {type === "SELL" ? "Mua váy" : "Thuê váy"}
+        </Text>
+        <View style={styles.headerSpacer} />
+      </View>
 
-        <DatePicker
-          visible={showDatePicker}
-          onClose={() => {
-            console.log(
-              "DatePicker onClose called, setting showDatePicker to false"
-            );
-            setShowDatePicker(false);
-          }}
-          onConfirm={handleDateSelect}
-          title={
-            datePickerMode === "delivery"
-              ? "Chọn ngày giao hàng"
-              : "Chọn ngày trả hàng"
-          }
-          minimumDate={
-            datePickerMode === "delivery"
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        {renderStepIndicator()}
+        {renderCurrentStep()}
+        {renderNavigationButtons()}
+      </ScrollView>
+
+      <DatePicker
+        visible={showDatePicker}
+        onClose={() => {
+          console.log(
+            "DatePicker onClose called, setting showDatePicker to false"
+          );
+          setShowDatePicker(false);
+        }}
+        onConfirm={handleDateSelect}
+        title={
+          datePickerMode === "delivery"
+            ? "Chọn ngày giao hàng"
+            : "Chọn ngày trả hàng"
+        }
+        minimumDate={
+          datePickerMode === "delivery"
+            ? (() => {
+                // Ngày giao tối thiểu: ngày hiện tại + 3 ngày
+                const minDate = new Date();
+                minDate.setDate(minDate.getDate() + 3);
+                minDate.setHours(0, 0, 0, 0); // Reset time để tránh lỗi so sánh
+                return minDate;
+              })()
+            : datePickerMode === "return" && orderData.dueDate
               ? (() => {
-                  const minDate = new Date();
-                  minDate.setDate(minDate.getDate() + 3);
-                  minDate.setHours(0, 0, 0, 0); // Reset time để tránh lỗi so sánh
+                  const minDate = new Date(orderData.dueDate);
+                  minDate.setDate(minDate.getDate() + 1); // Ngày trả phải sau ngày giao
+                  minDate.setHours(0, 0, 0, 0);
                   return minDate;
                 })()
-              : datePickerMode === "return" && orderData.dueDate
-                ? (() => {
-                    const minDate = new Date(orderData.dueDate);
-                    minDate.setDate(minDate.getDate() + 1); // Ngày trả phải sau ngày giao
-                    minDate.setHours(0, 0, 0, 0);
-                    return minDate;
-                  })()
-                : new Date()
-          }
-          maximumDate={
-            datePickerMode === "return" && orderData.dueDate
+              : new Date()
+        }
+        maximumDate={
+          datePickerMode === "return" && orderData.dueDate
+            ? (() => {
+                // Ngày trả tối đa: ngày giao + 6 ngày
+                const maxDate = new Date(orderData.dueDate);
+                maxDate.setDate(maxDate.getDate() + 6);
+                maxDate.setHours(0, 0, 0, 0);
+                return maxDate;
+              })()
+            : undefined
+        }
+        initialDate={
+          datePickerMode === "delivery"
+            ? (() => {
+                // Ngày giao mặc định: ngày hiện tại + 3 ngày
+                const defaultDate = new Date();
+                defaultDate.setDate(defaultDate.getDate() + 3);
+                defaultDate.setHours(0, 0, 0, 0);
+                return defaultDate;
+              })()
+            : datePickerMode === "return" && orderData.dueDate
               ? (() => {
-                  // Ngày trả tối đa: ngày giao + 6 ngày
-                  const maxDate = new Date(orderData.dueDate);
-                  maxDate.setDate(maxDate.getDate() + 6);
-                  maxDate.setHours(0, 0, 0, 0);
-                  return maxDate;
-                })()
-              : undefined
-          }
-          initialDate={
-            datePickerMode === "delivery"
-              ? (() => {
-                  // Ngày giao mặc định: ngày hiện tại + 3 ngày
-                  const defaultDate = new Date();
+                  // Ngày trả mặc định: ngày giao + 3 ngày
+                  const defaultDate = new Date(orderData.dueDate);
                   defaultDate.setDate(defaultDate.getDate() + 3);
                   defaultDate.setHours(0, 0, 0, 0);
                   return defaultDate;
                 })()
-              : datePickerMode === "return" && orderData.dueDate
-                ? (() => {
-                    // Ngày trả mặc định: ngày giao + 3 ngày
-                    const defaultDate = new Date(orderData.dueDate);
-                    defaultDate.setDate(defaultDate.getDate() + 3);
-                    defaultDate.setHours(0, 0, 0, 0);
-                    return defaultDate;
-                  })()
-                : new Date()
-          }
-        />
+              : new Date()
+        }
+      />
 
-        <CheckoutStatusModal
-          visible={showStatusModal}
-          onClose={() => setShowStatusModal(false)}
-          status={checkoutStatus.status}
-          orderNumber={checkoutStatus.orderNumber}
-          totalAmount={calculateTotalPrice()}
-          orderType={type}
-          onAction={handleStatusModalAction}
-        />
+      <CheckoutStatusModal
+        visible={showStatusModal}
+        onClose={() => setShowStatusModal(false)}
+        status={checkoutStatus.status}
+        orderNumber={checkoutStatus.orderNumber}
+        totalAmount={calculateTotalPrice()}
+        orderType={type}
+        onAction={handleStatusModalAction}
+      />
 
-        <Toast />
-      </View>
-    </Modal>
+      <Toast />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#FFFFFF",
+    paddingVertical: 44,
+  },
+  header: {
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E5E7EB",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  backButton: {
+    padding: 8,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#111827",
+  },
+  headerSpacer: {
+    width: 40,
+  },
+  content: {
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  loadingText: {
+    fontSize: 16,
+    color: "#6B7280",
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  errorText: {
+    fontSize: 16,
+    color: "#EF4444",
+    marginBottom: 20,
+    textAlign: "center",
+  },
   stepIndicatorContainer: {
     marginBottom: 16,
   },
@@ -1119,32 +1131,5 @@ const styles = StyleSheet.create({
   },
   buttonContainer: {
     flex: 1,
-  },
-  modalContainer: {
-    flex: 1,
-    backgroundColor: "#FFFFFF",
-  },
-  modalHeader: {
-    backgroundColor: "#FFFFFF",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#E5E7EB",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#111827",
-  },
-  modalHeaderSpacer: {
-    width: 24,
-  },
-  modalContent: {
-    flex: 1,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
   },
 });

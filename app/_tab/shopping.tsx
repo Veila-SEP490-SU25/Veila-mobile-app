@@ -189,13 +189,11 @@ export default function Shopping() {
         </Text>
 
         <View className="flex-row space-x-3">
-          {/* Đặt may */}
           <TouchableOpacity
             onPress={handleCustomRequest}
             className="flex-1 items-center rounded-2xl py-4 px-3"
             style={{
               backgroundColor: "transparent",
-
             }}
           >
             <LinearGradient
@@ -334,7 +332,6 @@ export default function Shopping() {
                 onPress={() => handleBlogPress(item)}
                 activeOpacity={0.85}
               >
-                {/* Image */}
                 <View className="bg-gray-100 rounded-xl h-28 mb-2 overflow-hidden border border-gray-200">
                   <Image
                     source={{
@@ -350,7 +347,6 @@ export default function Shopping() {
                   />
                 </View>
 
-                {/* Title */}
                 <Text
                   className="text-sm font-medium text-gray-800 mb-1"
                   numberOfLines={1}
@@ -358,7 +354,6 @@ export default function Shopping() {
                   {item.title}
                 </Text>
 
-                {/* Shop info */}
                 {item.user?.shop && (
                   <View className="gap-1">
                     <View className="flex-row items-center">
@@ -422,7 +417,6 @@ export default function Shopping() {
                 onPress={() => handleShopPress(item)}
                 activeOpacity={0.8}
               >
-                {/* Logo */}
                 <View className="bg-gray-100 rounded-xl h-20 mb-2 overflow-hidden border border-gray-200">
                   <Image
                     source={{
@@ -435,7 +429,6 @@ export default function Shopping() {
                   />
                 </View>
 
-                {/* Name */}
                 <Text
                   className="text-sm font-medium text-gray-800 mb-1"
                   numberOfLines={1}

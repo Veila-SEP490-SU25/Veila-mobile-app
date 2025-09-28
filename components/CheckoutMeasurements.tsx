@@ -7,10 +7,11 @@ import Input from "./Input";
 type CheckoutMeasurementsProps = {
   measurements: DressDetails;
   onUpdateMeasurement: (field: keyof DressDetails, value: number) => void;
+  validationErrors?: { [key: string]: string };
 };
 
 export default function CheckoutMeasurements(props: CheckoutMeasurementsProps) {
-  const { measurements, onUpdateMeasurement } = props;
+  const { measurements, onUpdateMeasurement, validationErrors = {} } = props;
 
   const renderMeasurementField = (
     field: keyof DressDetails,
@@ -19,6 +20,9 @@ export default function CheckoutMeasurements(props: CheckoutMeasurementsProps) {
     unit: string,
     isRequired: boolean = true
   ) => {
+    const errorKey = `measurement_${String(field)}`;
+    const error = validationErrors[errorKey];
+
     return (
       <View style={styles.fieldContainer}>
         <Text style={styles.fieldLabel}>
@@ -32,12 +36,51 @@ export default function CheckoutMeasurements(props: CheckoutMeasurementsProps) {
           }
           placeholder={placeholder}
           keyboardType="numeric"
-          style={styles.input}
+          style={[styles.input, error ? { borderColor: "#EF4444" } : {}]}
         />
 
         <Text style={styles.unitText}>Đơn vị: {unit}</Text>
+
+        {error && <Text style={styles.errorText}>{error}</Text>}
+
+        {/* Helper text cho validation ranges */}
+        {!error && (
+          <Text style={styles.helperText}>
+            {getValidationHelperText(field)}
+          </Text>
+        )}
       </View>
     );
+  };
+
+  const getValidationHelperText = (field: keyof DressDetails): string => {
+    const ranges: Record<
+      keyof DressDetails,
+      { min: number; max: number; unit: string }
+    > = {
+      dressId: { min: 0, max: 0, unit: "" },
+      height: { min: 130, max: 200, unit: "cm" },
+      weight: { min: 30, max: 100, unit: "kg" },
+      bust: { min: 50, max: 150, unit: "cm" },
+      waist: { min: 40, max: 100, unit: "cm" },
+      hip: { min: 40, max: 150, unit: "cm" },
+      armpit: { min: 10, max: 40, unit: "cm" },
+      bicep: { min: 10, max: 40, unit: "cm" },
+      neck: { min: 20, max: 50, unit: "cm" },
+      shoulderWidth: { min: 20, max: 50, unit: "cm" },
+      sleeveLength: { min: 0, max: 100, unit: "cm" },
+      backLength: { min: 30, max: 60, unit: "cm" },
+      lowerWaist: { min: 5, max: 30, unit: "cm" },
+      waistToFloor: { min: 0, max: 200, unit: "cm" },
+    };
+
+    const range = ranges[field];
+    if (!range) return "";
+
+    if (range.min === 0) {
+      return `Phạm vi: 0 - ${range.max} ${range.unit}`;
+    }
+    return `Phạm vi: ${range.min} - ${range.max} ${range.unit}`;
   };
 
   return (
@@ -54,10 +97,10 @@ export default function CheckoutMeasurements(props: CheckoutMeasurementsProps) {
       <View style={styles.fieldsContainer}>
         <View style={styles.row}>
           <View style={styles.halfWidth}>
-            {renderMeasurementField("height", "Chiều cao", "165", "cm", true)}
+            {renderMeasurementField("height", "Chiều cao", "160", "cm", true)}
           </View>
           <View style={styles.halfWidth}>
-            {renderMeasurementField("weight", "Cân nặng", "50", "kg", false)}
+            {renderMeasurementField("weight", "Cân nặng", "55", "kg", true)}
           </View>
         </View>
 
@@ -66,7 +109,7 @@ export default function CheckoutMeasurements(props: CheckoutMeasurementsProps) {
             {renderMeasurementField("bust", "Vòng ngực", "85", "cm", true)}
           </View>
           <View style={styles.halfWidth}>
-            {renderMeasurementField("waist", "Vòng eo", "65", "cm", true)}
+            {renderMeasurementField("waist", "Vòng eo", "70", "cm", true)}
           </View>
         </View>
 
@@ -75,22 +118,16 @@ export default function CheckoutMeasurements(props: CheckoutMeasurementsProps) {
             {renderMeasurementField("hip", "Vòng mông", "90", "cm", true)}
           </View>
           <View style={styles.halfWidth}>
-            {renderMeasurementField("neck", "Vòng cổ", "20", "cm", false)}
+            {renderMeasurementField("neck", "Vòng cổ", "35", "cm", true)}
           </View>
         </View>
 
         <View style={styles.row}>
           <View style={styles.halfWidth}>
-            {renderMeasurementField("shoulderWidth", "Vai", "40", "cm", false)}
+            {renderMeasurementField("shoulderWidth", "Vai", "35", "cm", true)}
           </View>
           <View style={styles.halfWidth}>
-            {renderMeasurementField(
-              "sleeveLength",
-              "Tay áo",
-              "40",
-              "cm",
-              false
-            )}
+            {renderMeasurementField("sleeveLength", "Tay áo", "0", "cm", false)}
           </View>
         </View>
 
@@ -99,13 +136,13 @@ export default function CheckoutMeasurements(props: CheckoutMeasurementsProps) {
             {renderMeasurementField(
               "backLength",
               "Độ dài lưng",
-              "60",
+              "45",
               "cm",
-              false
+              true
             )}
           </View>
           <View style={styles.halfWidth}>
-            {renderMeasurementField("lowerWaist", "Eo dưới", "50", "cm", false)}
+            {renderMeasurementField("lowerWaist", "Eo dưới", "15", "cm", true)}
           </View>
         </View>
 
@@ -114,19 +151,19 @@ export default function CheckoutMeasurements(props: CheckoutMeasurementsProps) {
             {renderMeasurementField(
               "waistToFloor",
               "Eo đến sàn",
-              "60",
+              "0",
               "cm",
               false
             )}
           </View>
           <View style={styles.halfWidth}>
-            {renderMeasurementField("armpit", "Nách", "10", "cm", false)}
+            {renderMeasurementField("armpit", "Nách", "25", "cm", true)}
           </View>
         </View>
 
         <View style={styles.row}>
           <View style={styles.halfWidth}>
-            {renderMeasurementField("bicep", "Bắp tay", "10", "cm", false)}
+            {renderMeasurementField("bicep", "Bắp tay", "25", "cm", true)}
           </View>
           <View style={styles.halfWidth}>
             {/* Empty space for alignment */}
@@ -138,7 +175,8 @@ export default function CheckoutMeasurements(props: CheckoutMeasurementsProps) {
         <Ionicons name="information-circle" size={16} color="#F59E0B" />
         <Text style={styles.noteText}>
           <Text style={styles.noteBold}>Lưu ý:</Text> Các trường có dấu * là bắt
-          buộc. Số đo càng chính xác, váy càng vừa vặn.
+          buộc. Số đo càng chính xác, váy càng vừa vặn. Các số đo đã được set
+          sẵn theo chuẩn trung bình.
         </Text>
       </View>
     </View>
@@ -197,6 +235,16 @@ const styles = StyleSheet.create({
   unitText: {
     fontSize: 12,
     color: "#6B7280",
+  },
+  errorText: {
+    fontSize: 12,
+    color: "#EF4444",
+    marginTop: 4,
+  },
+  helperText: {
+    fontSize: 12,
+    color: "#6B7280",
+    marginTop: 4,
   },
   noteContainer: {
     flexDirection: "row",

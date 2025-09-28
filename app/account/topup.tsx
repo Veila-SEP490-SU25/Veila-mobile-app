@@ -12,9 +12,9 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import Toast from "react-native-toast-message";
 import { useAuth } from "../../providers/auth.provider";
 import { walletApi } from "../../services/apis/wallet.api";
+import { showMessage } from "../../utils/message.util";
 
 export default function TopupScreen() {
   const [amount, setAmount] = useState<string>("");
@@ -25,19 +25,14 @@ export default function TopupScreen() {
   const formatAmountInput = (value: string) => value.replace(/[^0-9]/g, "");
 
   const handleTopup = async () => {
-
     if (!user?.isIdentified) {
-      Toast.show({
-        type: "warning",
-        text1: "Cần xác thực số điện thoại",
-        text2: "Vui lòng xác thực số điện thoại trước khi nạp tiền",
-      });
+      showMessage("ERM008", "Cần xác thực số điện thoại để nạp tiền");
       return;
     }
 
     const num = parseInt(amount || "0", 10);
     if (!num || num <= 0) {
-      Toast.show({ type: "warning", text1: "Số tiền không hợp lệ" });
+      showMessage("ERM004", "Số tiền nạp phải lớn hơn 0");
       return;
     }
 
@@ -45,22 +40,20 @@ export default function TopupScreen() {
       setIsLoading(true);
       const res = await walletApi.deposit({
         amount: num,
-        note: note || undefined,
-        returnUrl: "/payment/success",
-        cancelUrl: "/payment/failure",
+        note: note ?? "",
       });
 
       if (res.statusCode === 200 && res.item?.checkoutUrl) {
-        Toast.show({ type: "info", text1: "Chuyển đến cổng thanh toán" });
+        showMessage("INF001", "Chuyển đến cổng thanh toán");
         router.push({
           pathname: "/payment/checkout",
           params: { url: res.item.checkoutUrl },
         } as any);
       } else {
-        Toast.show({ type: "error", text1: "Không tạo được link thanh toán" });
+        showMessage("ERM005", "Không thể tạo liên kết thanh toán");
       }
-    } catch (e: any) {
-      Toast.show({ type: "error", text1: "Lỗi nạp tiền", text2: e?.message });
+    } catch {
+      showMessage("ERM005", "Lỗi nạp tiền. Vui lòng thử lại");
     } finally {
       setIsLoading(false);
     }

@@ -2,7 +2,6 @@ import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
-  ActivityIndicator,
   Alert,
   FlatList,
   RefreshControl,
@@ -27,14 +26,11 @@ export default function OrdersScreen() {
     []
   );
   const [loading, setLoading] = useState(false);
-
   const [refreshing, setRefreshing] = useState(false);
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
-
   const [selectedType, setSelectedType] = useState<OrderType>("ALL");
   const [selectedStatus, setSelectedStatus] = useState<OrderStatus>("ALL");
-
   const [cancellingOrderId, setCancellingOrderId] = useState<string | null>(
     null
   );
@@ -50,121 +46,19 @@ export default function OrdersScreen() {
         if (!hasMore && !refresh) return;
 
         setLoading(true);
-        console.log("🔄 Loading orders...", {
+
+        const result = await orderApi.getOrders({
           page: refresh ? 0 : page,
           size: 20,
         });
 
-        const result = await orderApi.getCustomerOrders({
-          page: refresh ? 0 : page,
-          size: 20,
-        });
-
-        console.log("✅ API Response:", result);
-        console.log("📦 Orders count:", result.items?.length || 0);
-        console.log("🔢 Has next page:", result.hasNextPage);
+        console.log("API Response:", result);
+        console.log("Items:", result.items);
+        console.log("Items length:", result.items?.length);
 
         if (!result.items || result.items.length === 0) {
-          console.log("⚠️ No data from API, using fallback data");
-          const fallbackData: CustomerOrderResponse[] = [
-            {
-              id: "test-order-1",
-              createdAt: "2025-01-15T10:00:00.000Z",
-              updatedAt: "2025-01-15T10:00:00.000Z",
-              deletedAt: null,
-              phone: "+84123456789",
-              email: "test@example.com",
-              address: "123 Test Street, Hanoi",
-              dueDate: "2025-01-20",
-              returnDate: null,
-              amount: "1500000",
-              type: "SELL" as const,
-              status: "COMPLETED",
-              customer: {
-                id: "customer-1",
-                username: "testuser",
-                email: "test@example.com",
-                firstName: "Nguyễn",
-                middleName: "Văn",
-                lastName: "Test",
-                phone: "+84123456789",
-                address: "123 Test Street, Hanoi",
-                birthDate: "1990-01-01",
-                avatarUrl: null,
-                coverUrl: "https://via.placeholder.com/400x200",
-                role: "CUSTOMER",
-                status: "ACTIVE",
-                reputation: 100,
-                isVerified: true,
-                isIdentified: true,
-              },
-              shop: {
-                id: "shop-1",
-                name: "Test Shop",
-                phone: "+84987654321",
-                email: "shop@test.com",
-                address: "456 Shop Street, Hanoi",
-                description: "Test shop description",
-                logoUrl: "https://via.placeholder.com/100x100",
-                coverUrl: "https://via.placeholder.com/400x200",
-                status: "ACTIVE",
-                reputation: 95,
-                isVerified: true,
-              },
-              customerName: "testuser",
-              shopName: "Test Shop",
-            },
-            {
-              id: "test-order-2",
-              createdAt: "2025-01-14T15:30:00.000Z",
-              updatedAt: "2025-01-14T15:30:00.000Z",
-              deletedAt: null,
-              phone: "+84123456789",
-              email: "test@example.com",
-              address: "123 Test Street, Hanoi",
-              dueDate: "2025-01-25",
-              returnDate: "2025-01-30",
-              amount: "800000",
-              type: "RENT" as const,
-              status: "PENDING",
-              customer: {
-                id: "customer-1",
-                username: "testuser",
-                email: "test@example.com",
-                firstName: "Nguyễn",
-                middleName: "Văn",
-                lastName: "Test",
-                phone: "+84123456789",
-                address: "123 Test Street, Hanoi",
-                birthDate: "1990-01-01",
-                avatarUrl: null,
-                coverUrl: "https://via.placeholder.com/400x200",
-                role: "CUSTOMER",
-                status: "ACTIVE",
-                reputation: 100,
-                isVerified: true,
-                isIdentified: true,
-              },
-              shop: {
-                id: "shop-1",
-                name: "Test Shop",
-                phone: "+84987654321",
-                email: "shop@test.com",
-                address: "456 Shop Street, Hanoi",
-                description: "Test shop description",
-                logoUrl: "https://via.placeholder.com/100x100",
-                coverUrl: "https://via.placeholder.com/400x200",
-                status: "ACTIVE",
-                reputation: 95,
-                isVerified: true,
-              },
-              customerName: "testuser",
-              shopName: "Test Shop",
-            },
-          ];
-
-          setOrders(fallbackData);
-          setFilteredOrders(fallbackData);
+          setOrders([]);
+          setFilteredOrders([]);
           setHasMore(false);
           return;
         }
@@ -173,37 +67,47 @@ export default function OrdersScreen() {
           setOrders(result.items || []);
           setFilteredOrders(result.items || []);
         } else {
-
           const newOrders = result.items || [];
           setOrders((prev) => {
             const merged = [...(prev || []), ...newOrders];
 
             const uniqueOrders = merged.reduce((acc, order) => {
-              const existingIndex = acc.findIndex((o) => o.id === order.id);
+              const existingIndex = acc.findIndex(
+                (o: CustomerOrderResponse) => o.id === order.id
+              );
               if (existingIndex >= 0) {
-
                 acc[existingIndex] = order;
               } else {
-
                 acc.push(order);
               }
               return acc;
             }, [] as CustomerOrderResponse[]);
 
+            // Sắp xếp orders ngay khi merge
+            const sortedOrders = uniqueOrders.sort((a, b) => {
+              // Ưu tiên PENDING lên đầu
+              if (a.status === "PENDING" && b.status !== "PENDING") return -1;
+              if (a.status !== "PENDING" && b.status === "PENDING") return 1;
+
+              // Nếu cùng trạng thái hoặc không có PENDING, sắp xếp theo thời gian tạo
+              const dateA = new Date(a.createdAt).getTime();
+              const dateB = new Date(b.createdAt).getTime();
+              return dateB - dateA; // Mới nhất lên đầu
+            });
+
             const filtered = applyFilters(
-              uniqueOrders,
+              sortedOrders,
               selectedType,
               selectedStatus
             );
             setFilteredOrders(filtered);
 
-            return uniqueOrders;
+            return sortedOrders;
           });
         }
         setHasMore(result.hasNextPage || false);
         setPage((prev) => prev + 1);
-      } catch (error) {
-        console.error("❌ Error loading orders:", error);
+      } catch {
         Toast.show({
           type: "error",
           text1: "Lỗi",
@@ -213,7 +117,7 @@ export default function OrdersScreen() {
         setLoading(false);
       }
     },
-    [page, hasMore]
+    [page, hasMore, selectedType, selectedStatus]
   );
 
   const applyFilters = (
@@ -231,11 +135,35 @@ export default function OrdersScreen() {
       filtered = filtered.filter((order) => order.status === status);
     }
 
+    // Sắp xếp: PENDING lên đầu, sau đó theo thời gian tạo mới nhất
+    filtered.sort((a, b) => {
+      // Ưu tiên PENDING lên đầu
+      if (a.status === "PENDING" && b.status !== "PENDING") return -1;
+      if (a.status !== "PENDING" && b.status === "PENDING") return 1;
+
+      // Nếu cùng trạng thái hoặc không có PENDING, sắp xếp theo thời gian tạo
+      const dateA = new Date(a.createdAt).getTime();
+      const dateB = new Date(b.createdAt).getTime();
+      return dateB - dateA; // Mới nhất lên đầu
+    });
+
     return filtered;
   };
 
   const filterOrders = useCallback(() => {
-    const filtered = applyFilters(orders, selectedType, selectedStatus);
+    // Sắp xếp orders trước khi filter
+    const sortedOrders = [...orders].sort((a, b) => {
+      // Ưu tiên PENDING lên đầu
+      if (a.status === "PENDING" && b.status !== "PENDING") return -1;
+      if (a.status !== "PENDING" && b.status === "PENDING") return 1;
+
+      // Nếu cùng trạng thái hoặc không có PENDING, sắp xếp theo thời gian tạo
+      const dateA = new Date(a.createdAt).getTime();
+      const dateB = new Date(b.createdAt).getTime();
+      return dateB - dateA; // Mới nhất lên đầu
+    });
+
+    const filtered = applyFilters(sortedOrders, selectedType, selectedStatus);
     setFilteredOrders(filtered);
   }, [orders, selectedType, selectedStatus]);
 
@@ -275,7 +203,6 @@ export default function OrdersScreen() {
           {
             text: "Đồng ý",
             onPress: async () => {
-
               await orderApi.cancelOrder(orderId, status);
 
               Toast.show({
@@ -299,8 +226,6 @@ export default function OrdersScreen() {
           },
         ]);
       } catch (error: any) {
-        console.error("❌ Error cancelling order:", error);
-
         Toast.show({
           type: "error",
           text1: "Lỗi hủy đơn",
@@ -382,12 +307,22 @@ export default function OrdersScreen() {
     }
   };
 
+  const handleBackPress = useCallback(() => {
+    // Kiểm tra xem có thể quay lại trang trước không
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      // Nếu không thể quay lại, chuyển về account
+      router.replace("/_tab/account" as any);
+    }
+  }, []);
+
   const renderTypeTabs = () => (
     <View className="mb-4">
       <Text className="text-sm font-medium text-gray-700 mb-3">
         Loại đơn hàng:
       </Text>
-      <View className="flex-row space-x-2">
+      <View className="flex-row gap-x-2">
         {(["ALL", "SELL", "RENT", "CUSTOM"] as OrderType[]).map((type) => (
           <TouchableOpacity
             key={type}
@@ -398,7 +333,7 @@ export default function OrdersScreen() {
                 : "bg-white border-gray-300"
             }`}
           >
-            <View className="flex-row items-center space-x-2">
+            <View className="flex-row items-center gap-x-2">
               {type !== "ALL" && (
                 <Ionicons
                   name={getTypeIcon(type) as any}
@@ -425,7 +360,7 @@ export default function OrdersScreen() {
       <Text className="text-sm font-medium text-gray-700 mb-3">
         Trạng thái:
       </Text>
-      <View className="flex-row space-x-2 flex-wrap">
+      <View className="flex-row gap-x-2 flex-wrap">
         {(
           [
             "ALL",
@@ -461,7 +396,7 @@ export default function OrdersScreen() {
     <Card className="mb-4">
       {/* Header with Order ID and Status */}
       <View className="flex-row items-center justify-between mb-3">
-        <View className="flex-row items-center space-x-3">
+        <View className="flex-row items-center gap-x-3">
           <View
             className="w-8 h-8 rounded-full items-center justify-center"
             style={{ backgroundColor: getTypeColor(item.type) + "20" }}
@@ -493,7 +428,7 @@ export default function OrdersScreen() {
 
       {/* Shop Info */}
       <View className="mb-3 p-2 bg-gray-50 rounded-lg">
-        <View className="flex-row items-center space-x-2">
+        <View className="flex-row items-center gap-x-2">
           <Ionicons name="business" size={16} color="#6B7280" />
           <Text className="text-sm font-medium text-gray-800">
             {item.shopName}
@@ -502,7 +437,7 @@ export default function OrdersScreen() {
       </View>
 
       {/* Order Details */}
-      <View className="space-y-2 mb-4">
+      <View className="gap-y-2 mb-4">
         <View className="flex-row justify-between">
           <Text className="text-gray-600 text-sm">Ngày đặt:</Text>
           <Text className="text-gray-800 text-sm">
@@ -532,7 +467,7 @@ export default function OrdersScreen() {
       </View>
 
       {/* Action Buttons */}
-      <View className="flex-row space-x-3">
+      <View className="flex-row gap-x-3">
         <View className="flex-1">
           <Button
             title="Xem chi tiết"
@@ -564,79 +499,15 @@ export default function OrdersScreen() {
         Không có đơn hàng nào
       </Text>
       <Text className="text-gray-400 text-center mt-2 text-sm">
-        {selectedType !== "ALL" || selectedStatus !== "ALL"
-          ? "Hãy thử thay đổi bộ lọc"
-          : "Hãy mua sắm để có đơn hàng đầu tiên"}
+        Hãy mua sắm để có đơn hàng đầu tiên
       </Text>
-      {selectedType === "ALL" && selectedStatus === "ALL" && (
-        <Button
-          title="Mua sắm ngay"
-          onPress={() => router.push("/_tab/shopping" as any)}
-          className="mt-6"
-        />
-      )}
+      <Button
+        title="Mua sắm ngay"
+        onPress={() => router.push("/_tab/shopping" as any)}
+        className="mt-6"
+      />
     </View>
   );
-
-  const renderFooter = () => {
-    if (!hasMore) return null;
-
-    return (
-      <View className="py-4 items-center">
-        {loading ? (
-          <ActivityIndicator size="small" color="#E05C78" />
-        ) : (
-          <Button
-            title="Tải thêm"
-            onPress={() => loadOrders()}
-            variant="outline"
-            size="small"
-          />
-        )}
-      </View>
-    );
-  };
-
-  const renderStats = () => {
-    const stats = {
-      total: orders.length,
-      sell: orders.filter((o) => o.type === "SELL").length,
-      rent: orders.filter((o) => o.type === "RENT").length,
-      custom: orders.filter((o) => o.type === "CUSTOM").length,
-    };
-
-    return (
-      <View className="mb-4 bg-white p-4 rounded-lg border border-gray-200">
-        <Text className="text-sm font-medium text-gray-700 mb-3">
-          Thống kê đơn hàng:
-        </Text>
-        <View className="flex-row justify-between">
-          <View className="items-center">
-            <Text className="text-lg font-bold text-gray-800">
-              {stats.total}
-            </Text>
-            <Text className="text-xs text-gray-500">Tổng cộng</Text>
-          </View>
-          <View className="items-center">
-            <Text className="text-lg font-bold text-red-500">{stats.sell}</Text>
-            <Text className="text-xs text-gray-500">Mua</Text>
-          </View>
-          <View className="items-center">
-            <Text className="text-lg font-bold text-green-500">
-              {stats.rent}
-            </Text>
-            <Text className="text-xs text-gray-500">Thuê</Text>
-          </View>
-          <View className="items-center">
-            <Text className="text-lg font-bold text-yellow-500">
-              {stats.custom}
-            </Text>
-            <Text className="text-xs text-gray-500">Đặt may</Text>
-          </View>
-        </View>
-      </View>
-    );
-  };
 
   return (
     <SafeAreaView className="flex-1 bg-gray-50">
@@ -645,9 +516,14 @@ export default function OrdersScreen() {
       {/* Header */}
       <View className="bg-white px-6 py-4 border-b border-gray-200">
         <View className="flex-row items-center justify-between">
-          <Text className="text-lg font-bold text-gray-900">
-            Đơn hàng của tôi
-          </Text>
+          <View className="flex-row items-center">
+            <TouchableOpacity onPress={handleBackPress} className="mr-3 p-1">
+              <Ionicons name="arrow-back" size={24} color="#374151" />
+            </TouchableOpacity>
+            <Text className="text-lg font-bold text-gray-900">
+              Đơn hàng của tôi
+            </Text>
+          </View>
           <TouchableOpacity
             onPress={() => router.push("/_tab/shopping" as any)}
             className="p-2"
@@ -657,9 +533,8 @@ export default function OrdersScreen() {
         </View>
       </View>
 
-      {/* Filters and Stats */}
+      {/* Filters */}
       <View className="px-6 py-4 bg-white border-b border-gray-200">
-        {renderStats()}
         {renderTypeTabs()}
         {renderStatusTabs()}
       </View>
@@ -676,7 +551,6 @@ export default function OrdersScreen() {
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
-          ListFooterComponent={renderFooter}
           onEndReached={loadMore}
           onEndReachedThreshold={0.1}
           removeClippedSubviews={true}

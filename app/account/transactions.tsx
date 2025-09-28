@@ -14,23 +14,37 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import Toast from "react-native-toast-message";
 import {
   transactionApi,
   TransactionItem,
   TransactionParams,
 } from "../../services/apis/transaction.api";
+import { showMessage } from "../../utils/message.util";
+
+export enum TransactionType {
+  DEPOSIT = "DEPOSIT",
+  WITHDRAW = "WITHDRAW",
+  TRANSFER = "TRANSFER",
+  RECEIVE = "RECEIVE",
+  REFUND = "REFUND",
+}
 
 const statusColors: { [key: string]: string } = {
+  COMPLETED: "#10B981",
+  PENDING: "#F59E0B",
+  FAILED: "#EF4444",
+
   completed: "#10B981",
   pending: "#F59E0B",
   failed: "#EF4444",
 };
 
 const typeLabels: { [key: string]: string } = {
-  transfer: "Chuyển khoản",
-  deposit: "Nạp tiền",
-  withdraw: "Rút tiền",
+  [TransactionType.TRANSFER]: "Chuyển khoản",
+  [TransactionType.DEPOSIT]: "Nạp tiền",
+  [TransactionType.WITHDRAW]: "Rút tiền",
+  [TransactionType.RECEIVE]: "Nhận tiền",
+  [TransactionType.REFUND]: "Hoàn tiền",
 };
 
 const orderTypeLabels: { [key: string]: string } = {
@@ -43,13 +57,15 @@ export default function TransactionsScreen() {
   const [transactions, setTransactions] = useState<TransactionItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [filterLoading, setFilterLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [searchText, setSearchText] = useState("");
   const [currentPage, setCurrentPage] = useState(0);
   const [hasNextPage, setHasNextPage] = useState(false);
   const [totalItems, setTotalItems] = useState(0);
   const [selectedStatus, setSelectedStatus] = useState<string>("");
-  const [sortBy, setSortBy] = useState<string>("createdAt:desc");
+  const [sortBy, setSortBy] = useState<string>("");
+  const [prioritizePending, setPrioritizePending] = useState<boolean>(true);
 
   const loadTransactions = useCallback(
     async (page: number = 0, append: boolean = false) => {
@@ -60,42 +76,86 @@ export default function TransactionsScreen() {
         const params: TransactionParams = {
           page,
           size: 10,
-          sort: sortBy,
         };
+
+        if (sortBy) {
+          params.sort = sortBy;
+        }
 
         if (selectedStatus) {
           params.filter = `status:${selectedStatus}`;
         }
 
+        console.log("🔄 Loading transactions with params:", params);
         const response = await transactionApi.getMyTransactions(params);
+        console.log("📡 API Response:", response);
 
-        if (response.statusCode === 200) {
+        if (response.statusCode === 200 && response.items) {
           const newTransactions = response.items;
+          console.log("✅ Setting transactions:", newTransactions);
+
+          // Debug chi tiết từng transaction
+          newTransactions.forEach((tx, index) => {
+            console.log(`📊 Transaction ${index + 1}:`, {
+              id: tx.id,
+              type: tx.type,
+              status: tx.status,
+              amount: tx.amount,
+              from: tx.from,
+              to: tx.to,
+              fromTypeBalance: tx.fromTypeBalance,
+              toTypeBalance: tx.toTypeBalance,
+              note: tx.note,
+              orderType: tx.order?.type,
+              createdAt: tx.createdAt,
+            });
+          });
+
           setTransactions((prev) =>
             append ? [...prev, ...newTransactions] : newTransactions
           );
-          setCurrentPage(response.pageIndex);
-          setHasNextPage(response.hasNextPage);
-          setTotalItems(response.totalItems);
+          setCurrentPage(response.pageIndex || 0);
+          setHasNextPage(response.hasNextPage || false);
+          setTotalItems(response.totalItems || 0);
+        } else {
+          console.log("❌ API Error or no items:", response);
+          setTransactions([]);
+          setTotalItems(0);
         }
-      } catch (error: any) {
-        Toast.show({
-          type: "error",
-          text1: "Lỗi tải giao dịch",
-          text2: error?.message,
-        });
+      } catch {
+        showMessage("ERM006", "Không thể tải danh sách giao dịch");
       } finally {
         setLoading(false);
         setLoadingMore(false);
         setRefreshing(false);
+        setFilterLoading(false);
       }
     },
-    [selectedStatus, sortBy]
+    [selectedStatus, sortBy] // Remove dependencies to prevent infinite loop
   );
 
   useEffect(() => {
+    console.log("🚀 TransactionsScreen mounted, loading transactions...");
     loadTransactions(0, false);
   }, [loadTransactions]);
+
+  useEffect(() => {
+    console.log("🔄 Status or sort changed, reloading transactions...");
+
+    setCurrentPage(0);
+    setHasNextPage(false);
+    setFilterLoading(true);
+    loadTransactions(0, false);
+  }, [loadTransactions, selectedStatus, sortBy]);
+
+  useEffect(() => {
+    console.log("📊 Transactions state changed:", {
+      count: transactions.length,
+      total: totalItems,
+      loading,
+      hasNextPage,
+    });
+  }, [transactions, totalItems, loading, hasNextPage]);
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -117,31 +177,141 @@ export default function TransactionsScreen() {
   };
 
   const getTransactionDescription = (item: TransactionItem) => {
+    // Xác định loại transaction dựa trên context
     if (item.order) {
       const orderType = orderTypeLabels[item.order.type] || item.order.type;
       return `${orderType} - ${item.to}`;
     }
-    return item.note || `${typeLabels[item.type] || item.type} - ${item.to}`;
+
+    // Sử dụng enum TransactionType để xác định loại giao dịch
+    switch (item.type) {
+      case TransactionType.DEPOSIT:
+        return `Nạp tiền - ${item.to}`;
+
+      case TransactionType.WITHDRAW:
+        return `Rút tiền - ${item.to}`;
+
+      case TransactionType.RECEIVE:
+        return `Nhận tiền - ${item.from}`;
+
+      case TransactionType.REFUND:
+        return `Hoàn tiền - ${item.from}`;
+
+      case TransactionType.TRANSFER:
+        // Phân tích TRANSFER type dựa trên balance types và direction
+        if (
+          item.fromTypeBalance === "AVAILABLE" &&
+          item.toTypeBalance === "LOCKED"
+        ) {
+          return `Đặt cọc đơn hàng - ${item.to}`;
+        } else if (
+          item.fromTypeBalance === "LOCKED" &&
+          item.toTypeBalance === "AVAILABLE"
+        ) {
+          return `Hoàn tiền đơn hàng - ${item.to}`;
+        } else if (
+          item.from.includes("_shop_") &&
+          item.to.includes("_wallet_")
+        ) {
+          return `Thanh toán đơn hàng - ${item.to}`;
+        } else if (
+          item.from.includes("_wallet_") &&
+          item.to.includes("_bank_")
+        ) {
+          return `Yêu cầu rút tiền - ${item.to}`;
+        } else if (
+          item.from.includes("_bank_") &&
+          item.to.includes("_wallet_")
+        ) {
+          return `Nạp tiền - ${item.to}`;
+        } else {
+          return `Chuyển khoản - ${item.to}`;
+        }
+
+      default:
+        return (
+          item.note || `${typeLabels[item.type] || item.type} - ${item.to}`
+        );
+    }
   };
 
-  const filteredTransactions = transactions.filter((item) => {
-    if (!searchText) return true;
-    const description = getTransactionDescription(item).toLowerCase();
-    const amount = item.amount.toLowerCase();
-    const from = item.from.toLowerCase();
-    const to = item.to.toLowerCase();
-    const search = searchText.toLowerCase();
-    return (
-      description.includes(search) ||
-      amount.includes(search) ||
-      from.includes(search) ||
-      to.includes(search)
-    );
-  });
+  const getSortDescription = () => {
+    switch (sortBy) {
+      case "amount:desc":
+        return "Sắp xếp theo số tiền (cao → thấp)";
+      case "amount:asc":
+        return "Sắp xếp theo số tiền (thấp → cao)";
+      case "type:asc":
+        return "Sắp xếp theo loại giao dịch (Nạp tiền → Rút tiền → Chuyển khoản → Nhận tiền → Hoàn tiền)";
+      case "status:asc":
+        return "Sắp xếp theo trạng thái (Đang xử lý → Hoàn thành → Thất bại)";
+      default:
+        return "Sắp xếp theo thời gian (mới nhất trước)";
+    }
+  };
+
+  const filteredTransactions = transactions
+    .filter((item) => {
+      if (!searchText) return true;
+      const description = getTransactionDescription(item).toLowerCase();
+      const amount = item.amount.toLowerCase();
+      const from = item.from.toLowerCase();
+      const to = item.to.toLowerCase();
+      const search = searchText.toLowerCase();
+      return (
+        description.includes(search) ||
+        amount.includes(search) ||
+        from.includes(search) ||
+        to.includes(search)
+      );
+    })
+    .sort((a, b) => {
+      // Ưu tiên PENDING lên đầu (nếu được bật)
+      if (prioritizePending) {
+        if (a.status === "PENDING" && b.status !== "PENDING") {
+          return -1; // a lên trước
+        }
+        if (a.status !== "PENDING" && b.status === "PENDING") {
+          return 1; // b lên trước
+        }
+      }
+
+      // Nếu cả hai đều PENDING hoặc không PENDING, áp dụng sort logic
+      if (sortBy === "amount:desc") {
+        return parseFloat(b.amount) - parseFloat(a.amount);
+      } else if (sortBy === "amount:asc") {
+        return parseFloat(a.amount) - parseFloat(b.amount);
+      } else if (sortBy === "type:asc") {
+        // Sort theo transaction type
+        const typeOrder: { [key: string]: number } = {
+          [TransactionType.DEPOSIT]: 1,
+          [TransactionType.WITHDRAW]: 2,
+          [TransactionType.TRANSFER]: 3,
+          [TransactionType.RECEIVE]: 4,
+          [TransactionType.REFUND]: 5,
+        };
+        const aOrder = typeOrder[a.type] || 999;
+        const bOrder = typeOrder[b.type] || 999;
+        return aOrder - bOrder;
+      } else if (sortBy === "status:asc") {
+        // Sort theo status
+        const statusOrder: { [key: string]: number } = {
+          PENDING: 1,
+          COMPLETED: 2,
+          FAILED: 3,
+        };
+        const aOrder = statusOrder[a.status] || 999;
+        const bOrder = statusOrder[b.status] || 999;
+        return aOrder - bOrder;
+      }
+
+      // Mặc định: giữ nguyên thứ tự từ API
+      return 0;
+    });
 
   const renderTransaction = ({ item }: { item: TransactionItem }) => {
     const statusColor = statusColors[item.status] || "#6B7280";
-    const isOutgoing = item.fromTypeBalance === "available";
+    const isOutgoing = item.fromTypeBalance === "AVAILABLE";
 
     return (
       <TouchableOpacity
@@ -197,13 +367,17 @@ export default function TransactionsScreen() {
           </View>
         </View>
         <View className="flex-row items-center justify-between">
-          {item.order && (
-            <View className="flex-1">
+          <View className="flex-1">
+            {item.order ? (
               <Text className="text-xs text-gray-500">
                 Đơn hàng: {item.order.id.slice(-8)} • {item.order.address}
               </Text>
-            </View>
-          )}
+            ) : (
+              <Text className="text-xs text-gray-500">
+                {item.note || `${item.from} → ${item.to}`}
+              </Text>
+            )}
+          </View>
           <Ionicons name="chevron-forward" size={16} color="#9CA3AF" />
         </View>
       </TouchableOpacity>
@@ -212,16 +386,17 @@ export default function TransactionsScreen() {
 
   const statusOptions = [
     { label: "Tất cả", value: "" },
-    { label: "Hoàn thành", value: "completed" },
-    { label: "Đang xử lý", value: "pending" },
-    { label: "Thất bại", value: "failed" },
+    { label: "Hoàn thành", value: "COMPLETED" },
+    { label: "Đang xử lý", value: "PENDING" },
+    { label: "Thất bại", value: "FAILED" },
   ];
 
   const sortOptions = [
-    { label: "Mới nhất", value: "createdAt:desc" },
-    { label: "Cũ nhất", value: "createdAt:asc" },
+    { label: "Mới nhất", value: "" },
     { label: "Số tiền cao", value: "amount:desc" },
     { label: "Số tiền thấp", value: "amount:asc" },
+    { label: "Loại giao dịch", value: "type:asc" },
+    { label: "Trạng thái", value: "status:asc" },
   ];
 
   return (
@@ -272,12 +447,20 @@ export default function TransactionsScreen() {
                 <TouchableOpacity
                   key={option.value}
                   onPress={() => setSelectedStatus(option.value)}
-                  className={`px-2 py-1 rounded-lg mr-2 mb-1 ${
+                  disabled={filterLoading}
+                  className={`px-2 py-1 rounded-lg mr-2 mb-1 flex-row items-center ${
                     selectedStatus === option.value
                       ? "bg-blue-100"
                       : "bg-gray-100"
-                  }`}
+                  } ${filterLoading ? "opacity-50" : ""}`}
                 >
+                  {filterLoading && selectedStatus === option.value && (
+                    <ActivityIndicator
+                      size="small"
+                      color="#3B82F6"
+                      className="mr-1"
+                    />
+                  )}
                   <Text
                     className={`text-xs ${
                       selectedStatus === option.value
@@ -298,10 +481,18 @@ export default function TransactionsScreen() {
                 <TouchableOpacity
                   key={option.value}
                   onPress={() => setSortBy(option.value)}
-                  className={`px-2 py-1 rounded-lg mr-2 mb-1 ${
+                  disabled={filterLoading}
+                  className={`px-2 py-1 rounded-lg mr-2 mb-1 flex-row items-center ${
                     sortBy === option.value ? "bg-green-100" : "bg-gray-100"
-                  }`}
+                  } ${filterLoading ? "opacity-50" : ""}`}
                 >
+                  {filterLoading && sortBy === option.value && (
+                    <ActivityIndicator
+                      size="small"
+                      color="#10B981"
+                      className="mr-1"
+                    />
+                  )}
                   <Text
                     className={`text-xs ${
                       sortBy === option.value
@@ -316,6 +507,40 @@ export default function TransactionsScreen() {
             </View>
           </View>
         </View>
+
+        {/* Sort Description */}
+        {sortBy && (
+          <View className="mt-2 px-3 py-2 bg-blue-50 rounded-lg border border-blue-200">
+            <Text className="text-xs text-blue-700 text-center">
+              {getSortDescription()}
+            </Text>
+          </View>
+        )}
+
+        {/* Prioritize PENDING Toggle */}
+        <View className="mt-3">
+          <TouchableOpacity
+            onPress={() => setPrioritizePending(!prioritizePending)}
+            className={`flex-row items-center px-3 py-2 rounded-lg ${
+              prioritizePending ? "bg-yellow-100" : "bg-gray-100"
+            }`}
+          >
+            <Ionicons
+              name={prioritizePending ? "star" : "star-outline"}
+              size={16}
+              color={prioritizePending ? "#F59E0B" : "#6B7280"}
+            />
+            <Text
+              className={`text-xs ml-2 ${
+                prioritizePending ? "text-yellow-700" : "text-gray-600"
+              }`}
+            >
+              {prioritizePending
+                ? "Đang ưu tiên giao dịch mới"
+                : "Ưu tiên giao dịch mới"}
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Transaction List */}
@@ -323,6 +548,11 @@ export default function TransactionsScreen() {
         <View className="flex-1 justify-center items-center">
           <ActivityIndicator size="large" color="#E05C78" />
           <Text className="text-gray-600 mt-2">Đang tải giao dịch...</Text>
+        </View>
+      ) : filterLoading ? (
+        <View className="flex-1 justify-center items-center">
+          <ActivityIndicator size="large" color="#E05C78" />
+          <Text className="text-gray-600 mt-2">Đang lọc giao dịch...</Text>
         </View>
       ) : (
         <FlatList

@@ -3,6 +3,7 @@ import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Image,
   ScrollView,
   StatusBar,
@@ -13,8 +14,15 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+
 import AddressPicker from "../../components/profile/AddressPicker";
+import ImagePickerModal from "../../components/profile/ImagePickerModal";
 import { useAuth } from "../../providers/auth.provider";
+import {
+  pickImage,
+  takePhoto,
+  uploadAvatar,
+} from "../../services/firebase-upload";
 import { IAddress, IUpdateProfile } from "../../services/types";
 import { createProfileUpdateFromAddress } from "../../utils/address.util";
 import { showMessage } from "../../utils/message.util";
@@ -24,6 +32,9 @@ export default function ProfileScreen() {
   const { user, refreshUser, updateUser } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [showImagePicker, setShowImagePicker] = useState(false);
+  const [tempAvatarUri, setTempAvatarUri] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     firstName: "",
@@ -31,6 +42,7 @@ export default function ProfileScreen() {
     lastName: "",
     phone: "",
     streetAddress: "",
+    avatarUrl: "",
     address: {
       province: null,
       district: null,
@@ -47,6 +59,7 @@ export default function ProfileScreen() {
         lastName: user.lastName || "",
         phone: user.phone || "",
         streetAddress: user.address || "",
+        avatarUrl: user.avatarUrl || "",
         address: {
           province: null,
           district: null,
@@ -54,6 +67,7 @@ export default function ProfileScreen() {
           streetAddress: user.address || "",
         },
       });
+      setTempAvatarUri(null);
     }
   }, [user]);
 
@@ -65,11 +79,11 @@ export default function ProfileScreen() {
 
     setLoading(true);
     try {
-
       const profileData: IUpdateProfile = {
         firstName: formData.firstName.trim(),
         middleName: formData.middleName.trim() || undefined,
         lastName: formData.lastName.trim(),
+        avatarUrl: formData.avatarUrl || undefined,
       };
 
       const profileSuccess = await updateUser(profileData);
@@ -80,7 +94,6 @@ export default function ProfileScreen() {
         formData.address.district &&
         formData.address.ward
       ) {
-
         const addressUpdate = createProfileUpdateFromAddress(formData.address, {
           firstName: formData.firstName.trim(),
           lastName: formData.lastName.trim(),
@@ -94,7 +107,7 @@ export default function ProfileScreen() {
         showMessage("SUC004");
 
         setIsEditing(false);
-
+        setTempAvatarUri(null);
         if (refreshUser) {
           await refreshUser();
         }
@@ -110,6 +123,7 @@ export default function ProfileScreen() {
 
   const handleCancel = () => {
     setIsEditing(false);
+    setTempAvatarUri(null);
 
     if (user) {
       setFormData({
@@ -118,6 +132,7 @@ export default function ProfileScreen() {
         lastName: user.lastName || "",
         phone: user.phone || "",
         streetAddress: user.address || "",
+        avatarUrl: user.avatarUrl || "",
         address: {
           province: null,
           district: null,
@@ -132,6 +147,101 @@ export default function ProfileScreen() {
     const firstName = user?.firstName || "";
     const lastName = user?.lastName || "";
     return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
+  };
+
+  const handlePickFromGallery = async () => {
+    try {
+      setUploadingAvatar(true);
+      const uri = await pickImage({
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (uri) {
+        await handleUploadAvatar(uri);
+      }
+    } catch {
+      showMessage("ERM006", "Không thể chọn ảnh từ thư viện");
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
+
+  const handleTakePhoto = async () => {
+    try {
+      setUploadingAvatar(true);
+      const uri = await takePhoto({
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (uri) {
+        await handleUploadAvatar(uri);
+      }
+    } catch {
+      showMessage("ERM006", "Không thể chụp ảnh");
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
+
+  const handleUploadAvatar = async (uri: string) => {
+    try {
+      const uploadResult = await uploadAvatar(uri);
+
+      if (!uploadResult.url) {
+        throw new Error("Upload failed - no URL returned");
+      }
+
+      const uploadedUrl: string = uploadResult.url;
+
+      setFormData((prev) => ({
+        ...prev,
+        avatarUrl: uploadedUrl,
+      }));
+
+      setTempAvatarUri(uploadedUrl);
+
+      const profileData: IUpdateProfile = {
+        firstName: user?.firstName || "",
+        middleName: user?.middleName || undefined,
+        lastName: user?.lastName || "",
+        address: user?.address || undefined,
+        birthDate: user?.birthDate || undefined,
+        avatarUrl: uploadedUrl,
+      };
+
+      const success = await updateUser(profileData);
+
+      if (success) {
+        showMessage("SUC004", "Cập nhật ảnh đại diện thành công!");
+        if (refreshUser) {
+          await refreshUser();
+        }
+      } else {
+        showMessage("ERM006", "Không thể cập nhật ảnh đại diện");
+      }
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+      showMessage("ERM006", `Lỗi cập nhật ảnh: ${errorMessage}`);
+    }
+  };
+
+  const handleAvatarPress = () => {
+    if (uploadingAvatar) return;
+
+    Alert.alert(
+      "Thay đổi ảnh đại diện",
+      "Chọn cách thức để cập nhật ảnh đại diện của bạn",
+      [
+        { text: "Hủy", style: "cancel" },
+        { text: "Chọn từ thư viện", onPress: handlePickFromGallery },
+        { text: "Chụp ảnh", onPress: handleTakePhoto },
+      ]
+    );
   };
 
   if (!user) {
@@ -195,10 +305,17 @@ export default function ProfileScreen() {
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Profile Picture Section */}
         <View style={styles.profilePictureSection}>
-          <View style={styles.profilePictureContainer}>
-            {user.avatarUrl ? (
+          <TouchableOpacity
+            style={styles.profilePictureContainer}
+            onPress={handleAvatarPress}
+            disabled={uploadingAvatar}
+            activeOpacity={0.8}
+          >
+            {tempAvatarUri || formData.avatarUrl || user.avatarUrl ? (
               <Image
-                source={{ uri: user.avatarUrl }}
+                source={{
+                  uri: tempAvatarUri || formData.avatarUrl || user.avatarUrl,
+                }}
                 style={styles.profilePicture}
               />
             ) : (
@@ -206,15 +323,42 @@ export default function ProfileScreen() {
                 <Text style={styles.profilePictureText}>{getInitials()}</Text>
               </View>
             )}
+
+            {/* Upload overlay */}
+            <View style={styles.uploadOverlay}>
+              {uploadingAvatar ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <Ionicons name="camera" size={24} color="#FFFFFF" />
+              )}
+            </View>
+
             {user.isVerified && (
               <View style={styles.verifiedBadge}>
                 <Ionicons name="checkmark-circle" size={20} color="#10B981" />
               </View>
             )}
-          </View>
-          <TouchableOpacity style={styles.changePictureButton}>
-            <Ionicons name="camera" size={16} color="#FFFFFF" />
-            <Text style={styles.changePictureText}>Thay đổi ảnh</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.changePictureButton,
+              uploadingAvatar && styles.disabledButton,
+            ]}
+            onPress={handleAvatarPress}
+            disabled={uploadingAvatar}
+          >
+            {uploadingAvatar ? (
+              <>
+                <ActivityIndicator size="small" color="#FFFFFF" />
+                <Text style={styles.changePictureText}>Đang tải lên...</Text>
+              </>
+            ) : (
+              <>
+                <Ionicons name="camera" size={16} color="#FFFFFF" />
+                <Text style={styles.changePictureText}>Thay đổi ảnh</Text>
+              </>
+            )}
           </TouchableOpacity>
         </View>
 
@@ -424,6 +568,17 @@ export default function ProfileScreen() {
           </View>
         )}
       </ScrollView>
+
+      {/* Image Picker Modal */}
+      <ImagePickerModal
+        visible={showImagePicker}
+        onClose={() => setShowImagePicker(false)}
+        onPickFromGallery={handlePickFromGallery}
+        onTakePhoto={handleTakePhoto}
+      />
+
+      {/* Debug Component (development only) - Hidden by default */}
+      {/* <AvatarUploadDebug /> */}
     </SafeAreaView>
   );
 }
@@ -536,6 +691,19 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     borderRadius: 12,
     padding: 2,
+    zIndex: 2,
+  },
+  uploadOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    borderRadius: 50,
+    justifyContent: "center",
+    alignItems: "center",
+    opacity: 0,
   },
   changePictureButton: {
     flexDirection: "row",
@@ -550,6 +718,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "500",
     color: "#FFFFFF",
+  },
+  disabledButton: {
+    backgroundColor: "#9CA3AF",
+    opacity: 0.7,
   },
   formSection: {
     backgroundColor: "#FFFFFF",
