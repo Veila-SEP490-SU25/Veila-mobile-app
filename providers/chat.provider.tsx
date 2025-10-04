@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { ChatService } from "../services/chat.service";
+import { useSocket } from "../hooks/useSocket";
 import { ChatRoom } from "../services/types";
 
 import { useAuth } from "./auth.provider";
@@ -31,6 +31,7 @@ interface ChatProviderProps {
 export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
   const { user } = useAuth();
   const [chatRooms, setChatRooms] = useState<ChatRoom[]>([]);
+  const { conversations, createConversation } = useSocket();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -44,64 +45,37 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
         return;
       }
 
-      // Load chat rooms trực tiếp từ Firestore
-      const rooms = await ChatService.getChatRooms(user.id, "customer");
-      setChatRooms(rooms);
+      // Chat rooms sẽ được load từ socket conversations
       setLoading(false);
-    } catch (err) {
+    } catch {
       setError("Không thể tải danh sách chat");
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    const userId = user?.id;
-    if (!userId) {
+    // Đồng bộ danh sách hội thoại từ socket
+    if (conversations) {
+      setChatRooms(conversations as any);
       setLoading(false);
-      return;
+      setError(null);
     }
-
-    const unsubscribe = ChatService.subscribeToChatRooms(
-      userId,
-      "customer",
-      (rooms) => {
-        setChatRooms(rooms);
-        setLoading(false);
-        setError(null);
-      }
-    );
-
-    // Thêm error handling
-    const handleError = (error: any) => {
-      console.warn("Chat subscription error:", error);
-      setError("Không thể tải danh sách chat. Vui lòng thử lại.");
-      setLoading(false);
-    };
-
-    // Retry mechanism
-    const retryTimeout = setTimeout(() => {
-      if (chatRooms.length === 0 && !loading) {
-        console.log("Retrying chat rooms subscription...");
-        refreshChatRooms();
-      }
-    }, 5000);
-
-    return () => {
-      unsubscribe();
-      clearTimeout(retryTimeout);
-    };
-  }, [user?.id, chatRooms.length, loading]);
+  }, [conversations]);
 
   const createChatRoom = async (
     chatRoomData: Omit<ChatRoom, "id" | "createdAt" | "updatedAt">
   ): Promise<string> => {
     try {
-      const roomId = await ChatService.createChatRoom(chatRoomData);
-      refreshChatRooms();
+      const receiverId = chatRoomData.shopId || chatRoomData.customerId;
+      if (!receiverId) {
+        setError("Thiếu receiverId");
+        throw new Error("Thiếu receiverId");
+      }
+      const roomId = await createConversation(receiverId);
       return roomId;
-    } catch (err) {
+    } catch (error) {
       setError("Không thể tạo cuộc trò chuyện mới");
-      throw err;
+      throw error;
     }
   };
 

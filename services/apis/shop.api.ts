@@ -53,6 +53,10 @@ export const shopApi = {
     return makeRequest(`/shops/${id}`);
   },
 
+  getShopByUserId: async (userId: string): Promise<ShopDetail> => {
+    return makeRequest(`/users/${userId}/shop`);
+  },
+
   getShopDresses: async (
     shopId: string,
     page: number = 0,

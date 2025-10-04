@@ -13,7 +13,15 @@
       "bundleIdentifier": "com.veila.app"
     },
 
-    "plugins": ["expo-router", "expo-video"],
+    "plugins": [
+      [
+        "expo-router",
+        {
+          "root": "./app"
+        }
+      ],
+      "expo-video"
+    ],
     "experiments": {
       "typedRoutes": true
     }

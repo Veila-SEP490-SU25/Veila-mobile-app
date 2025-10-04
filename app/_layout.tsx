@@ -6,6 +6,7 @@ import { useEffect } from "react";
 import Toast from "react-native-toast-message";
 import { Provider as ReduxProvider } from "react-redux";
 import { toastConfig } from "styles/toast.config";
+import { NavigationWrapper } from "../components/NavigationWrapper";
 import { AuthProvider } from "../providers/auth.provider";
 import { ChatProvider } from "../providers/chat.provider";
 import { NotificationProvider } from "../providers/notification.provider";
@@ -40,33 +41,60 @@ export default function RootLayout() {
     <ReduxProvider store={store}>
       <SessionProvider>
         <AuthProvider>
-          <NotificationProvider>
-            <ChatProvider>
-              <Stack screenOptions={{ headerShown: false }}>
-                <Stack.Screen
-                  name="not-found"
-                  options={{ headerShown: false }}
+          <NavigationWrapper>
+            <NotificationProvider>
+              <ChatProvider>
+                <Stack screenOptions={{ headerShown: false }}>
+                  <Stack.Screen
+                    name="not-found"
+                    options={{ headerShown: false }}
+                  />
+                  <Stack.Screen name="index" options={{ headerShown: false }} />
+                  <Stack.Screen name="_tab" options={{ headerShown: false }} />
+                  <Stack.Screen name="_auth" options={{ headerShown: false }} />
+                  <Stack.Screen
+                    name="_onboarding"
+                    options={{ headerShown: false }}
+                  />
+                  <Stack.Screen
+                    name="account"
+                    options={{ headerShown: false }}
+                  />
+                  <Stack.Screen
+                    name="payment"
+                    options={{ headerShown: false }}
+                  />
+                  <Stack.Screen name="chat" options={{ headerShown: false }} />
+                  <Stack.Screen name="shop" options={{ headerShown: false }} />
+                  <Stack.Screen name="dress" options={{ headerShown: false }} />
+                  <Stack.Screen
+                    name="accessory"
+                    options={{ headerShown: false }}
+                  />
+                  <Stack.Screen name="blog" options={{ headerShown: false }} />
+                  <Stack.Screen
+                    name="checkout"
+                    options={{ headerShown: false }}
+                  />
+                  <Stack.Screen
+                    name="contracts"
+                    options={{ headerShown: false }}
+                  />
+                  <Stack.Screen
+                    name="explore"
+                    options={{ headerShown: false }}
+                  />
+                </Stack>
+                <Toast
+                  config={toastConfig}
+                  position="bottom"
+                  bottomOffset={100}
+                  visibilityTime={3000}
+                  autoHide={true}
                 />
-                <Stack.Screen name="index" options={{ headerShown: false }} />
-                <Stack.Screen name="_tab" options={{ headerShown: false }} />
-                <Stack.Screen name="_auth" options={{ headerShown: false }} />
-                <Stack.Screen
-                  name="_onboarding"
-                  options={{ headerShown: false }}
-                />
-                <Stack.Screen name="account" options={{ headerShown: false }} />
-                <Stack.Screen name="payment" options={{ headerShown: false }} />
-                <Stack.Screen name="chat" options={{ headerShown: false }} />
-              </Stack>
-              <Toast
-                config={toastConfig}
-                position="bottom"
-                bottomOffset={100}
-                visibilityTime={3000}
-                autoHide={true}
-              />
-            </ChatProvider>
-          </NotificationProvider>
+              </ChatProvider>
+            </NotificationProvider>
+          </NavigationWrapper>
         </AuthProvider>
       </SessionProvider>
     </ReduxProvider>

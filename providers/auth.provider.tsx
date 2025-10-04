@@ -1,5 +1,4 @@
 import SplashIntroVideo from "@/index";
-import { useRouter } from "expo-router";
 import React, {
   createContext,
   useCallback,
@@ -49,6 +48,7 @@ type AuthContextType = {
   user: IUser | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  setNavigationCallback: (callback: (path: string) => void) => void;
 };
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -62,7 +62,6 @@ export const useAuth = () => {
 };
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-  const router = useRouter();
   const { resetSession } = useSession();
 
   const [user, setUser] = useState<IUser | null>(null);
@@ -70,6 +69,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [isAuthChecking, setIsAuthChecking] = useState(true);
   const hasRefreshed = useRef(false);
+  const navigationCallbackRef = useRef<((path: string) => void) | null>(null);
 
   const [loginMutation] = useLoginMutation();
   const [googleLoginMutation] = useGoogleLoginMutation();
@@ -84,6 +84,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     await setAccessToken(accessToken);
     await setRefreshToken(refreshToken);
   };
+
+  const setNavigationCallback = useCallback(
+    (callback: (path: string) => void) => {
+      navigationCallbackRef.current = callback;
+    },
+    []
+  );
 
   const convertApiResponseToUser = (apiUser: any): IUser => {
     let phoneVerificationStatus: PhoneVerificationStatus =
@@ -207,10 +214,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       resetSession();
 
       setTimeout(() => {
-        router.replace("/_auth/login");
+        navigationCallbackRef.current?.("/_auth/login");
       }, 100);
     }
-  }, [logoutMutation, router, resetSession]);
+  }, [logoutMutation, resetSession]);
 
   const fetchUser = useCallback(async () => {
     try {
@@ -229,9 +236,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setUser(null);
       setIsAuthenticated(false);
       await delTokens();
-      router.replace("/_auth/login");
+      navigationCallbackRef.current?.("/_auth/login");
     }
-  }, [getMe, router, resetSession]);
+  }, [getMe, resetSession]);
 
   const refreshUser = useCallback(async () => {
     try {
@@ -261,15 +268,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           await fetchUser();
           resetSession();
 
-          router.replace("/_tab/home");
+          navigationCallbackRef.current?.("/_tab/home");
         } else if (statusCode === 401) {
           const { item: otpUserId } = await requestOtpMutation({
             email: body.email,
           }).unwrap();
-          router.push({
-            pathname: "/_auth/verify-otp",
-            params: { userId: otpUserId, email: body.email },
-          });
+          navigationCallbackRef.current?.(
+            `/_auth/verify-otp?userId=${otpUserId}&email=${body.email}`
+          );
         } else {
           showLoginError();
         }
@@ -279,7 +285,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setIsAuthenticating(false);
       }
     },
-    [loginMutation, requestOtpMutation, router, fetchUser, resetSession]
+    [loginMutation, requestOtpMutation, fetchUser, resetSession]
   );
 
   const googleLogin = useCallback(
@@ -294,7 +300,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           await fetchUser();
           resetSession();
 
-          router.replace("/_tab/home");
+          navigationCallbackRef.current?.("/_tab/home");
         } else {
           showLoginError();
         }
@@ -304,7 +310,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setIsAuthenticating(false);
       }
     },
-    [googleLoginMutation, router, fetchUser, resetSession]
+    [googleLoginMutation, fetchUser, resetSession]
   );
 
   const verifyOtp = useCallback(
@@ -319,7 +325,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           await fetchUser();
           resetSession();
 
-          router.replace("/_tab/home");
+          navigationCallbackRef.current?.("/_tab/home");
         } else {
           showMessage("ERM003");
         }
@@ -329,7 +335,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setIsAuthenticating(false);
       }
     },
-    [verifyOtpMutation, router, fetchUser, resetSession]
+    [verifyOtpMutation, fetchUser, resetSession]
   );
 
   useEffect(() => {
@@ -408,6 +414,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         user,
         isAuthenticated,
         isLoading,
+        setNavigationCallback,
       }}
     >
       {children}

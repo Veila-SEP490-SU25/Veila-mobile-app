@@ -15,10 +15,11 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import ImagePicker from "../../components/chat/ImagePicker";
+import { useSocket } from "../../hooks/useSocket";
 import { useAuth } from "../../providers/auth.provider";
-import { ChatService } from "../../services/chat.service";
+// import { ChatService } from "../../services/chat.service"; // Deprecated, using socket
 import { uploadImageToFirebase } from "../../services/firebase-upload";
-import { ChatMessage, ChatRoom } from "../../services/types";
+import { IConversation, IMessage } from "../../services/types";
 
 export default function ChatDetailScreen() {
   const router = useRouter();
@@ -37,8 +38,13 @@ export default function ChatDetailScreen() {
     paramsError = "Lỗi navigation context";
   }
 
-  const [chatRoom, setChatRoom] = useState<ChatRoom | null>(null);
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [chatRoom, setChatRoom] = useState<IConversation | null>(null);
+  const { messages, changeRoom, sendMessage, conversations } = useSocket();
+
+  // Filter messages for current room
+  const currentMessages = messages.filter(
+    (msg) => msg.chatRoomId === chatRoomId || msg.conversationId === chatRoomId
+  );
 
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
@@ -75,165 +81,63 @@ export default function ChatDetailScreen() {
   }, [router, chatRoomId, user, paramsError]);
 
   useEffect(() => {
-    const loadChatRoom = async () => {
+    const load = async () => {
       try {
         setError(null);
+        if (!chatRoomId || !router || !user) return;
+        // Lấy phòng từ danh sách hội thoại của socket
+        const roomFromSocket = (conversations || []).find(
+          (c: IConversation) => c.conversationId === chatRoomId
+        ) as IConversation | undefined;
 
-        if (!chatRoomId || !router || !user) {
-          return;
-        }
-
-        const room = await ChatService.getChatRoom(chatRoomId);
-        if (room) {
-          setChatRoom(room);
+        if (roomFromSocket) {
+          setChatRoom(roomFromSocket);
         } else {
-          setError("Không thể tìm thấy phòng chat");
+          // Fallback nhẹ để không hiển thị "không tìm thấy"
+          setChatRoom({
+            conversationId: chatRoomId,
+            receiverId: "",
+            receiverName: "Shop",
+            receiverAvatar: "",
+            lastMessage: undefined,
+            unReadCount: 0,
+            isActive: true,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          } as IConversation);
         }
+
+        changeRoom(chatRoomId);
       } catch {
         setError("Không thể tải thông tin chat");
       }
     };
+    load();
+  }, [chatRoomId, router, user, changeRoom, conversations]);
 
-    loadChatRoom();
-  }, [chatRoomId, router, user]);
-
+  // Messages are provided by socket hook; no Firestore subscription
   useEffect(() => {
-    if (!chatRoomId || !router || !user) return;
-
-    let unsubscribe: (() => void) | undefined;
-
-    const setupSubscription = () => {
-      try {
-        unsubscribe = ChatService.subscribeToMessages(
-          chatRoomId,
-          (newMessages) => {
-            if (newMessages.length === 0) {
-              const testMessages: ChatMessage[] = [
-                {
-                  id: "test-1",
-                  chatRoomId,
-                  senderId: "test-shop-id",
-                  senderName: "Kshlerin - Ziemann",
-                  content: "Chào bạn! Bạn cần tư vấn gì về váy cưới không?",
-                  timestamp: new Date(Date.now() - 300000),
-                  isRead: false,
-                  type: "text",
-                },
-                {
-                  id: "test-2",
-                  chatRoomId,
-                  senderId: user?.id || "test-customer",
-                  senderName: user?.firstName || "Khách hàng",
-                  content:
-                    "Xin chào shop! Tôi muốn xem váy cưới cho đám cưới tháng 12.",
-                  timestamp: new Date(Date.now() - 240000),
-                  isRead: true,
-                  type: "text",
-                },
-                {
-                  id: "test-3",
-                  chatRoomId,
-                  senderId: "test-shop-id",
-                  senderName: "Kshlerin - Ziemann",
-                  content:
-                    "Tuyệt vời! Chúng tôi có nhiều mẫu váy đẹp phù hợp cho mùa đông. Bạn có kích thước và phong cách yêu thích không?",
-                  timestamp: new Date(Date.now() - 180000),
-                  isRead: false,
-                  type: "text",
-                },
-              ];
-              setMessages(testMessages);
-            } else {
-              setMessages(newMessages);
-            }
-
-            setLoading(false);
-            setError(null);
-          }
-        );
-      } catch {
-        setLoading(false);
-      }
-    };
-
-    const retrySubscription = () => {
-      try {
-        setupSubscription();
-      } catch {
-        setLoading(false);
-      }
-    };
-
-    retrySubscription();
-
-    return () => {
-      if (unsubscribe) {
-        try {
-          unsubscribe();
-        } catch {
-          // Unsubscribe error handled silently
-        }
-      }
-    };
-  }, [chatRoomId, router, user]);
-
-  useEffect(() => {
-    if (chatRoomId && user && router) {
-      ChatService.markMessagesAsRead(chatRoomId, user.id);
+    if (currentMessages !== undefined) {
+      setLoading(false);
+      setError(null);
     }
-  }, [chatRoomId, user, router, messages]);
+  }, [currentMessages]);
+
+  // Mark as read sẽ để phía server xử lý qua socket
 
   const handleSendMessage = useCallback(async () => {
     if (!messageText.trim() || !chatRoomId || !user || sending) return;
-
     try {
       setSending(true);
       setError(null);
-
-      const messageData = {
-        content: messageText.trim(),
-        type: "text" as const,
-      };
-
-      const tempMessage: ChatMessage = {
-        id: `temp-${Date.now()}`,
-        chatRoomId,
-        senderId: user.id,
-        senderName: user.firstName || "Khách hàng",
-        senderAvatar: user.avatarUrl,
-        content: messageData.content,
-        timestamp: new Date(),
-        isRead: false,
-        type: messageData.type,
-      };
-
-      setMessages((prev) => [...prev, tempMessage]);
+      sendMessage({ content: messageText.trim() });
       setMessageText("");
-
-      const success = await ChatService.sendMessage(
-        {
-          chatRoomId,
-          content: messageData.content,
-          type: messageData.type,
-        },
-        {
-          senderId: user.id,
-          senderName: user.firstName || "Khách hàng",
-          senderAvatar: user.avatarUrl,
-        }
-      );
-
-      if (!success) {
-        setMessages((prev) => prev.filter((msg) => msg.id !== tempMessage.id));
-        setError("Không thể gửi tin nhắn. Vui lòng thử lại.");
-      }
     } catch {
       setError("Lỗi gửi tin nhắn. Vui lòng thử lại.");
-      setMessages((prev) => prev.filter((msg) => !msg.id.startsWith("temp-")));
     } finally {
       setSending(false);
     }
-  }, [messageText, chatRoomId, user, sending]);
+  }, [messageText, chatRoomId, user, sending, sendMessage]);
 
   const handleSendImage = useCallback(
     async (imageUri: string, caption?: string) => {
@@ -251,48 +155,18 @@ export default function ChatDetailScreen() {
 
         const finalImageUrl = upload.url;
 
-        const tempMessage: ChatMessage = {
-          id: `temp-${Date.now()}`,
-          chatRoomId,
-          senderId: user.id,
-          senderName: user.firstName || "Khách hàng",
-          senderAvatar: user.avatarUrl,
-          content: caption || "Hình ảnh",
-          timestamp: new Date(),
-          isRead: false,
-          type: "image",
+        sendMessage({
+          content: caption || "",
           imageUrl: finalImageUrl,
-        };
-
-        setMessages((prev) => [...prev, tempMessage]);
-
-        const success = await ChatService.sendImageMessage(
-          chatRoomId,
-          finalImageUrl,
-          {
-            senderId: user.id,
-            senderName: user.firstName || "Khách hàng",
-            senderAvatar: user.avatarUrl,
-          },
-          caption
-        );
-
-        if (!success) {
-          setMessages((prev) =>
-            prev.filter((msg) => msg.id !== tempMessage.id)
-          );
-          setError("Không thể gửi hình ảnh. Vui lòng thử lại.");
-        }
+          type: "image",
+        });
       } catch {
         setError("Lỗi gửi hình ảnh. Vui lòng thử lại.");
-        setMessages((prev) =>
-          prev.filter((msg) => !msg.id.startsWith("temp-"))
-        );
       } finally {
         setSending(false);
       }
     },
-    [chatRoomId, user, sending]
+    [chatRoomId, user, sending, sendMessage]
   );
 
   const handleRetry = useCallback(async () => {
@@ -301,10 +175,11 @@ export default function ChatDetailScreen() {
 
     try {
       if (chatRoomId && router && user) {
-        const room = await ChatService.getChatRoom(chatRoomId);
-        if (room) {
-          setChatRoom(room);
-        }
+        // ChatService.getChatRoom is deprecated, using socket conversations instead
+        // const room = await ChatService.getChatRoom(chatRoomId);
+        // if (room) {
+        //   setChatRoom(room);
+        // }
       }
 
       setLoading(false);
@@ -316,9 +191,9 @@ export default function ChatDetailScreen() {
   }, [chatRoomId, router, user]);
 
   const renderMessage = useCallback(
-    ({ item }: { item: ChatMessage }) => {
+    ({ item }: { item: IMessage }) => {
       const isOwnMessage = item.senderId === user?.id;
-      const messageTime = new Date(item.timestamp).toLocaleTimeString("vi-VN", {
+      const messageTime = new Date(item.createdAt).toLocaleTimeString("vi-VN", {
         hour: "2-digit",
         minute: "2-digit",
       });
@@ -356,7 +231,7 @@ export default function ChatDetailScreen() {
             )}
 
             {/* Message content */}
-            {item.type === "image" ? (
+            {item.imageUrl ? (
               <View>
                 <Image
                   source={{ uri: item.imageUrl }}
@@ -364,12 +239,14 @@ export default function ChatDetailScreen() {
                     width: 200,
                     height: 150,
                     borderRadius: 8,
-                    marginBottom:
-                      item.content && item.content !== "Hình ảnh" ? 8 : 0,
+                    marginBottom: item.content && item.content.trim() ? 8 : 0,
                   }}
                   resizeMode="cover"
+                  onError={() => {
+                    console.log("Image failed to load:", item.imageUrl);
+                  }}
                 />
-                {item.content && item.content !== "Hình ảnh" && (
+                {item.content && item.content.trim() && (
                   <Text
                     className={`text-base leading-6 ${
                       isOwnMessage ? "text-white" : "text-gray-900"
@@ -431,15 +308,8 @@ export default function ChatDetailScreen() {
   const renderHeader = () => {
     if (!chatRoom || !user) return null;
 
-    const otherPartyName =
-      chatRoom.customerId === user.id
-        ? chatRoom.shopName
-        : chatRoom.customerName;
-
-    const otherPartyAvatar =
-      chatRoom.customerId === user.id
-        ? chatRoom.shopAvatar
-        : chatRoom.customerAvatar;
+    const otherPartyName = chatRoom.receiverName;
+    const otherPartyAvatar = chatRoom.receiverAvatar;
 
     return (
       <View className="bg-white border-b border-gray-200 shadow-sm pt-20">
@@ -793,26 +663,25 @@ export default function ChatDetailScreen() {
         {/* Messages list with improved configuration */}
         <FlatList
           ref={flatListRef}
-          data={messages}
+          data={currentMessages}
           renderItem={renderMessage}
           keyExtractor={(item) => item.id}
           className="flex-1"
           contentContainerStyle={{
             paddingHorizontal: 16,
             paddingVertical: 8,
-            flexGrow: messages.length === 0 ? 1 : 0,
+            flexGrow: currentMessages.length === 0 ? 1 : 0,
           }}
           showsVerticalScrollIndicator={false}
-          inverted={messages.length > 0}
           onContentSizeChange={() => {
-            if (flatListRef.current && messages.length > 0) {
+            if (flatListRef.current && currentMessages.length > 0) {
               setTimeout(() => {
                 flatListRef.current?.scrollToEnd({ animated: true });
               }, 100);
             }
           }}
           onLayout={() => {
-            if (flatListRef.current && messages.length > 0) {
+            if (flatListRef.current && currentMessages.length > 0) {
               setTimeout(() => {
                 flatListRef.current?.scrollToEnd({ animated: false });
               }, 100);
@@ -820,7 +689,7 @@ export default function ChatDetailScreen() {
           }}
           ListEmptyComponent={renderEmptyState}
           ListHeaderComponent={
-            messages.length === 0 ? renderTypingIndicator : null
+            currentMessages.length === 0 ? renderTypingIndicator : null
           }
           ListFooterComponent={() => <View className="h-4" />}
           removeClippedSubviews={false}

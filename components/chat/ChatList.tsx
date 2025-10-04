@@ -1,7 +1,6 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { formatDistanceToNow } from "date-fns";
 import { vi } from "date-fns/locale";
-import { useRouter } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -15,13 +14,15 @@ import {
 
 import Toast from "react-native-toast-message";
 import { useNetworkStatus } from "../../hooks/useNetworkStatus";
+import { useSocket } from "../../hooks/useSocket";
 import { useChatContext } from "../../providers/chat.provider";
-import { ChatRoom } from "../../services/types";
+import { ChatRoom, IConversation } from "../../services/types";
 
 interface ChatListProps {
   userId?: string;
   userType?: "customer" | "shop";
   onChatPress?: (chatId: string) => void;
+  onShopPress?: (shopId: string, customerId?: string) => void;
   onRefresh?: () => void;
   refreshing?: boolean;
 }
@@ -29,11 +30,12 @@ interface ChatListProps {
 export default function ChatList({
   userType = "customer",
   onChatPress,
+  onShopPress,
   onRefresh,
   refreshing = false,
 }: ChatListProps) {
-  const { chatRooms, loading: isLoading, error } = useChatContext();
-  const router = useRouter();
+  const { loading: isLoading, error } = useChatContext();
+  const { conversations } = useSocket();
 
   const { isOnline } = useNetworkStatus();
   const [navigationError, setNavigationError] = useState(false);
@@ -69,14 +71,45 @@ export default function ChatList({
     }
   }, [onRefresh]);
 
+  // Use conversations from socket as primary source (like web version)
+  const allChatRooms = useMemo(() => {
+    // Convert conversations to chatRooms format for compatibility
+    const convertedConversations = conversations.map((conv) => ({
+      id: conv.conversationId,
+      conversationId: conv.conversationId,
+      customerId: userType === "customer" ? "" : conv.receiverId,
+      customerName: userType === "customer" ? "" : conv.receiverName,
+      customerAvatar: userType === "customer" ? "" : conv.receiverAvatar,
+      shopId: userType === "customer" ? conv.receiverId : "",
+      shopName: userType === "customer" ? conv.receiverName : "",
+      shopAvatar: userType === "customer" ? conv.receiverAvatar : "",
+      lastMessage: conv.lastMessage,
+      lastMessageTime: conv.lastMessage?.createdAt
+        ? new Date(conv.lastMessage.createdAt)
+        : undefined,
+      unreadCount: conv.unReadCount,
+      isActive: conv.isActive,
+      createdAt: conv.createdAt ? new Date(conv.createdAt) : new Date(),
+      updatedAt: conv.updatedAt ? new Date(conv.updatedAt) : new Date(),
+      // Web compatibility fields
+      receiverId: conv.receiverId,
+      receiverName: conv.receiverName,
+      receiverAvatar: conv.receiverAvatar,
+      unReadCount: conv.unReadCount,
+    }));
+
+    // Only use conversations from socket, don't combine with chatRooms
+    return convertedConversations;
+  }, [conversations, userType]);
+
   // Filter chat rooms based on debounced search query
   const filteredChatRooms = useMemo(() => {
     if (!debouncedSearchQuery.trim()) {
-      return chatRooms;
+      return allChatRooms;
     }
 
     const query = debouncedSearchQuery.toLowerCase().trim();
-    return chatRooms.filter((room) => {
+    return allChatRooms.filter((room) => {
       const otherPartyName =
         userType === "customer" ? room.shopName : room.customerName;
       const lastMessage = room.lastMessage?.content || "";
@@ -86,13 +119,14 @@ export default function ChatList({
         lastMessage.toLowerCase().includes(query)
       );
     });
-  }, [chatRooms, debouncedSearchQuery, userType]);
+  }, [allChatRooms, debouncedSearchQuery, userType]);
 
   const handleChatPress = useCallback(
-    (chatRoom: ChatRoom) => {
+    (chatRoom: ChatRoom | IConversation) => {
       try {
         if (onChatPress) {
-          onChatPress(chatRoom.id);
+          const id = (chatRoom as any).conversationId || (chatRoom as any).id;
+          onChatPress(id);
         }
       } catch {
         setNavigationError(true);
@@ -107,15 +141,44 @@ export default function ChatList({
   );
 
   const handleShopPress = useCallback(
-    (chatRoom: ChatRoom) => {
+    async (chatRoom: ChatRoom | IConversation) => {
       try {
-        if (userType === "customer") {
-          router.push(`/shop/${chatRoom.shopId}` as any);
-        } else {
-          router.push(`/customer/${chatRoom.customerId}` as any);
+        if (onShopPress) {
+          const shopId =
+            (chatRoom as any).shopId || (chatRoom as any).receiverId;
+          const customerId =
+            (chatRoom as any).customerId || (chatRoom as any).senderId;
+
+          if (!shopId || shopId.trim() === "") {
+            Toast.show({
+              type: "error",
+              text1: "Lỗi",
+              text2: "Không tìm thấy thông tin cửa hàng",
+            });
+            return;
+          }
+
+          // Try to get shop from user ID first (receiverId is user ID, not shop ID)
+          try {
+            const { shopApi } = await import("../../services/apis/shop.api");
+            const shopData = await shopApi.getShopByUserId(shopId);
+            onShopPress(shopData.id, customerId);
+          } catch {
+            // Fallback: try as shop ID directly
+            try {
+              const { shopApi } = await import("../../services/apis/shop.api");
+              await shopApi.getShopById(shopId);
+              onShopPress(shopId, customerId);
+            } catch {
+              Toast.show({
+                type: "error",
+                text1: "Lỗi",
+                text2: "Không tìm thấy thông tin cửa hàng",
+              });
+            }
+          }
         }
-      } catch (error) {
-        console.error("Error navigating:", error);
+      } catch {
         Toast.show({
           type: "error",
           text1: "Lỗi",
@@ -123,20 +186,27 @@ export default function ChatList({
         });
       }
     },
-    [router, userType]
+    [onShopPress]
   );
 
   const clearSearch = () => {
     setSearchQuery("");
   };
 
-  const renderChatRoom = ({ item }: { item: ChatRoom }) => {
+  const renderChatRoom = ({ item }: { item: ChatRoom | IConversation }) => {
     const otherPartyName =
-      userType === "customer" ? item.shopName : item.customerName;
+      userType === "customer"
+        ? (item as any).shopName || (item as any).receiverName || "Shop"
+        : (item as any).customerName ||
+          (item as any).receiverName ||
+          "Người dùng";
     const otherPartyAvatar =
-      userType === "customer" ? item.shopAvatar : item.customerAvatar;
+      userType === "customer"
+        ? (item as any).shopAvatar || (item as any).receiverAvatar
+        : (item as any).customerAvatar || (item as any).receiverAvatar;
     const lastMessage = item.lastMessage;
-    const unreadCount = item.unreadCount;
+    const unreadCount =
+      (item as any).unreadCount || (item as any).unReadCount || 0;
 
     return (
       <TouchableOpacity
@@ -192,34 +262,42 @@ export default function ChatList({
                     {userType === "customer" && (
                       <View className="flex-row items-center mt-1">
                         <Ionicons name="storefront" size={12} color="#E05C78" />
-                        <Text className="text-xs text-primary-600 ml-1 font-medium">
-                          Click để xem shop
+                        <Text
+                          className="text-xs text-primary-600 ml-1 font-medium"
+                          numberOfLines={1}
+                        >
+                          {otherPartyName}
                         </Text>
                       </View>
                     )}
                   </View>
                 </TouchableOpacity>
 
-                {lastMessage && lastMessage.timestamp && (
-                  <View className="bg-gray-50 px-2 py-1 rounded-full">
-                    <Text className="text-xs text-gray-600 font-medium">
-                      {(() => {
-                        try {
-                          const timestamp =
-                            lastMessage.timestamp instanceof Date
-                              ? lastMessage.timestamp
-                              : new Date(lastMessage.timestamp);
-                          return formatDistanceToNow(timestamp, {
-                            addSuffix: true,
-                            locale: vi,
-                          });
-                        } catch {
-                          return "Vừa xong";
-                        }
-                      })()}
-                    </Text>
-                  </View>
-                )}
+                {lastMessage &&
+                  ((lastMessage as any).timestamp ||
+                    (lastMessage as any).createdAt) && (
+                    <View className="bg-gray-50 px-2 py-1 rounded-full">
+                      <Text className="text-xs text-gray-600 font-medium">
+                        {(() => {
+                          try {
+                            const timestamp =
+                              (lastMessage as any).timestamp instanceof Date
+                                ? (lastMessage as any).timestamp
+                                : new Date(
+                                    (lastMessage as any).timestamp ||
+                                      (lastMessage as any).createdAt
+                                  );
+                            return formatDistanceToNow(timestamp, {
+                              addSuffix: true,
+                              locale: vi,
+                            });
+                          } catch {
+                            return "Vừa xong";
+                          }
+                        })()}
+                      </Text>
+                    </View>
+                  )}
               </View>
 
               <View className="flex-row items-center">
@@ -300,7 +378,7 @@ export default function ChatList({
     );
   }
 
-  if (chatRooms.length === 0) {
+  if (allChatRooms.length === 0) {
     return (
       <View className="flex-1 justify-center items-center px-6">
         <View className="w-28 h-28 rounded-full bg-gradient-to-br from-gray-50 to-gray-100 items-center justify-center mb-8 shadow-lg">
@@ -394,10 +472,10 @@ export default function ChatList({
           <View className="mt-2 px-2">
             <Text className="text-sm text-gray-600">
               Tìm thấy {filteredChatRooms.length} cuộc trò chuyện
-              {filteredChatRooms.length !== chatRooms.length && (
+              {filteredChatRooms.length !== allChatRooms.length && (
                 <Text className="text-gray-500">
                   {" "}
-                  trong tổng số {chatRooms.length}
+                  trong tổng số {allChatRooms.length}
                 </Text>
               )}
             </Text>
@@ -457,7 +535,7 @@ export default function ChatList({
       <FlatList
         data={filteredChatRooms}
         renderItem={renderChatRoom}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => (item as any).conversationId || item.id}
         className="flex-1"
         contentContainerStyle={{
           paddingVertical: 16,

@@ -28,6 +28,20 @@ export default function Chat() {
     }
   }, [refreshChatRooms]);
 
+  const handleShopPress = useCallback(
+    (shopId: string, _customerId?: string) => {
+      try {
+        if (!shopId || shopId.trim() === "") {
+          return;
+        }
+        router.push(`/shop/${shopId}`);
+      } catch {
+        // Silent fail
+      }
+    },
+    [router]
+  );
+
   const totalUnreadMessages = chatRooms.reduce((total, room) => {
     return total + (room.unreadCount || 0);
   }, 0);
@@ -56,6 +70,7 @@ export default function Chat() {
       <ChatList
         userType="customer"
         onChatPress={handleChatPress}
+        onShopPress={handleShopPress}
         onRefresh={handleRefresh}
       />
     </SafeAreaView>

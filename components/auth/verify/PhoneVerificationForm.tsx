@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -12,9 +12,8 @@ import {
   View,
 } from "react-native";
 import Toast from "react-native-toast-message";
+import { usePhoneVerification } from "../../../hooks/usePhoneVerification";
 import { useAuth } from "../../../providers/auth.provider";
-import { useVerifyPhoneMutation } from "../../../services/apis/auth.api";
-import { FirebasePhoneAuthService } from "../../../services/firebase-phone-auth";
 import InputOTP from "./InputOTP";
 
 export default function PhoneVerificationForm() {
@@ -22,42 +21,34 @@ export default function PhoneVerificationForm() {
   const authContext = useAuth();
   const user = authContext?.user || null;
   const { refreshUser } = authContext;
-  const [verifyPhone] = useVerifyPhoneMutation();
 
-  const [step, setStep] = useState<"phone" | "otp">("phone");
+  const {
+    code,
+    step,
+
+    countdown,
+    error,
+    isLoading,
+    otpSent,
+    isBlocked,
+    handlePhoneChange,
+    handleCodeChange,
+    sendVerificationCode,
+    verifyCode,
+    resendCode,
+    resetVerification,
+    canSendCode,
+    canVerifyCode,
+  } = usePhoneVerification();
+
   const [phoneNumber, setPhoneNumber] = useState(user?.phone || "");
-  const [code, setCode] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [confirmationResult, setConfirmationResult] = useState<any>(null);
-  const [resendCountdown, setResendCountdown] = useState(0);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     if (user?.phone) {
       setPhoneNumber(user.phone);
+      handlePhoneChange(user.phone);
     }
-  }, [user?.phone]);
-
-  useEffect(() => {
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
-  }, []);
-
-  const startResendTimer = (seconds: number = 60) => {
-    if (timerRef.current) clearInterval(timerRef.current);
-    setResendCountdown(seconds);
-    timerRef.current = setInterval(() => {
-      setResendCountdown((prev) => {
-        if (prev <= 1) {
-          if (timerRef.current) clearInterval(timerRef.current);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-  };
+  }, [user?.phone, handlePhoneChange]);
 
   const hasPhoneChanged = user?.phone && phoneNumber !== user.phone;
 
@@ -84,153 +75,89 @@ export default function PhoneVerificationForm() {
     return `+84${t}`;
   };
 
-  const handlePhoneChange = (text: string) => {
+  const handlePhoneChangeLocal = (text: string) => {
     setPhoneNumber(text);
-    setError("");
+    handlePhoneChange(text);
   };
 
   const handleSendCode = async () => {
     if (!phoneNumber.trim()) {
-      setError("Vui lòng nhập số điện thoại");
+      Toast.show({ type: "error", text1: "Vui lòng nhập số điện thoại" });
       return;
     }
 
-    setIsLoading(true);
-    setError("");
-
-    try {
-      const formattedPhone = formatToE164VN(phoneNumber);
-      const result =
-        await FirebasePhoneAuthService.sendVerificationCode(formattedPhone);
-
-      if (result.success) {
-        setConfirmationResult(result);
-        setStep("otp");
-        setError("");
-        startResendTimer(60);
-
-        if (result.isMock) {
-          Toast.show({
-            type: "info",
-            text1: "Mã xác thực đã được gửi",
-            text2: "Vui lòng kiểm tra SMS và nhập mã 6 số",
-          });
-        }
-      } else {
-        setError("Không thể gửi mã xác thực. Vui lòng thử lại.");
-        Toast.show({ type: "error", text1: "Gửi mã thất bại" });
-      }
-    } catch (error: any) {
-      setError(error.message || "Lỗi không xác định");
+    const success = await sendVerificationCode();
+    if (success) {
+      Toast.show({
+        type: "success",
+        text1: "Mã OTP đã được gửi",
+        text2: "Vui lòng kiểm tra SMS và nhập mã 6 số",
+      });
+    } else {
       Toast.show({
         type: "error",
         text1: "Gửi mã thất bại",
-        text2: error.message,
+        text2: error,
       });
-    } finally {
-      setIsLoading(false);
     }
   };
 
   const handleVerifyCode = async () => {
     if (!code.trim() || code.length !== 6) {
-      setError("Vui lòng nhập mã 6 số");
       Toast.show({ type: "warning", text1: "Mã OTP không hợp lệ" });
       return;
     }
 
-    if (!confirmationResult) {
-      setError("Không có thông tin xác thực. Vui lòng gửi lại mã.");
-      Toast.show({ type: "error", text1: "Thiếu thông tin xác thực" });
-      return;
-    }
-
-    setIsLoading(true);
-    setError("");
-
-    try {
-      const result = await FirebasePhoneAuthService.verifyCode(
-        confirmationResult.verificationId,
-        code
-      );
-
-      if (result.success) {
-        setError("");
-
-        try {
-          await verifyPhone({ phone: phoneNumber }).unwrap();
-          try {
-            await refreshUser();
-          } catch {}
-
-          Toast.show({
-            type: "success",
-            text1: "Xác thực thành công",
-            text2: "Số điện thoại đã được lưu vào hệ thống",
-          });
-          setTimeout(() => router.back(), 400);
-        } catch {
-          Toast.show({
-            type: "warning",
-            text1: "Xác thực Firebase thành công",
-            text2: "Lưu vào hệ thống thất bại. Vui lòng thử lại",
-          });
-          setTimeout(() => router.back(), 600);
-        }
-      } else {
-        setError("Xác thực thất bại. Vui lòng thử lại.");
-        Toast.show({ type: "error", text1: "Xác thực thất bại" });
+    const success = await verifyCode(async () => {
+      try {
+        await refreshUser();
+        Toast.show({
+          type: "success",
+          text1: "Xác thực thành công",
+          text2: "Số điện thoại đã được lưu vào hệ thống",
+        });
+        setTimeout(() => router.back(), 400);
+      } catch {
+        Toast.show({
+          type: "warning",
+          text1: "Xác thực thành công",
+          text2: "Lưu vào hệ thống thất bại. Vui lòng thử lại",
+        });
+        setTimeout(() => router.back(), 600);
       }
-    } catch (error: any) {
-      setError(error.message || "Lỗi xác thực");
+    });
+
+    if (!success) {
       Toast.show({
         type: "error",
         text1: "Xác thực thất bại",
-        text2: error.message,
+        text2: error,
       });
-    } finally {
-      setIsLoading(false);
     }
   };
 
   const handleResendCode = async () => {
-    if (resendCountdown > 0) return;
-    setIsLoading(true);
-    setError("");
-    try {
-      const formattedPhone = formatToE164VN(phoneNumber);
-      const result =
-        await FirebasePhoneAuthService.sendVerificationCode(formattedPhone);
-      if (result.success) {
-        setConfirmationResult(result);
-        setCode("");
-        startResendTimer(60);
-        Toast.show({
-          type: "info",
-          text1: "Đã gửi lại mã",
-          text2: "Vui lòng kiểm tra SMS",
-        });
-      } else {
-        setError("Không thể gửi lại mã. Vui lòng thử lại.");
-        Toast.show({ type: "error", text1: "Gửi lại mã thất bại" });
-      }
-    } catch (e: any) {
-      setError(e.message || "Lỗi gửi lại mã");
+    if (countdown > 0) return;
+
+    const success = await resendCode();
+    if (success) {
+      Toast.show({
+        type: "info",
+        text1: "Đã gửi lại mã",
+        text2: "Vui lòng kiểm tra SMS",
+      });
+    } else {
       Toast.show({
         type: "error",
         text1: "Gửi lại mã thất bại",
-        text2: e.message,
+        text2: error,
       });
-    } finally {
-      setIsLoading(false);
     }
   };
 
   const goBackToPhoneStep = () => {
-    if (timerRef.current) clearInterval(timerRef.current);
-    setResendCountdown(0);
-    setCode("");
-    setStep("phone");
+    handleCodeChange("");
+    resetVerification();
   };
 
   return (
@@ -258,7 +185,7 @@ export default function PhoneVerificationForm() {
               <View className="w-10 h-0.5 bg-blue-300 mx-2" />
               <View
                 className={`w-6 h-6 rounded-full items-center justify-center ${
-                  step === "otp" ? "bg-blue-600" : "bg-blue-200"
+                  step === "code" ? "bg-blue-600" : "bg-blue-200"
                 }`}
               >
                 <Text className="text-white text-xs font-bold">2</Text>
@@ -308,7 +235,7 @@ export default function PhoneVerificationForm() {
                 </Text>
                 <TextInput
                   value={phoneNumber}
-                  onChangeText={handlePhoneChange}
+                  onChangeText={handlePhoneChangeLocal}
                   placeholder="Nhập số điện thoại (VD: 0967475325)"
                   keyboardType="phone-pad"
                   className="border border-gray-300 rounded-xl px-3 py-3 text-gray-900 bg-white text-sm shadow-sm"
@@ -341,7 +268,7 @@ export default function PhoneVerificationForm() {
 
               <TouchableOpacity
                 onPress={handleSendCode}
-                disabled={isLoading || !phoneNumber.trim()}
+                disabled={isLoading || !canSendCode() || isBlocked}
                 className={`rounded-xl py-3 px-4 shadow-sm`}
                 style={{
                   elevation: 2,
@@ -350,10 +277,14 @@ export default function PhoneVerificationForm() {
                   shadowOpacity: 0.1,
                   shadowRadius: 2,
                   backgroundColor:
-                    isLoading || !phoneNumber.trim() ? "#D1D5DB" : "#2563EB",
+                    isLoading || !canSendCode() || isBlocked
+                      ? "#D1D5DB"
+                      : "#2563EB",
                   borderWidth: 1,
                   borderColor:
-                    isLoading || !phoneNumber.trim() ? "#D1D5DB" : "#1D4ED8",
+                    isLoading || !canSendCode() || isBlocked
+                      ? "#D1D5DB"
+                      : "#1D4ED8",
                 }}
               >
                 {isLoading ? (
@@ -365,7 +296,13 @@ export default function PhoneVerificationForm() {
                   </View>
                 ) : (
                   <Text className="text-white font-semibold text-center text-sm">
-                    Gửi mã xác thực
+                    {countdown > 0
+                      ? `Đợi ${countdown}s`
+                      : isBlocked
+                      ? "Đã bị khóa"
+                      : otpSent
+                      ? "Đã gửi OTP"
+                      : "Gửi mã xác thực"}
                   </Text>
                 )}
               </TouchableOpacity>
@@ -380,7 +317,11 @@ export default function PhoneVerificationForm() {
                 <Text className="text-base font-bold text-gray-900 text-center mb-4">
                   {formatToE164VN(phoneNumber)}
                 </Text>
-                <InputOTP value={code} onChange={setCode} maxLength={6} />
+                <InputOTP
+                  value={code}
+                  onChange={handleCodeChange}
+                  maxLength={6}
+                />
               </View>
 
               {error && (
@@ -402,7 +343,7 @@ export default function PhoneVerificationForm() {
               <View className="space-y-2">
                 <TouchableOpacity
                   onPress={handleVerifyCode}
-                  disabled={isLoading || code.length !== 6}
+                  disabled={isLoading || !canVerifyCode()}
                   className={`rounded-xl py-3 px-4 shadow-sm`}
                   style={{
                     elevation: 2,
@@ -411,10 +352,10 @@ export default function PhoneVerificationForm() {
                     shadowOpacity: 0.1,
                     shadowRadius: 2,
                     backgroundColor:
-                      isLoading || code.length !== 6 ? "#D1D5DB" : "#059669",
+                      isLoading || !canVerifyCode() ? "#D1D5DB" : "#059669",
                     borderWidth: 1,
                     borderColor:
-                      isLoading || code.length !== 6 ? "#D1D5DB" : "#047857",
+                      isLoading || !canVerifyCode() ? "#D1D5DB" : "#047857",
                   }}
                 >
                   {isLoading ? (
@@ -426,7 +367,7 @@ export default function PhoneVerificationForm() {
                     </View>
                   ) : (
                     <Text className="text-white font-semibold text-center text-sm">
-                      Xác thực
+                      Xác thực OTP
                     </Text>
                   )}
                 </TouchableOpacity>
@@ -444,18 +385,20 @@ export default function PhoneVerificationForm() {
 
                 <TouchableOpacity
                   onPress={handleResendCode}
-                  disabled={isLoading || resendCountdown > 0}
+                  disabled={isLoading || countdown > 0 || isBlocked}
                   className="py-3 px-4"
                 >
                   <Text
                     className={`font-semibold text-center text-sm ${
-                      isLoading || resendCountdown > 0
+                      isLoading || countdown > 0 || isBlocked
                         ? "text-gray-400"
                         : "text-primary-600"
                     }`}
                   >
-                    {resendCountdown > 0
-                      ? `Gửi lại mã (${resendCountdown}s)`
+                    {countdown > 0
+                      ? `Gửi lại mã (${countdown}s)`
+                      : isBlocked
+                      ? "Đã bị khóa"
                       : "Gửi lại mã"}
                   </Text>
                 </TouchableOpacity>

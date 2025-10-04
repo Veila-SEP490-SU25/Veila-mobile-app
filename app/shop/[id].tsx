@@ -11,20 +11,19 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { CreateChatButton } from "../../components/CreateChatButton";
 import AccessoryGrid from "../../components/shopping/AccessoryGrid";
 import BlogList from "../../components/shopping/BlogList";
 import CategoryTabs, {
   CategoryType,
 } from "../../components/shopping/CategoryTabs";
 import DressGrid from "../../components/shopping/DressGrid";
-import { useAuth } from "../../providers/auth.provider";
 import { shopApi } from "../../services/apis/shop.api";
 import { Accessory, Dress, ShopDetail } from "../../services/types";
 import { showMessage } from "../../utils/message.util";
 
 export default function ShopDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { user } = useAuth();
   const [shop, setShop] = useState<ShopDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] =
@@ -88,13 +87,6 @@ export default function ShopDetailScreen() {
         shopApi.getShopBlogs(id, 0, 20),
       ]);
 
-      console.log("🔍 Loaded data:", {
-        dresses: dresses.items?.length || 0,
-        accessories: accessories.items?.length || 0,
-        blogs: blogs.items?.length || 0,
-        blogsData: blogs.items,
-      });
-
       setProducts({
         dresses: dresses.items || [],
         rentalDresses: dresses.items?.filter((d) => d.isRentable) || [],
@@ -132,37 +124,6 @@ export default function ShopDetailScreen() {
     }
   }, [shop]);
 
-  const handleChat = useCallback(async () => {
-    try {
-      if (!shop) return;
-
-      if (!user) {
-        showMessage("SSM001");
-        return;
-      }
-
-      const chatRoomData = {
-        customerId: user.id,
-        customerName:
-          `${user.firstName || ""} ${user.lastName || ""}`.trim() ||
-          "Khách hàng",
-        customerAvatar: user.avatarUrl,
-        shopId: shop.id,
-        shopName: shop.name,
-        shopAvatar: shop.images?.[0] || undefined,
-        unreadCount: 0,
-        isActive: true,
-      };
-
-      const { ChatService } = await import("../../services/chat.service");
-      const chatRoomId = await ChatService.createChatRoom(chatRoomData);
-
-      router.push(`/chat/${chatRoomId}`);
-    } catch {
-      showMessage("ERM006", "Không thể tạo phòng chat");
-    }
-  }, [shop, user]);
-
   const handleCustomRequest = useCallback(() => {
     // Navigate to checkout page for custom order
     router.push(`/checkout?dressId=custom&type=SELL&shopId=${id}` as any);
@@ -189,16 +150,12 @@ export default function ShopDetailScreen() {
 
   const renderActionButtons = () => (
     <View style={styles.actionButtonsContainer}>
-      <TouchableOpacity
-        style={[styles.actionButton, styles.chatButton]}
-        onPress={handleChat}
-        activeOpacity={0.8}
-      >
-        <View style={styles.actionButtonContent}>
-          <Ionicons name="chatbubble-ellipses" size={20} color="#FFFFFF" />
-          <Text style={styles.actionButtonText}>Nhắn tin</Text>
-        </View>
-      </TouchableOpacity>
+      <CreateChatButton
+        receiverId={shop?.id || ""}
+        variant="primary"
+        size="medium"
+        className="flex-1 mr-2"
+      />
 
       <TouchableOpacity
         style={[styles.actionButton, styles.customRequestButton]}

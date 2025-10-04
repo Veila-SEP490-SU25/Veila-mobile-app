@@ -141,6 +141,26 @@ export const authApi = createApi({
         body,
       }),
     }),
+
+    // Vonage SMS API endpoints
+    sendSms: builder.mutation<{ message: string }, { to: string }>({
+      query: (data: { to: string }) => ({
+        url: "/vonage/send-sms",
+        method: "POST",
+        body: data,
+      }),
+    }),
+
+    verifyPhoneOtp: builder.mutation<
+      { message: string },
+      { phone: string; otp: string }
+    >({
+      query: (data: { phone: string; otp: string }) => ({
+        url: "/users/identify",
+        method: "PUT",
+        body: data,
+      }),
+    }),
   }),
 });
 
@@ -159,4 +179,6 @@ export const {
   useRequestResetPasswordMutation,
   useResetPasswordMutation,
   useVerifyPhoneMutation,
+  useSendSmsMutation,
+  useVerifyPhoneOtpMutation,
 } = authApi;

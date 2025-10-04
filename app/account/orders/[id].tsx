@@ -15,8 +15,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import Toast from "react-native-toast-message";
 import Button from "../../../components/Button";
-import { useAuth } from "../../../providers/auth.provider";
-import { useChatContext } from "../../../providers/chat.provider";
+import { CreateChatButton } from "../../../components/CreateChatButton";
 import {
   ComplaintReason,
   CustomerOrderResponse,
@@ -36,7 +35,6 @@ export default function OrderDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [selectedTab, setSelectedTab] = useState<TabType>("info");
   const [cancelling, setCancelling] = useState(false);
-  const [creatingChat, setCreatingChat] = useState(false);
   const [dressDetails, setDressDetails] = useState<any>(null);
   const [loadingDress, setLoadingDress] = useState(false);
   const [accessoriesDetails, setAccessoriesDetails] = useState<any[]>([]);
@@ -56,9 +54,6 @@ export default function OrderDetailScreen() {
   const [checkoutPin, setCheckoutPin] = useState("");
   const [requestingOtp, setRequestingOtp] = useState(false);
   const [submittingCheckout, setSubmittingCheckout] = useState(false);
-
-  const { createChatRoom, chatRooms } = useChatContext();
-  const { user } = useAuth();
 
   const loadDressDetails = useCallback(async () => {
     if (!id) return;
@@ -228,49 +223,6 @@ export default function OrderDetailScreen() {
     ]);
   }, [order, loadOrderDetail]);
 
-  const handleChatWithShop = useCallback(async () => {
-    if (!order?.shop?.id || !user) return;
-
-    try {
-      setCreatingChat(true);
-
-      // Kiểm tra xem chat room đã tồn tại chưa
-      const existingChatRoom = chatRooms.find(
-        (room) => room.shopId === order.shop.id && room.customerId === user.id
-      );
-
-      if (existingChatRoom) {
-        // Nếu đã có chat room, chuyển đến đó
-        router.push(`/chat/${existingChatRoom.id}` as any);
-        return;
-      }
-
-      // Tạo chat room mới với shop
-      const chatRoomId = await createChatRoom({
-        customerId: user.id,
-        shopId: order.shop.id,
-        customerName: user.firstName + " " + user.lastName,
-        shopName: order.shop.name,
-        customerAvatar: user.avatarUrl,
-        shopAvatar: order.shop.logoUrl,
-        lastMessage: undefined,
-        unreadCount: 0,
-        isActive: true,
-      });
-
-      // Chuyển đến chat room
-      router.push(`/chat/${chatRoomId}` as any);
-    } catch (error) {
-      console.error("Error creating chat room:", error);
-      showMessage("ERM006", "Không thể tạo cuộc trò chuyện. Vui lòng thử lại.");
-
-      // Fallback: chuyển đến trang chat chính
-      router.push("/_tab/chat" as any);
-    } finally {
-      setCreatingChat(false);
-    }
-  }, [order?.shop, user, createChatRoom, chatRooms]);
-
   const getStatusColor = (status: string) => {
     switch (status) {
       case "PENDING":
@@ -397,7 +349,9 @@ export default function OrderDetailScreen() {
             </View>
           </View>
           <View
-            className={`px-4 py-2 rounded-full border ${getStatusColor(order?.status || "")}`}
+            className={`px-4 py-2 rounded-full border ${getStatusColor(
+              order?.status || ""
+            )}`}
           >
             <Text className="text-sm font-medium">
               {getStatusText(order?.status || "")}
@@ -503,14 +457,12 @@ export default function OrderDetailScreen() {
           </View>
 
           {/* Chat with Shop Button */}
-          <Button
-            title="Nhắn tin với shop"
-            onPress={handleChatWithShop}
+          <CreateChatButton
+            receiverId={order?.shop?.id || ""}
             variant="outline"
             size="small"
-            icon="chatbubble-outline"
-            loading={creatingChat}
             fullWidth
+            className="w-full"
           />
         </View>
       )}
@@ -1009,16 +961,16 @@ export default function OrderDetailScreen() {
                           orderServiceDetails.request.status === "ACCEPTED"
                             ? "bg-green-100 text-green-800"
                             : orderServiceDetails.request.status === "PENDING"
-                              ? "bg-yellow-100 text-yellow-800"
-                              : "bg-gray-100 text-gray-800"
+                            ? "bg-yellow-100 text-yellow-800"
+                            : "bg-gray-100 text-gray-800"
                         }`}
                       >
                         <Text className="text-xs font-medium">
                           {orderServiceDetails.request.status === "ACCEPTED"
                             ? "Đã chấp nhận"
                             : orderServiceDetails.request.status === "PENDING"
-                              ? "Chờ xử lý"
-                              : orderServiceDetails.request.status}
+                            ? "Chờ xử lý"
+                            : orderServiceDetails.request.status}
                         </Text>
                       </View>
                     </View>
@@ -1101,8 +1053,8 @@ export default function OrderDetailScreen() {
                         milestone.status === "COMPLETED"
                           ? "bg-green-500"
                           : milestone.status === "IN_PROCESS"
-                            ? "bg-blue-500"
-                            : "bg-gray-400"
+                          ? "bg-blue-500"
+                          : "bg-gray-400"
                       }`}
                     >
                       {milestone.status === "COMPLETED" ? (
@@ -1132,16 +1084,16 @@ export default function OrderDetailScreen() {
                         milestone.status === "COMPLETED"
                           ? "bg-green-100 text-green-800"
                           : milestone.status === "IN_PROCESS"
-                            ? "bg-blue-100 text-blue-800"
-                            : "bg-gray-100 text-gray-800"
+                          ? "bg-blue-100 text-blue-800"
+                          : "bg-gray-100 text-gray-800"
                       }`}
                     >
                       <Text className="text-xs font-medium">
                         {milestone.status === "COMPLETED"
                           ? "Hoàn thành"
                           : milestone.status === "IN_PROCESS"
-                            ? "Đang thực hiện"
-                            : "Chờ thực hiện"}
+                          ? "Đang thực hiện"
+                          : "Chờ thực hiện"}
                       </Text>
                     </View>
                   </View>
@@ -1161,8 +1113,8 @@ export default function OrderDetailScreen() {
                                 task.status === "COMPLETED"
                                   ? "bg-green-500"
                                   : task.status === "IN_PROCESS"
-                                    ? "bg-blue-500"
-                                    : "bg-gray-300"
+                                  ? "bg-blue-500"
+                                  : "bg-gray-300"
                               }`}
                             >
                               {task.status === "COMPLETED" ? (
@@ -1200,16 +1152,16 @@ export default function OrderDetailScreen() {
                                 task.status === "COMPLETED"
                                   ? "bg-green-50 text-green-700"
                                   : task.status === "IN_PROCESS"
-                                    ? "bg-blue-50 text-blue-700"
-                                    : "bg-gray-50 text-gray-600"
+                                  ? "bg-blue-50 text-blue-700"
+                                  : "bg-gray-50 text-gray-600"
                               }`}
                             >
                               <Text className="text-xs">
                                 {task.status === "COMPLETED"
                                   ? "✓"
                                   : task.status === "IN_PROCESS"
-                                    ? "⏳"
-                                    : "○"}
+                                  ? "⏳"
+                                  : "○"}
                               </Text>
                             </View>
                           </View>
@@ -1877,12 +1829,10 @@ export default function OrderDetailScreen() {
           {/* Chat with Shop Button */}
           {order?.shop && (
             <View className="flex-1">
-              <Button
-                title="Nhắn tin với shop"
-                onPress={handleChatWithShop}
+              <CreateChatButton
+                receiverId={order.shop.id}
                 variant="primary"
-                icon="chatbubble-outline"
-                loading={creatingChat}
+                size="medium"
                 fullWidth
               />
             </View>

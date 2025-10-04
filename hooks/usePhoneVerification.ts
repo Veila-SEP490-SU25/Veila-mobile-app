@@ -1,19 +1,27 @@
 import { useEffect, useState } from "react";
 import { Alert } from "react-native";
-import { useVerifyPhoneMutation } from "../services/apis";
-import { FirebasePhoneAuthService } from "../services/firebase-phone-auth";
+import {
+  useSendSmsMutation,
+  useVerifyPhoneOtpMutation,
+} from "../services/apis/auth.api";
 
 export const usePhoneVerification = () => {
   const [phone, setPhone] = useState("");
   const [isValidPhone, setIsValidPhone] = useState(false);
-  const [verificationId, setVerificationId] = useState<string | null>(null);
   const [code, setCode] = useState("");
   const [step, setStep] = useState<"phone" | "code">("phone");
   const [isVerified, setIsVerified] = useState(false);
   const [countdown, setCountdown] = useState(0);
   const [error, setError] = useState<string>("");
+  const [otpSent, setOtpSent] = useState(false);
+  const [lastRequestTime, setLastRequestTime] = useState<number>(0);
+  const [attemptCount, setAttemptCount] = useState<number>(0);
+  const [isBlocked, setIsBlocked] = useState<boolean>(false);
+  const [blockUntil, setBlockUntil] = useState<number>(0);
 
-  const [verifyPhone, { isLoading: isApiLoading }] = useVerifyPhoneMutation();
+  const [sendSms, { isLoading: isSendingSms }] = useSendSmsMutation();
+  const [verifyPhoneOtp, { isLoading: isVerifying }] =
+    useVerifyPhoneOtpMutation();
 
   useEffect(() => {
     if (countdown > 0) {
@@ -24,8 +32,24 @@ export const usePhoneVerification = () => {
     }
   }, [countdown]);
 
+  useEffect(() => {
+    if (isBlocked && blockUntil > 0) {
+      const now = Date.now();
+      if (now >= blockUntil) {
+        setIsBlocked(false);
+        setBlockUntil(0);
+        setAttemptCount(0);
+      } else {
+        const remaining = Math.ceil((blockUntil - now) / 1000);
+        setCountdown(remaining);
+      }
+    }
+  }, [isBlocked, blockUntil]);
+
   const validatePhone = (phoneNumber: string) => {
-    return FirebasePhoneAuthService.validateVietnamesePhone(phoneNumber);
+    // Vietnamese phone validation: starts with 0, followed by 3,5,7,8,9, then 8 digits
+    const phoneRegex = /^(0[3|5|7|8|9])\d{8}$/;
+    return phoneRegex.test(phoneNumber);
   };
 
   const handlePhoneChange = (text: string) => {
@@ -35,17 +59,52 @@ export const usePhoneVerification = () => {
   };
 
   const handleCodeChange = (text: string) => {
-
     const numericCode = text.replace(/[^0-9]/g, "");
     setCode(numericCode);
     setError("");
   };
 
-  const formatPhoneForFirebase = (phoneNumber: string): string => {
-    return FirebasePhoneAuthService.formatPhoneToInternational(phoneNumber);
-  };
-
   const sendVerificationCode = async (): Promise<boolean> => {
+    const currentTime = Date.now();
+
+    // Check if user is blocked
+    if (isBlocked && blockUntil > 0) {
+      const now = Date.now();
+      if (now < blockUntil) {
+        const remainingTime = Math.ceil((blockUntil - now) / 1000);
+        setCountdown(remainingTime);
+        setError(
+          `Vui lòng đợi ${remainingTime} giây trước khi gửi OTP tiếp theo.`
+        );
+        return false;
+      }
+    }
+
+    // Check rate limiting (30 seconds between requests)
+    if (currentTime - lastRequestTime < 30000) {
+      const remainingTime = Math.ceil(
+        (30000 - (currentTime - lastRequestTime)) / 1000
+      );
+      setCountdown(remainingTime);
+      setError(
+        `Vui lòng đợi ${remainingTime} giây trước khi gửi OTP tiếp theo.`
+      );
+      return false;
+    }
+
+    // Increment attempt count
+    const newAttemptCount = attemptCount + 1;
+    setAttemptCount(newAttemptCount);
+
+    // Block after 5 attempts for 1 hour
+    if (newAttemptCount >= 5) {
+      const blockTime = 60 * 60 * 1000; // 1 hour
+      setIsBlocked(true);
+      setBlockUntil(Date.now() + blockTime);
+      setError("Quá nhiều lần thử gửi OTP. Tài khoản bị khóa trong 1 giờ.");
+      return false;
+    }
+
     if (!phone.trim()) {
       setError("Vui lòng nhập số điện thoại");
       return false;
@@ -56,40 +115,39 @@ export const usePhoneVerification = () => {
       return false;
     }
 
-    const rateLimit = FirebasePhoneAuthService.checkRateLimit();
-    if (!rateLimit.canSend) {
-      setCountdown(rateLimit.remainingTime);
-      setError(
-        `Vui lòng đợi ${rateLimit.remainingTime} giây trước khi gửi OTP tiếp theo.`
-      );
-      return false;
-    }
+    setLastRequestTime(currentTime);
+    setError("");
 
     try {
-      const formattedPhone = formatPhoneForFirebase(phone.trim());
-      const verId =
-        await FirebasePhoneAuthService.sendVerificationCode(formattedPhone);
+      let phoneNumber = phone.trim();
 
-      setVerificationId(verId);
-      setStep("code");
-      setError("");
-
-      Alert.alert("Thành công", `Mã xác thực đã được gửi đến ${phone.trim()}`, [
-        { text: "OK" },
-      ]);
-      return true;
-    } catch (error: any) {
-      console.error("Error sending code:", error);
-
-      if (error.message.includes("đợi")) {
-
-        const match = error.message.match(/(\d+)/);
-        if (match) {
-          setCountdown(parseInt(match[1]));
-        }
+      // Đảm bảo số điện thoại có số 0 ở đầu
+      if (!phoneNumber.startsWith("0")) {
+        phoneNumber = `0${phoneNumber}`;
       }
 
-      setError(error.message || "Không thể gửi mã xác thực. Vui lòng thử lại.");
+      // Chuyển đổi sang format +84 để gửi SMS
+      const vonagePhone = phoneNumber.startsWith("0")
+        ? `+84${phoneNumber.substring(1)}`
+        : `+84${phoneNumber}`;
+
+      // Gửi SMS qua Vonage API
+      const result = await sendSms({ to: vonagePhone }).unwrap();
+
+      if (result) {
+        setOtpSent(true);
+        setStep("code");
+        setError("");
+        Alert.alert("Thành công", `Mã OTP đã được gửi đến ${phoneNumber}`, [
+          { text: "OK" },
+        ]);
+        return true;
+      }
+      return false;
+    } catch (error: any) {
+      setError(
+        error?.data?.message || "Không thể gửi mã xác thực. Vui lòng thử lại."
+      );
       return false;
     }
   };
@@ -100,46 +158,39 @@ export const usePhoneVerification = () => {
       return false;
     }
 
-    if (!verificationId) {
-      setError("Không có verification ID. Vui lòng gửi lại mã.");
+    if (!phone.trim()) {
+      setError("Không có số điện thoại để xác thực");
       return false;
     }
 
     try {
+      let phoneNumber = phone.trim();
 
-      const isVerified = await FirebasePhoneAuthService.verifyCode(
-        verificationId,
-        code
-      );
-
-      if (isVerified) {
-
-        const result = await verifyPhone({ phone: phone.trim() }).unwrap();
-
-        if (result.statusCode === 200) {
-          setIsVerified(true);
-          setError("");
-          Alert.alert(
-            "Thành công",
-            result.message || "Xác minh số điện thoại thành công",
-            [
-              {
-                text: "OK",
-                onPress: () => {
-                  onSuccess?.();
-                },
-              },
-            ]
-          );
-          return true;
-        } else {
-          setError(result.message || "Xác minh số điện thoại thất bại");
-          return false;
-        }
-      } else {
-        setError("Mã xác thực không đúng. Vui lòng kiểm tra lại.");
-        return false;
+      // Đảm bảo số điện thoại có số 0 ở đầu
+      if (!phoneNumber.startsWith("0")) {
+        phoneNumber = `0${phoneNumber}`;
       }
+
+      // Gọi API verify OTP qua vonage API
+      const result = await verifyPhoneOtp({
+        phone: phoneNumber, // Số điện thoại có số 0 ở đầu
+        otp: code,
+      }).unwrap();
+
+      if (result) {
+        setIsVerified(true);
+        setError("");
+        Alert.alert("Thành công", "Xác thực số điện thoại thành công", [
+          {
+            text: "OK",
+            onPress: () => {
+              onSuccess?.();
+            },
+          },
+        ]);
+        return true;
+      }
+      return false;
     } catch (error: any) {
       console.error("Phone verification error:", error);
       setError(
@@ -162,48 +213,34 @@ export const usePhoneVerification = () => {
   const resetVerification = () => {
     setPhone("");
     setIsValidPhone(false);
-    setVerificationId(null);
     setCode("");
     setStep("phone");
     setIsVerified(false);
     setCountdown(0);
     setError("");
-    if (
-      FirebasePhoneAuthService &&
-      typeof (FirebasePhoneAuthService as any).resetVerificationId ===
-        "function"
-    ) {
-      (FirebasePhoneAuthService as any).resetVerificationId();
-    }
-    if (
-      FirebasePhoneAuthService &&
-      typeof (FirebasePhoneAuthService as any).resetRateLimit === "function"
-    ) {
-      (FirebasePhoneAuthService as any).resetRateLimit();
-    }
-    setStep("phone");
-    setCode("");
-    setVerificationId(null);
-    setError("");
-
-    return isValidPhone && phone.trim() && countdown === 0;
+    setOtpSent(false);
+    setLastRequestTime(0);
+    setAttemptCount(0);
+    setIsBlocked(false);
+    setBlockUntil(0);
   };
 
   const canVerifyCode = () => {
-    return code.length === 6 && verificationId !== null;
+    return code.length === 6 && phone.trim() !== "";
   };
 
   return {
-
     phone,
     isValidPhone,
-    verificationId,
     code,
     step,
     isVerified,
     countdown,
     error,
-    isLoading: isApiLoading,
+    isLoading: isSendingSms || isVerifying,
+    otpSent,
+    isBlocked,
+    attemptCount,
 
     handlePhoneChange,
     handleCodeChange,
@@ -213,7 +250,7 @@ export const usePhoneVerification = () => {
     resetVerification,
 
     canSendCode: () => {
-      return isValidPhone && phone.trim() && countdown === 0;
+      return isValidPhone && phone.trim() && countdown === 0 && !isBlocked;
     },
     canVerifyCode: canVerifyCode,
   };

@@ -9,18 +9,12 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { CreateChatButton } from "../../components/CreateChatButton";
 import { useFavoriteSync } from "../../hooks/useFavoriteSync";
-import { useAuth } from "../../providers/auth.provider";
 import { dressApi } from "../../services/apis/dress.api";
-import { ChatService } from "../../services/chat.service";
 import { Dress } from "../../services/types/dress.type";
 import { formatVNDCustom } from "../../utils/currency.util";
-import {
-  showMessage,
-  showOrderSuccess,
-  showWalletError,
-} from "../../utils/message.util";
-import { getTokens } from "../../utils/token.util";
+import { showMessage } from "../../utils/message.util";
 
 interface DressDetail extends Dress {
   description?: string;
@@ -44,14 +38,12 @@ interface DressDetail extends Dress {
 
 export default function DressDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { user } = useAuth();
   const { isDressFavorite, syncFavoriteStatus } = useFavoriteSync();
   // State
   const [dress, setDress] = useState<DressDetail | null>(null);
   const [shop, setShop] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
   const [isFavorite, setIsFavorite] = useState(false);
-  const [chatLoading, setChatLoading] = useState(false);
 
   const loadDressDetail = useCallback(async () => {
     try {
@@ -99,68 +91,8 @@ export default function DressDetailScreen() {
         `/checkout?dressId=${id}&type=${type}&shopId=${shop?.id}` as any
       );
     },
-    [id, shop?.id, router]
+    [id, shop?.id]
   );
-
-  const handleCheckoutSuccess = useCallback((orderNumber: string) => {
-    if (orderNumber === "INSUFFICIENT_BALANCE") {
-      showWalletError();
-
-      setTimeout(() => {
-        router.push("/account/wallet" as any);
-      }, 1500);
-    } else if (orderNumber === "VIEW_WALLET") {
-      setTimeout(() => {
-        router.push("/account/wallet" as any);
-      }, 1500);
-    } else if (orderNumber === "UNKNOWN_STATUS") {
-      setTimeout(() => {
-        router.push("/account/orders" as any);
-      }, 1500);
-    } else {
-      showOrderSuccess();
-
-      setTimeout(() => {
-        router.push("/account/orders" as any);
-      }, 2000);
-    }
-  }, []);
-
-  const handleChatPress = useCallback(async () => {
-    try {
-      setChatLoading(true);
-
-      if (!shop?.id || !dress?.id) {
-        showMessage("ERM006");
-        return;
-      }
-
-      const { accessToken } = await getTokens();
-      if (!accessToken) {
-        showMessage("SSM001");
-        return;
-      }
-
-      const chatRoomId = await ChatService.createChatRoom({
-        shopId: shop.id,
-        shopName: shop.name,
-        customerId: user?.id || "current-user-id",
-        customerName: user?.firstName || "Khách hàng",
-        unreadCount: 0,
-        isActive: true,
-      });
-
-      if (chatRoomId) {
-        router.push(`/chat/${chatRoomId}` as any);
-      } else {
-        showMessage("ERM006");
-      }
-    } catch {
-      showMessage("ERM006");
-    } finally {
-      setChatLoading(false);
-    }
-  }, [shop, dress, user]);
 
   const handleFavoritePress = useCallback(async () => {
     try {
@@ -239,16 +171,18 @@ export default function DressDetailScreen() {
               color={isFavorite ? "#E05C78" : "#E05C78"}
             />
           </TouchableOpacity>
-          <TouchableOpacity
-            className="w-10 h-10 bg-primary-50 rounded-full items-center justify-center"
-            onPress={handleChatPress}
-          >
-            <Ionicons
-              name="chatbubble-ellipses-outline"
-              size={24}
-              color="#E05C78"
-            />
-          </TouchableOpacity>
+          <CreateChatButton
+            receiverId={shop?.id || ""}
+            trigger={
+              <View className="w-10 h-10 bg-primary-50 rounded-full items-center justify-center">
+                <Ionicons
+                  name="chatbubble-ellipses-outline"
+                  size={24}
+                  color="#E05C78"
+                />
+              </View>
+            }
+          />
         </View>
       </View>
 
@@ -450,30 +384,13 @@ export default function DressDetailScreen() {
               Tương tác với shop
             </Text>
             <View className="flex-row gap-x-3">
-              <TouchableOpacity
-                className="flex-1 bg-primary-500 rounded-2xl py-4 items-center shadow-lg"
-                onPress={handleChatPress}
-                activeOpacity={0.8}
-                disabled={chatLoading}
-              >
-                {chatLoading ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
-                ) : (
-                  <>
-                    <Ionicons
-                      name="chatbubble-ellipses-outline"
-                      size={20}
-                      color="#FFFFFF"
-                    />
-                    <Text className="text-white font-bold text-lg mt-2">
-                      Nhắn tin
-                    </Text>
-                    <Text className="text-primary-100 text-sm mt-1">
-                      Tư vấn trực tiếp
-                    </Text>
-                  </>
-                )}
-              </TouchableOpacity>
+              <CreateChatButton
+                receiverId={shop?.id || ""}
+                variant="primary"
+                size="large"
+                fullWidth
+                className="flex-1 bg-primary-500 rounded-2xl py-4 shadow-lg"
+              />
 
               <TouchableOpacity
                 className="flex-1 bg-orange-500 rounded-2xl py-4 items-center shadow-lg"
